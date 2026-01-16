@@ -1,0 +1,1 @@
+# fairu-player
