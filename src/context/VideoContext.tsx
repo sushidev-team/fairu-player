@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useMemo, useCallback } from 'react';
 import { useVideo } from '@/hooks/useVideo';
 import { usePlaylist } from '@/hooks/usePlaylist';
+import { LabelsProvider } from './LabelsContext';
 import type { VideoConfig, VideoContextValue, VideoTrack, WatchProgress } from '@/types/video';
 import type { Track } from '@/types/player';
 
@@ -155,9 +156,11 @@ export function VideoProvider({
   ]);
 
   return (
-    <VideoContext.Provider value={contextValue}>
-      {children}
-    </VideoContext.Provider>
+    <LabelsProvider labels={config.labels}>
+      <VideoContext.Provider value={contextValue}>
+        {children}
+      </VideoContext.Provider>
+    </LabelsProvider>
   );
 }
 

@@ -1,4 +1,6 @@
 import { cn } from '@/utils/cn';
+import { useLabels } from '@/context/LabelsContext';
+import type { PlayerLabels } from '@/types/labels';
 
 export interface VideoOverlayProps {
   isPlaying: boolean;
@@ -6,6 +8,7 @@ export interface VideoOverlayProps {
   onClick?: () => void;
   visible?: boolean;
   className?: string;
+  labels?: Pick<PlayerLabels, 'playVideo'>;
 }
 
 /**
@@ -17,7 +20,10 @@ export function VideoOverlay({
   onClick,
   visible = true,
   className,
+  labels: labelsProp,
 }: VideoOverlayProps) {
+  const contextLabels = useLabels();
+  const labels = labelsProp ?? contextLabels;
   if (!visible && !isLoading) return null;
 
   return (
@@ -57,7 +63,7 @@ export function VideoOverlay({
             e.stopPropagation();
             onClick?.();
           }}
-          aria-label="Play video"
+          aria-label={labels.playVideo}
         >
           <svg
             viewBox="0 0 24 24"

@@ -4,6 +4,14 @@ import { VideoPlayer } from './VideoPlayer';
 import { VideoProvider, useVideoPlayer } from '@/context/VideoContext';
 import { VideoAdProvider, useVideoAds } from '@/context/VideoAdContext';
 import type { VideoTrack, VideoAdBreak, WatchProgress, CustomAdComponentProps } from '@/types/video';
+import {
+  createVideoTrackFromFairu,
+  createVideoPlaylistFromFairu,
+  getFairuVideoUrl,
+  getFairuCoverUrl,
+  getFairuHlsUrl,
+  type FairuVideoTrack,
+} from '@/utils/fairu';
 
 const meta: Meta<typeof VideoPlayer> = {
   title: 'Components/VideoPlayer',
@@ -936,4 +944,581 @@ export const WithMixedAds: Story = {
       onAdComplete: (ad) => console.log('Ad completed:', ad.title),
     },
   },
+};
+
+// ============= Fairu.app Video Hosting Stories =============
+
+/**
+ * Fairu.app Video Hosting Demo
+ * Shows how to use fairu.app as video hosting with just a UUID
+ */
+function FairuVideoDemo() {
+  const exampleUuid = '550e8400-e29b-41d4-a716-446655440000';
+
+  // Show generated URLs
+  const videoUrl = getFairuVideoUrl(exampleUuid, { version: 'high' });
+  const posterUrl = getFairuCoverUrl(exampleUuid, { width: 1280, height: 720 });
+  const hlsUrl = getFairuHlsUrl(exampleUuid, 'my-tenant');
+
+  // For demo, use real video
+  const demoTrack: VideoTrack = {
+    id: exampleUuid,
+    src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    title: 'Big Buck Bunny (Demo)',
+    poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Info Panel */}
+      <div className="bg-gradient-to-r from-purple-900 to-indigo-900 rounded-lg p-4 text-white text-sm border border-purple-500">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="px-2 py-1 bg-purple-500 text-xs font-bold rounded">FAIRU.APP</span>
+          <h3 className="text-lg font-semibold">Video Hosting</h3>
+        </div>
+        <p className="text-purple-200 mb-4">
+          Video-Hosting mit fairu.app - nur UUID benötigt, unterstützt verschiedene Qualitätsstufen.
+        </p>
+        <div className="space-y-2 font-mono text-xs bg-black/30 rounded p-3">
+          <div>
+            <span className="text-purple-300">UUID: </span>
+            <span className="text-blue-400">{exampleUuid}</span>
+          </div>
+          <div>
+            <span className="text-purple-300">Video (high): </span>
+            <span className="text-green-400 break-all">{videoUrl}</span>
+          </div>
+          <div>
+            <span className="text-purple-300">Poster: </span>
+            <span className="text-green-400 break-all">{posterUrl}</span>
+          </div>
+          <div>
+            <span className="text-purple-300">HLS: </span>
+            <span className="text-green-400 break-all">{hlsUrl}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Working Player Demo */}
+      <VideoPlayer track={demoTrack} />
+
+      {/* Code Example */}
+      <div className="bg-gray-900 rounded-lg p-4 text-white text-sm">
+        <h4 className="text-sm font-semibold mb-2 text-gray-400">Code:</h4>
+        <pre className="text-xs overflow-x-auto text-green-300">
+{`import { VideoPlayer, createVideoTrackFromFairu } from '@fairu/player';
+
+const track = createVideoTrackFromFairu({
+  uuid: '${exampleUuid}',
+  title: 'Mein Video',
+  version: 'high', // 'low' | 'medium' | 'high'
+});
+
+<VideoPlayer track={track} />`}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+export const FairuVideoHosting: Story = {
+  render: () => <FairuVideoDemo />,
+};
+
+/**
+ * Fairu Video Playlist Demo
+ */
+function FairuVideoPlaylistDemo() {
+  const fairuTracks: FairuVideoTrack[] = [
+    { uuid: 'video-uuid-1', title: 'Kapitel 1: Einführung', version: 'high' },
+    { uuid: 'video-uuid-2', title: 'Kapitel 2: Grundlagen', version: 'high' },
+    { uuid: 'video-uuid-3', title: 'Kapitel 3: Fortgeschritten', version: 'high' },
+  ];
+
+  // Show generated playlist
+  const generatedPlaylist = createVideoPlaylistFromFairu(fairuTracks);
+
+  // Demo with real videos
+  const demoPlaylist: VideoTrack[] = [
+    {
+      id: 'video-uuid-1',
+      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+      title: 'Kapitel 1: Einführung',
+      poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
+    },
+    {
+      id: 'video-uuid-2',
+      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+      title: 'Kapitel 2: Grundlagen',
+      poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ElephantsDream.jpg',
+    },
+    {
+      id: 'video-uuid-3',
+      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+      title: 'Kapitel 3: Fortgeschritten',
+      poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/Sintel.jpg',
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Info Panel */}
+      <div className="bg-gradient-to-r from-purple-900 to-indigo-900 rounded-lg p-4 text-white text-sm border border-purple-500">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="px-2 py-1 bg-purple-500 text-xs font-bold rounded">FAIRU.APP</span>
+          <h3 className="text-lg font-semibold">Video Playlist</h3>
+        </div>
+        <pre className="text-xs overflow-x-auto bg-black/30 rounded p-3 text-green-300">
+{`import { createVideoPlaylistFromFairu } from '@fairu/player';
+
+const playlist = createVideoPlaylistFromFairu([
+  { uuid: 'video-1', title: 'Kapitel 1', version: 'high' },
+  { uuid: 'video-2', title: 'Kapitel 2', version: 'high' },
+  { uuid: 'video-3', title: 'Kapitel 3', version: 'high' },
+]);`}
+        </pre>
+      </div>
+
+      {/* Working Player Demo */}
+      <VideoPlayer playlist={demoPlaylist} />
+
+      {/* Generated Structure */}
+      <div className="bg-gray-900 rounded-lg p-4">
+        <h4 className="text-sm font-semibold mb-2 text-gray-400">Generierte Playlist-Struktur:</h4>
+        <pre className="text-xs text-gray-300 overflow-x-auto max-h-40">
+          {JSON.stringify(generatedPlaylist, null, 2)}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+export const FairuVideoPlaylist: Story = {
+  render: () => <FairuVideoPlaylistDemo />,
+};
+
+/**
+ * Fairu HLS Streaming Demo
+ */
+function FairuHlsDemo() {
+  const uuid = '550e8400-e29b-41d4-a716-446655440000';
+  const tenant = 'my-tenant';
+  const hlsUrl = getFairuHlsUrl(uuid, tenant);
+
+  return (
+    <div className="space-y-6">
+      {/* Info Panel */}
+      <div className="bg-gradient-to-r from-purple-900 to-indigo-900 rounded-lg p-4 text-white text-sm border border-purple-500">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="px-2 py-1 bg-purple-500 text-xs font-bold rounded">FAIRU.APP</span>
+          <span className="px-2 py-1 bg-green-500 text-xs font-bold rounded">HLS</span>
+          <h3 className="text-lg font-semibold">Adaptive Streaming</h3>
+        </div>
+        <p className="text-purple-200 mb-4">
+          HLS-Streaming mit automatischer Qualitätsanpassung basierend auf Bandbreite.
+        </p>
+        <div className="font-mono text-xs bg-black/30 rounded p-3">
+          <div className="mb-2">
+            <span className="text-purple-300">HLS URL: </span>
+            <span className="text-green-400 break-all">{hlsUrl}</span>
+          </div>
+          <div className="text-gray-400 text-xs">
+            Format: /hls/{'{tenant}'}/{'{uuid}'}/master.m3u8
+          </div>
+        </div>
+      </div>
+
+      {/* Demo with real HLS stream */}
+      <VideoPlayer
+        track={{
+          id: uuid,
+          src: hlsTestStreams.bipBop,
+          title: 'HLS Demo Stream',
+        }}
+        config={{
+          features: { qualitySelector: true },
+          hls: { enabled: true, autoQuality: true },
+        }}
+      />
+
+      {/* Code Example */}
+      <div className="bg-gray-900 rounded-lg p-4 text-white text-sm">
+        <h4 className="text-sm font-semibold mb-2 text-gray-400">Code:</h4>
+        <pre className="text-xs overflow-x-auto text-green-300">
+{`import { VideoPlayer, getFairuHlsUrl } from '@fairu/player';
+
+const hlsUrl = getFairuHlsUrl('${uuid}', '${tenant}');
+// → ${hlsUrl}
+
+<VideoPlayer
+  track={{ id: '${uuid}', src: hlsUrl, title: 'Mein Video' }}
+  config={{
+    features: { qualitySelector: true },
+    hls: { enabled: true, autoQuality: true },
+  }}
+/>`}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+export const FairuHlsStreaming: Story = {
+  render: () => <FairuHlsDemo />,
+};
+
+// ============= Logo Overlay Stories =============
+
+/**
+ * Video player with simple logo
+ * Shows a logo in the bottom-right corner (default position)
+ */
+export const WithLogo: Story = {
+  args: {
+    track: sampleVideo,
+    config: {
+      logo: {
+        src: 'https://fairu.app/images/logo.png',
+        alt: 'Sample Logo',
+        opacity: 0.8,
+      },
+    },
+  },
+};
+
+/**
+ * Video player with logo in different positions
+ */
+export const LogoPositions: Story = {
+  render: () => (
+    <div className="space-y-8">
+      <div>
+        <p className="text-white text-sm mb-2">Top-Left</p>
+        <VideoPlayer
+          track={sampleVideo}
+          config={{
+            logo: {
+              src: 'https://fairu.app/images/logo.png',
+              alt: 'Logo',
+              position: 'top-left',
+            },
+          }}
+        />
+      </div>
+      <div>
+        <p className="text-white text-sm mb-2">Top-Right</p>
+        <VideoPlayer
+          track={sampleVideo}
+          config={{
+            logo: {
+              src: 'https://fairu.app/images/logo.png',
+              alt: 'Logo',
+              position: 'top-right',
+            },
+          }}
+        />
+      </div>
+    </div>
+  ),
+};
+
+/**
+ * Video player with clickable logo
+ */
+export const LogoWithLink: Story = {
+  args: {
+    track: sampleVideo,
+    config: {
+      logo: {
+        src: 'https://fairu.app/images/logo.png',
+        alt: 'Click to visit website',
+        href: 'https://example.com',
+        target: '_blank',
+        position: 'top-right',
+      },
+    },
+  },
+};
+
+/**
+ * Video player with logo that hides with controls
+ */
+export const LogoHidesWithControls: Story = {
+  args: {
+    track: sampleVideo,
+    config: {
+      logo: {
+        src: 'https://fairu.app/images/logo.png',
+        alt: 'Watermark',
+        hideWithControls: true,
+        position: 'bottom-right',
+        animation: { type: 'fade', duration: 300 },
+      },
+    },
+  },
+};
+
+/**
+ * Video player with logo animations
+ */
+function LogoAnimationsDemo() {
+  const logoSrc = 'https://fairu.app/images/logo.png';
+
+  return (
+    <div className="space-y-8">
+      <div className="bg-blue-900/50 border border-blue-500 rounded-lg p-4 text-white text-sm">
+        <h3 className="font-semibold mb-2">Logo Animation Types</h3>
+        <p className="text-gray-300">
+          Starte das Video und warte bis die Controls verschwinden, um die verschiedenen Animationen zu sehen.
+          Das Logo wird mit den Controls ein-/ausgeblendet.
+        </p>
+      </div>
+
+      <div>
+        <p className="text-white text-sm mb-2 font-medium">Fade Animation (sanftes Ein-/Ausblenden)</p>
+        <VideoPlayer
+          track={sampleVideo}
+          config={{
+            logo: {
+              src: logoSrc,
+              alt: 'Logo',
+              hideWithControls: true,
+              position: 'bottom-right',
+              animation: { type: 'fade', duration: 400 },
+            },
+          }}
+        />
+      </div>
+
+      <div>
+        <p className="text-white text-sm mb-2 font-medium">Scale Animation (Zoom-Effekt)</p>
+        <VideoPlayer
+          track={sampleVideo}
+          config={{
+            logo: {
+              src: logoSrc,
+              alt: 'Logo',
+              hideWithControls: true,
+              position: 'top-right',
+              animation: { type: 'scale', duration: 400 },
+            },
+          }}
+        />
+      </div>
+
+      <div>
+        <p className="text-white text-sm mb-2 font-medium">Slide Animation (seitliches Hereinfahren)</p>
+        <VideoPlayer
+          track={sampleVideo}
+          config={{
+            logo: {
+              src: logoSrc,
+              alt: 'Logo',
+              hideWithControls: true,
+              position: 'top-left',
+              animation: { type: 'slide', duration: 400 },
+            },
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+export const LogoAnimations: Story = {
+  render: () => <LogoAnimationsDemo />,
+};
+
+/**
+ * Video player with custom React component as logo
+ */
+function AnimatedLogoComponent({ visible, isPlaying }: { visible: boolean; isPlaying: boolean; isFullscreen: boolean }) {
+  return (
+    <div
+      className={`flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg shadow-lg transition-all duration-300 ${
+        visible ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
+      <div className={`w-3 h-3 rounded-full ${isPlaying ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`} />
+      <span className="text-white text-sm font-bold">LIVE</span>
+    </div>
+  );
+}
+
+export const LogoWithComponent: Story = {
+  args: {
+    track: sampleVideo,
+    config: {
+      logo: {
+        component: AnimatedLogoComponent,
+        position: 'top-left',
+        hideWithControls: false,
+      },
+    },
+  },
+};
+
+/**
+ * Interactive logo demo showing all options
+ */
+function LogoInteractiveDemo() {
+  const [position, setPosition] = useState<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'>('bottom-right');
+  const [animationType, setAnimationType] = useState<'none' | 'fade' | 'slide' | 'scale'>('fade');
+  const [hideWithControls, setHideWithControls] = useState(true);
+  const [opacity, setOpacity] = useState(0.9);
+  const [margin, setMargin] = useState(16);
+  const [offsetX, setOffsetX] = useState(0);
+  const [offsetY, setOffsetY] = useState(0);
+
+  return (
+    <div className="space-y-6">
+      {/* Info Panel */}
+      <div className="bg-blue-900/50 border border-blue-500 rounded-lg p-4 text-white text-sm">
+        <p>
+          <strong>Tipp:</strong> Aktiviere &quot;Hide with controls&quot; und starte das Video, um die Animationen zu sehen.
+          Das Logo wird ein-/ausgeblendet wenn die Controls erscheinen/verschwinden.
+        </p>
+      </div>
+
+      {/* Controls Panel */}
+      <div className="bg-gray-800 rounded-lg p-4 text-white">
+        <h3 className="text-lg font-semibold mb-4">Logo Configuration</h3>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Position</label>
+            <select
+              value={position}
+              onChange={(e) => setPosition(e.target.value as typeof position)}
+              className="w-full bg-gray-700 rounded px-3 py-2 text-sm"
+            >
+              <option value="top-left">Top Left</option>
+              <option value="top-right">Top Right</option>
+              <option value="bottom-left">Bottom Left</option>
+              <option value="bottom-right">Bottom Right</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Animation</label>
+            <select
+              value={animationType}
+              onChange={(e) => setAnimationType(e.target.value as typeof animationType)}
+              className="w-full bg-gray-700 rounded px-3 py-2 text-sm"
+            >
+              <option value="none">None</option>
+              <option value="fade">Fade</option>
+              <option value="slide">Slide</option>
+              <option value="scale">Scale</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="hideWithControls"
+              checked={hideWithControls}
+              onChange={(e) => setHideWithControls(e.target.checked)}
+              className="rounded"
+            />
+            <label htmlFor="hideWithControls" className="text-sm text-gray-400">
+              Hide with controls
+            </label>
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Opacity: {opacity}</label>
+            <input
+              type="range"
+              min="0.1"
+              max="1"
+              step="0.1"
+              value={opacity}
+              onChange={(e) => setOpacity(parseFloat(e.target.value))}
+              className="w-full"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Margin: {margin}px</label>
+            <input
+              type="range"
+              min="0"
+              max="50"
+              step="4"
+              value={margin}
+              onChange={(e) => setMargin(parseInt(e.target.value))}
+              className="w-full"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Offset X: {offsetX}px</label>
+            <input
+              type="range"
+              min="-50"
+              max="50"
+              step="5"
+              value={offsetX}
+              onChange={(e) => setOffsetX(parseInt(e.target.value))}
+              className="w-full"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Offset Y: {offsetY}px</label>
+            <input
+              type="range"
+              min="-50"
+              max="50"
+              step="5"
+              value={offsetY}
+              onChange={(e) => setOffsetY(parseInt(e.target.value))}
+              className="w-full"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Player */}
+      <VideoPlayer
+        track={sampleVideo}
+        config={{
+          logo: {
+            src: 'https://fairu.app/images/logo.png',
+            alt: 'Demo Logo',
+            position,
+            opacity,
+            margin,
+            offsetX,
+            offsetY,
+            hideWithControls,
+            animation: { type: animationType, duration: 400 },
+          },
+        }}
+      />
+
+      {/* Code Preview */}
+      <div className="bg-gray-900 rounded-lg p-4 text-white text-sm">
+        <h4 className="text-sm font-semibold mb-2 text-gray-400">Configuration:</h4>
+        <pre className="text-xs overflow-x-auto text-green-300">
+{`logo: {
+  src: '/logo.png',
+  alt: 'Logo',
+  position: '${position}',
+  opacity: ${opacity},
+  margin: ${margin},
+  offsetX: ${offsetX},
+  offsetY: ${offsetY},
+  hideWithControls: ${hideWithControls},
+  animation: { type: '${animationType}', duration: 400 },
+}`}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+export const LogoInteractive: Story = {
+  render: () => <LogoInteractiveDemo />,
 };

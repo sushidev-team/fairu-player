@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
 import { cn } from '@/utils';
+import { useLabels } from '@/context/LabelsContext';
+import type { PlayerLabels } from '@/types/labels';
 
 export interface PlayButtonProps {
   isPlaying: boolean;
@@ -8,6 +10,7 @@ export interface PlayButtonProps {
   size?: 'sm' | 'md' | 'lg';
   onClick?: () => void;
   className?: string;
+  labels?: Pick<PlayerLabels, 'play' | 'pause'>;
 }
 
 const sizeClasses = {
@@ -33,7 +36,10 @@ export function PlayButton({
   size = 'md',
   onClick,
   className,
+  labels: labelsProp,
 }: PlayButtonProps) {
+  const contextLabels = useLabels();
+  const labels = labelsProp ?? contextLabels;
   const [isPressed, setIsPressed] = useState(false);
   const [showRing, setShowRing] = useState(false);
 
@@ -56,7 +62,7 @@ export function PlayButton({
       type="button"
       onClick={handleClick}
       disabled={disabled || isLoading}
-      aria-label={isPlaying ? 'Pause' : 'Play'}
+      aria-label={isPlaying ? labels.pause : labels.play}
       className={cn(
         'relative group',
         'flex items-center justify-center',

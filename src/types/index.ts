@@ -4,3 +4,7 @@ export * from './ads';
 export * from './chapters';
 export * from './media';
 export * from './video';
+export * from './labels';
+export * from './stats';
+export * from './logo';
+export * from './podcast';

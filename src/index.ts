@@ -6,9 +6,11 @@ export {
   VideoPlayer,
   VideoOverlay,
   VideoControls,
+  LogoOverlay,
   type VideoPlayerWithProviderProps,
   type VideoOverlayProps,
   type VideoControlsProps,
+  type LogoOverlayProps,
 } from './components/VideoPlayer';
 export {
   PlayButton,
@@ -20,6 +22,7 @@ export {
   SkipButtons,
   FullscreenButton,
   QualitySelector,
+  SubtitleSelector,
   type PlayButtonProps,
   type ProgressBarProps,
   type TimeDisplayProps,
@@ -29,6 +32,7 @@ export {
   type SkipButtonsProps,
   type FullscreenButtonProps,
   type QualitySelectorProps,
+  type SubtitleSelectorProps,
 } from './components/controls';
 export {
   ChapterMarker,
@@ -50,6 +54,32 @@ export {
   type AdOverlayProps,
   type AdSkipButtonProps,
 } from './components/ads';
+export {
+  Rating,
+  Stats,
+  StatIcons,
+  type RatingProps,
+  type StatsProps,
+} from './components/stats';
+export {
+  PodcastPage,
+  PodcastPageContent,
+  PodcastHeader,
+  EpisodeList,
+  EpisodeItem,
+  StickyPlayer,
+  formatEpisodeDate,
+  formatEpisodeNumber,
+  type Podcast,
+  type Episode,
+  type PodcastPageProps,
+  type PodcastHeaderProps,
+  type EpisodeListProps,
+  type EpisodeItemProps,
+  type StickyPlayerProps,
+  type PodcastRatingConfig,
+  type EpisodeSortOrder,
+} from './components/podcast';
 
 // Context providers
 export {
@@ -82,6 +112,12 @@ export {
   type VideoAdProviderProps,
   type VideoAdContextValue,
 } from './context/VideoAdContext';
+export {
+  LabelsContext,
+  LabelsProvider,
+  useLabels,
+  type LabelsProviderProps,
+} from './context/LabelsContext';
 
 // Hooks
 export {
@@ -142,7 +178,25 @@ export type {
   ChapterControls as ChapterControlsInterface,
   UseChaptersOptions,
   UseChaptersReturn,
+  // Labels types
+  PlayerLabels,
+  PartialLabels,
+  // Stats types
+  RatingValue,
+  RatingState,
+  RatingCallbacks,
+  RatingConfig,
+  StatItem,
+  StatsConfig,
+  RatingAndStatsProps,
+  initialRatingState,
+  createStatItem,
+  formatStatNumber,
+  formatStatDate,
 } from './types';
+
+// Labels utilities
+export { defaultLabels, interpolateLabel } from './types/labels';
 
 // Video types
 export type {
@@ -164,8 +218,42 @@ export type {
   CustomAdComponentProps,
 } from './types/video';
 
+// Logo types
+export type {
+  LogoPosition,
+  LogoAnimationType,
+  LogoAnimation,
+  LogoConfig,
+  LogoComponentProps,
+} from './types/logo';
+
 // Utilities
 export { formatTime, formatDuration, parseTime, calculatePercentage, cn } from './utils';
+
+// Fairu.app hosting utilities
+export {
+  // Constants
+  FAIRU_FILES_BASE_URL,
+  FAIRU_DEFAULT_COVER_WIDTH,
+  FAIRU_DEFAULT_COVER_HEIGHT,
+  // URL generators
+  getFairuAudioUrl,
+  getFairuVideoUrl,
+  getFairuHlsUrl,
+  getFairuCoverUrl,
+  getFairuThumbnailUrl,
+  // Track converters
+  createTrackFromFairu,
+  createVideoTrackFromFairu,
+  createPlaylistFromFairu,
+  createVideoPlaylistFromFairu,
+  // Types
+  type FairuUrlOptions,
+  type FairuCoverOptions,
+  type FairuVideoOptions,
+  type FairuTrack,
+  type FairuVideoTrack,
+} from './utils/fairu';
 
 // Embed (for advanced usage)
 export {

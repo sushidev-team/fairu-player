@@ -1,11 +1,13 @@
 import { cn } from '@/utils/cn';
+import { useLabels } from '@/context/LabelsContext';
 import { PlayButton } from '@/components/controls/PlayButton';
 import { ProgressBar } from '@/components/controls/ProgressBar';
 import { TimeDisplay } from '@/components/controls/TimeDisplay';
 import { VolumeControl } from '@/components/controls/VolumeControl';
 import { PlaybackSpeed } from '@/components/controls/PlaybackSpeed';
 import { SkipButton } from '@/components/controls/SkipButtons';
-import type { VideoState, VideoControls as VideoControlsType, VideoFeatures } from '@/types/video';
+import { SubtitleSelector } from '@/components/controls/SubtitleSelector';
+import type { VideoState, VideoControls as VideoControlsType, VideoFeatures, Subtitle } from '@/types/video';
 import type { PlaylistState, PlaylistControls } from '@/types/player';
 
 export interface VideoControlsProps {
@@ -19,6 +21,8 @@ export interface VideoControlsProps {
   playlistState?: PlaylistState;
   /** Playlist controls for next/previous */
   playlistControls?: PlaylistControls;
+  /** Available subtitles */
+  subtitles?: Subtitle[];
   onFullscreenClick?: () => void;
   onQualityChange?: (quality: string) => void;
 }
@@ -35,9 +39,11 @@ export function VideoControls({
   className,
   playlistState,
   playlistControls,
+  subtitles = [],
   onFullscreenClick,
   onQualityChange,
 }: VideoControlsProps) {
+  const labels = useLabels();
   const hasPlaylist = playlistState && playlistState.tracks.length > 1;
   const hasPrevious = playlistState && playlistState.currentIndex > 0;
   const hasNext = playlistState && playlistState.currentIndex < playlistState.tracks.length - 1;
@@ -79,7 +85,7 @@ export function VideoControls({
                 'transition-colors',
                 (disabled || !hasPrevious) && 'opacity-50 cursor-not-allowed'
               )}
-              aria-label="Previous track"
+              aria-label={labels.previousTrack}
             >
               <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
                 <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
@@ -106,7 +112,7 @@ export function VideoControls({
                 'transition-colors',
                 (disabled || !hasNext) && 'opacity-50 cursor-not-allowed'
               )}
-              aria-label="Next track"
+              aria-label={labels.nextTrack}
             >
               <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
                 <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
@@ -174,6 +180,15 @@ export function VideoControls({
             </button>
           )}
 
+          {features.subtitles !== false && subtitles.length > 0 && (
+            <SubtitleSelector
+              currentSubtitle={state.currentSubtitle}
+              subtitles={subtitles}
+              onSubtitleChange={controls.setSubtitle}
+              disabled={disabled}
+            />
+          )}
+
           {features.fullscreen !== false && (
             <button
               onClick={onFullscreenClick || controls.toggleFullscreen}
@@ -184,7 +199,7 @@ export function VideoControls({
                 'transition-colors',
                 disabled && 'opacity-50 cursor-not-allowed'
               )}
-              aria-label={state.isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+              aria-label={state.isFullscreen ? labels.exitFullscreen : labels.enterFullscreen}
             >
               {state.isFullscreen ? (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">

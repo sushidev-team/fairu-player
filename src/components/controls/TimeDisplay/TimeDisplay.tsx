@@ -1,10 +1,13 @@
 import { cn, formatTime } from '@/utils';
+import { useLabels } from '@/context/LabelsContext';
+import type { PlayerLabels } from '@/types/labels';
 
 export interface TimeDisplayProps {
   currentTime: number;
   duration: number;
   showRemaining?: boolean;
   className?: string;
+  labels?: Pick<PlayerLabels, 'timeSeparator'>;
 }
 
 export function TimeDisplay({
@@ -12,7 +15,10 @@ export function TimeDisplay({
   duration,
   showRemaining = false,
   className,
+  labels: labelsProp,
 }: TimeDisplayProps) {
+  const contextLabels = useLabels();
+  const labels = labelsProp ?? contextLabels;
   const remaining = duration - currentTime;
 
   return (
@@ -25,7 +31,7 @@ export function TimeDisplay({
       aria-label={`${formatTime(currentTime)} of ${formatTime(duration)}`}
     >
       <span>{formatTime(currentTime)}</span>
-      <span>/</span>
+      <span>{labels.timeSeparator}</span>
       <span>{showRemaining ? `-${formatTime(remaining)}` : formatTime(duration)}</span>
     </div>
   );

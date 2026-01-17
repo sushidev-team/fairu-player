@@ -200,10 +200,24 @@ export function useVideo(options: UseVideoOptions = {}): UseVideoReturn {
     updateVideoState({ currentQuality: quality });
   }, [qualities, availableQualities, isUsingHlsJs, setHlsLevel, updateVideoState, videoRef]);
 
-  // Set subtitle
+  // Set subtitle using TextTrack API
   const setSubtitle = useCallback((subtitleId: string | null) => {
+    const video = videoRef.current;
+    if (!video) {
+      updateVideoState({ currentSubtitle: subtitleId });
+      return;
+    }
+
+    const tracks = video.textTracks;
+    for (let i = 0; i < tracks.length; i++) {
+      const track = tracks[i];
+      if (track.kind === 'subtitles' || track.kind === 'captions') {
+        // Match by label (subtitle.id maps to track.label in our implementation)
+        track.mode = (subtitleId && track.label === subtitleId) ? 'showing' : 'hidden';
+      }
+    }
     updateVideoState({ currentSubtitle: subtitleId });
-  }, [updateVideoState]);
+  }, [updateVideoState, videoRef]);
 
   // Clear timeout on unmount
   useEffect(() => {

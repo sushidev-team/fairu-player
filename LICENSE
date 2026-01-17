@@ -1,0 +1,121 @@
+Fairu Source Available License, Version 1.0
+
+Licensor:             Fairu GmbH
+Licensed Work:        @fairu/player
+                      The Licensed Work is (c) 2024-2025 Fairu GmbH
+
+License Terms
+
+1. Grant of Rights
+
+   Subject to the terms and conditions of this License, Licensor hereby grants
+   you a non-exclusive, royalty-free, worldwide, non-sublicensable,
+   non-transferable license to:
+
+   a. Use, copy, modify, and create derivative works of the Licensed Work; and
+
+   b. Distribute or make available the Licensed Work or derivative works
+      thereof to third parties.
+
+2. Restrictions
+
+   a. COMPETING USE PROHIBITION: You may NOT use the Licensed Work for a
+      Competing Use. A "Competing Use" means making the Licensed Work available
+      to third parties as a hosted or managed media player service that competes
+      with Fairu's media hosting and player services (fairu.app).
+
+      For clarity, the following uses are NOT considered Competing Uses and
+      are explicitly permitted:
+
+      - Using the player to embed and play your own media content on your
+        websites or applications
+      - Using the player with self-hosted media files
+      - Using the player with third-party CDNs or hosting services for your
+        own content
+      - Customizing and modifying the player for your own use
+      - Using the player as part of a larger application that is not primarily
+        a media player service
+      - Internal use within organizations
+      - Educational and research purposes
+      - Open source projects that do not compete with fairu.app
+
+   b. You may NOT alter, remove, or obscure any licensing, copyright, or other
+      notices of the Licensor in the Licensed Work.
+
+   c. You may NOT use the Licensor's trademarks or trade names except as
+      required for reasonable and customary use in describing the origin of
+      the Licensed Work.
+
+3. Patents
+
+   If you bring a patent claim against the Licensor (including any claim,
+   cross-claim, or counterclaim in a lawsuit) alleging that the Licensed Work
+   infringes a patent, then any patent licenses granted to you under this
+   License for the Licensed Work shall terminate as of the date such patent
+   claim is filed.
+
+4. Contributions
+
+   Each contributor to the Licensed Work hereby grants to Licensor a perpetual,
+   worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright
+   license to reproduce, prepare derivative works of, publicly display,
+   publicly perform, sublicense, and distribute the contributor's contributions
+   to the Licensed Work and such derivative works.
+
+5. Disclaimer of Warranty
+
+   THE LICENSED WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE LICENSED WORK OR THE USE OR OTHER DEALINGS
+   IN THE LICENSED WORK.
+
+6. Limitation of Liability
+
+   IN NO EVENT SHALL LICENSOR BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL,
+   EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+   PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+   OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+   WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+   OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THE LICENSED WORK, EVEN IF
+   ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+7. Termination
+
+   This License and the rights granted hereunder will terminate automatically
+   if you fail to comply with the terms herein. Upon termination, you must
+   cease all use of the Licensed Work and destroy all copies in your possession.
+
+---
+
+For information about alternative licensing arrangements for the Software,
+please contact: license@fairu.app
+
+---
+
+FAQ
+
+Q: Can I use this player on my website to play videos?
+A: Yes! This is explicitly permitted.
+
+Q: Can I use this with my own video hosting or CDN?
+A: Yes! You can use any hosting service for your media files.
+
+Q: Can I modify the player and use the modified version?
+A: Yes! You can customize and modify the player for your own use.
+
+Q: Can I use this in a commercial product?
+A: Yes! As long as your product is not a competing media hosting/player service.
+
+Q: Can I create a SaaS video hosting platform using this player?
+A: No. Building a media hosting service that offers embeddable players as a
+   core feature would be a Competing Use and is prohibited.
+
+Q: What if I need to use this for a competing service?
+A: Contact license@fairu.app to discuss alternative licensing arrangements.
+
+Q: Can I contribute to this project?
+A: Yes! Contributions are welcome. By contributing, you agree to grant
+   Fairu GmbH the rights described in Section 4.

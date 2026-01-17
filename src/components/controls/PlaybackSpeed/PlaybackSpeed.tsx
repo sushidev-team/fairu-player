@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/utils';
+import { useLabels } from '@/context/LabelsContext';
+import type { PlayerLabels } from '@/types/labels';
 
 export interface PlaybackSpeedProps {
   speed: number;
@@ -7,6 +9,7 @@ export interface PlaybackSpeedProps {
   disabled?: boolean;
   onSpeedChange?: (speed: number) => void;
   className?: string;
+  labels?: Pick<PlayerLabels, 'playbackSpeed' | 'playbackSpeedOptions'>;
 }
 
 const DEFAULT_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -17,7 +20,10 @@ export function PlaybackSpeed({
   disabled = false,
   onSpeedChange,
   className,
+  labels: labelsProp,
 }: PlaybackSpeedProps) {
+  const contextLabels = useLabels();
+  const labels = labelsProp ?? contextLabels;
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -55,7 +61,7 @@ export function PlaybackSpeed({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
-        aria-label={`Playback speed: ${formatSpeed(speed)}`}
+        aria-label={`${labels.playbackSpeed}: ${formatSpeed(speed)}`}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         className={cn(
@@ -71,7 +77,7 @@ export function PlaybackSpeed({
         <div
           ref={menuRef}
           role="listbox"
-          aria-label="Playback speed options"
+          aria-label={labels.playbackSpeedOptions}
           className={cn(
             'absolute bottom-full left-1/2 -translate-x-1/2 mb-2',
             'rounded-lg bg-[var(--fp-color-surface)] py-1',

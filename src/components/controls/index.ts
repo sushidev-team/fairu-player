@@ -7,3 +7,4 @@ export { SkipButton, SkipButtons, type SkipButtonProps, type SkipButtonsProps } 
 export { NowPlayingIndicator, type NowPlayingIndicatorProps } from './NowPlayingIndicator';
 export { FullscreenButton, type FullscreenButtonProps } from './FullscreenButton';
 export { QualitySelector, type QualitySelectorProps } from './QualitySelector';
+export { SubtitleSelector, type SubtitleSelectorProps } from './SubtitleSelector';

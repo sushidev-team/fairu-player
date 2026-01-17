@@ -5,6 +5,8 @@
 import type { Track, RepeatMode, PlaylistState, PlaylistControls, PlayerFeatures } from './player';
 import type { MediaState, MediaControls } from './media';
 import type { AdConfig, AdState } from './ads';
+import type { PartialLabels } from './labels';
+import type { LogoConfig } from './logo';
 
 /**
  * Video quality option
@@ -49,6 +51,8 @@ export interface VideoFeatures extends PlayerFeatures {
   autoHideControls?: boolean;
   /** Disable seeking/scrubbing on the progress bar */
   seekingDisabled?: boolean;
+  /** Enable logo overlay (default: true when logo config is provided) */
+  logoOverlay?: boolean;
 }
 
 /**
@@ -143,6 +147,10 @@ export interface VideoConfig {
   controlsHideDelay?: number;
   /** HLS streaming configuration */
   hls?: HLSConfig;
+  /** Custom labels for text localization */
+  labels?: PartialLabels;
+  /** Logo/watermark configuration */
+  logo?: LogoConfig;
 }
 
 /**

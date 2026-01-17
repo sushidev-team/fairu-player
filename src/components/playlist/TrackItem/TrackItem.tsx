@@ -1,4 +1,5 @@
 import { cn, formatTime } from '@/utils';
+import { NowPlayingIndicator } from '@/components/controls/NowPlayingIndicator';
 import type { Track } from '@/types/player';
 
 export interface TrackItemProps {
@@ -34,7 +35,7 @@ export function TrackItem({
       {/* Track number or playing indicator */}
       <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
         {isActive && isPlaying ? (
-          <PlayingIndicator />
+          <NowPlayingIndicator isPlaying={isPlaying} size="sm" bars={3} />
         ) : (
           <span className="text-sm text-[var(--fp-color-text-muted)]">
             {index + 1}
@@ -77,15 +78,5 @@ export function TrackItem({
         </span>
       )}
     </button>
-  );
-}
-
-function PlayingIndicator() {
-  return (
-    <div className="flex items-end gap-0.5 h-4" aria-label="Now playing">
-      <span className="w-1 bg-[var(--fp-color-primary)] animate-pulse" style={{ height: '60%', animationDelay: '0ms' }} />
-      <span className="w-1 bg-[var(--fp-color-primary)] animate-pulse" style={{ height: '100%', animationDelay: '150ms' }} />
-      <span className="w-1 bg-[var(--fp-color-primary)] animate-pulse" style={{ height: '40%', animationDelay: '300ms' }} />
-    </div>
   );
 }

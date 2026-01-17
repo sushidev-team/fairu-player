@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { cn } from '@/utils';
+import { useLabels } from '@/context/LabelsContext';
+import type { PlayerLabels } from '@/types/labels';
 
 export interface VolumeControlProps {
   volume: number;
@@ -10,6 +12,7 @@ export interface VolumeControlProps {
   onVolumeChange?: (volume: number) => void;
   onMuteToggle?: () => void;
   className?: string;
+  labels?: Pick<PlayerLabels, 'mute' | 'unmute' | 'volume'>;
 }
 
 export function VolumeControl({
@@ -20,7 +23,10 @@ export function VolumeControl({
   onVolumeChange,
   onMuteToggle,
   className,
+  labels: labelsProp,
 }: VolumeControlProps) {
+  const contextLabels = useLabels();
+  const labels = labelsProp ?? contextLabels;
   const [showSlider, setShowSlider] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -127,7 +133,7 @@ export function VolumeControl({
           type="button"
           onClick={onMuteToggle}
           disabled={disabled}
-          aria-label={muted ? 'Unmute' : 'Mute'}
+          aria-label={muted ? labels.unmute : labels.mute}
           className={cn(
             'flex items-center justify-center',
             'w-8 h-8 rounded-full flex-shrink-0',
@@ -147,7 +153,7 @@ export function VolumeControl({
           ref={sliderRef}
           role="slider"
           tabIndex={disabled ? -1 : 0}
-          aria-label="Volume"
+          aria-label={labels.volume}
           aria-orientation="horizontal"
           aria-valuemin={0}
           aria-valuemax={100}
@@ -240,7 +246,7 @@ export function VolumeControl({
             ref={sliderRef}
             role="slider"
             tabIndex={disabled ? -1 : 0}
-            aria-label="Volume"
+            aria-label={labels.volume}
             aria-orientation="vertical"
             aria-valuemin={0}
             aria-valuemax={100}
@@ -305,7 +311,7 @@ export function VolumeControl({
         type="button"
         onClick={onMuteToggle}
         disabled={disabled}
-        aria-label={muted ? 'Unmute' : 'Mute'}
+        aria-label={muted ? labels.unmute : labels.mute}
         className={cn(
           'flex items-center justify-center',
           'w-8 h-8 rounded-full',

@@ -1,10 +1,13 @@
 import { cn } from '@/utils/cn';
+import { useLabels } from '@/context/LabelsContext';
+import type { PlayerLabels } from '@/types/labels';
 
 export interface FullscreenButtonProps {
   isFullscreen: boolean;
   onClick?: () => void;
   disabled?: boolean;
   className?: string;
+  labels?: Pick<PlayerLabels, 'enterFullscreen' | 'exitFullscreen'>;
 }
 
 /**
@@ -15,7 +18,10 @@ export function FullscreenButton({
   onClick,
   disabled = false,
   className,
+  labels: labelsProp,
 }: FullscreenButtonProps) {
+  const contextLabels = useLabels();
+  const labels = labelsProp ?? contextLabels;
   return (
     <button
       onClick={onClick}
@@ -30,8 +36,8 @@ export function FullscreenButton({
         disabled && 'opacity-50 cursor-not-allowed',
         className
       )}
-      aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-      title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+      aria-label={isFullscreen ? labels.exitFullscreen : labels.enterFullscreen}
+      title={isFullscreen ? labels.exitFullscreen : labels.enterFullscreen}
     >
       {isFullscreen ? (
         // Exit fullscreen icon

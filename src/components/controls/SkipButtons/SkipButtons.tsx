@@ -1,5 +1,8 @@
 import { useState, useCallback } from 'react';
 import { cn } from '@/utils';
+import { useLabels } from '@/context/LabelsContext';
+import { interpolateLabel } from '@/types/labels';
+import type { PlayerLabels } from '@/types/labels';
 
 export interface SkipButtonProps {
   direction: 'forward' | 'backward';
@@ -8,6 +11,7 @@ export interface SkipButtonProps {
   disabled?: boolean;
   onClick?: () => void;
   className?: string;
+  labels?: Pick<PlayerLabels, 'skipForward' | 'skipBackward'>;
 }
 
 const sizeConfig = {
@@ -30,10 +34,17 @@ export function SkipButton({
   disabled = false,
   onClick,
   className,
+  labels: labelsProp,
 }: SkipButtonProps) {
+  const contextLabels = useLabels();
+  const labels = labelsProp ?? contextLabels;
   const isForward = direction === 'forward';
   const [isAnimating, setIsAnimating] = useState(false);
   const config = sizeConfig[size];
+
+  const ariaLabel = isForward
+    ? interpolateLabel(labels.skipForward, { seconds })
+    : interpolateLabel(labels.skipBackward, { seconds });
 
   const handleClick = useCallback(() => {
     if (disabled) return;
@@ -49,7 +60,7 @@ export function SkipButton({
       type="button"
       onClick={handleClick}
       disabled={disabled}
-      aria-label={`Skip ${isForward ? 'forward' : 'backward'} ${seconds} seconds`}
+      aria-label={ariaLabel}
       className={cn(
         'group relative flex flex-col items-center justify-center gap-0.5',
         config.button,

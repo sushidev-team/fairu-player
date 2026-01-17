@@ -1,29 +1,29 @@
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/utils/cn';
 import { useLabels } from '@/context/LabelsContext';
-import type { VideoQuality } from '@/types/video';
+import type { Subtitle } from '@/types/video';
 import type { PlayerLabels } from '@/types/labels';
 
-export interface QualitySelectorProps {
-  currentQuality: string;
-  qualities: VideoQuality[];
-  onQualityChange?: (quality: string) => void;
+export interface SubtitleSelectorProps {
+  currentSubtitle: string | null;
+  subtitles: Subtitle[];
+  onSubtitleChange?: (subtitleId: string | null) => void;
   disabled?: boolean;
   className?: string;
-  labels?: Pick<PlayerLabels, 'selectQuality' | 'qualityOptions' | 'autoQuality'>;
+  labels?: Pick<PlayerLabels, 'subtitles' | 'subtitleOptions' | 'subtitlesOff'>;
 }
 
 /**
- * Video quality selector dropdown
+ * Subtitle/caption selector dropdown
  */
-export function QualitySelector({
-  currentQuality,
-  qualities,
-  onQualityChange,
+export function SubtitleSelector({
+  currentSubtitle,
+  subtitles,
+  onSubtitleChange,
   disabled = false,
   className,
   labels: labelsProp,
-}: QualitySelectorProps) {
+}: SubtitleSelectorProps) {
   const contextLabels = useLabels();
   const labels = labelsProp ?? contextLabels;
   const [isOpen, setIsOpen] = useState(false);
@@ -53,17 +53,22 @@ export function QualitySelector({
     return () => document.removeEventListener('keydown', handleEscape);
   }, []);
 
-  const handleSelect = (quality: string) => {
-    onQualityChange?.(quality);
+  const handleSelect = (subtitleId: string | null) => {
+    onSubtitleChange?.(subtitleId);
     setIsOpen(false);
   };
 
-  if (qualities.length <= 1) {
+  if (subtitles.length === 0) {
     return null;
   }
 
+  // Find current subtitle label for display
+  const currentSubtitleLabel = currentSubtitle
+    ? subtitles.find((s) => s.id === currentSubtitle)?.label
+    : labels.subtitlesOff;
+
   return (
-    <div ref={containerRef} className={cn('fp-quality-selector relative', className)}>
+    <div ref={containerRef} className={cn('fp-subtitle-selector relative', className)}>
       {/* Toggle button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
@@ -76,16 +81,18 @@ export function QualitySelector({
           'focus:outline-none focus:ring-2 focus:ring-[var(--fp-color-accent)]/50',
           disabled && 'opacity-50 cursor-not-allowed'
         )}
-        aria-label={labels.selectQuality}
+        aria-label={labels.subtitles}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
         <div className="flex items-center gap-1">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          {/* Closed Captions (CC) icon */}
+          <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+            <path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 7H9.5v-.5h-2v3h2V13H11v1c0 .55-.45 1-1 1H7c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1zm7 0h-1.5v-.5h-2v3h2V13H18v1c0 .55-.45 1-1 1h-3c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1z" />
           </svg>
-          <span>{currentQuality}</span>
+          {currentSubtitle && (
+            <span className="hidden sm:inline">{currentSubtitleLabel}</span>
+          )}
         </div>
       </button>
 
@@ -94,31 +101,55 @@ export function QualitySelector({
         <div
           className={cn(
             'absolute bottom-full right-0 mb-2',
-            'min-w-[120px] py-1',
+            'min-w-[140px] py-1',
             'bg-[var(--fp-color-surface)] rounded-lg shadow-lg',
             'border border-[var(--fp-glass-border)]',
             'z-50'
           )}
           role="listbox"
-          aria-label={labels.qualityOptions}
+          aria-label={labels.subtitleOptions}
         >
-          {qualities.map((quality) => (
+          {/* Off option */}
+          <button
+            onClick={() => handleSelect(null)}
+            className={cn(
+              'w-full px-3 py-2 text-left text-sm',
+              'transition-colors duration-[var(--fp-transition-fast)]',
+              currentSubtitle === null
+                ? 'bg-[var(--fp-color-accent)] text-white'
+                : 'text-[var(--fp-color-text-secondary)] hover:bg-[var(--fp-color-surface-hover)] hover:text-[var(--fp-color-text-primary)]'
+            )}
+            role="option"
+            aria-selected={currentSubtitle === null}
+          >
+            <div className="flex items-center justify-between">
+              <span>{labels.subtitlesOff}</span>
+              {currentSubtitle === null && (
+                <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                </svg>
+              )}
+            </div>
+          </button>
+
+          {/* Subtitle options */}
+          {subtitles.map((subtitle) => (
             <button
-              key={quality.label}
-              onClick={() => handleSelect(quality.label)}
+              key={subtitle.id}
+              onClick={() => handleSelect(subtitle.id)}
               className={cn(
                 'w-full px-3 py-2 text-left text-sm',
                 'transition-colors duration-[var(--fp-transition-fast)]',
-                quality.label === currentQuality
+                subtitle.id === currentSubtitle
                   ? 'bg-[var(--fp-color-accent)] text-white'
                   : 'text-[var(--fp-color-text-secondary)] hover:bg-[var(--fp-color-surface-hover)] hover:text-[var(--fp-color-text-primary)]'
               )}
               role="option"
-              aria-selected={quality.label === currentQuality}
+              aria-selected={subtitle.id === currentSubtitle}
             >
               <div className="flex items-center justify-between">
-                <span>{quality.label}</span>
-                {quality.label === currentQuality && (
+                <span>{subtitle.label}</span>
+                {subtitle.id === currentSubtitle && (
                   <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
                     <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
                   </svg>
@@ -132,4 +163,4 @@ export function QualitySelector({
   );
 }
 
-export default QualitySelector;
+export default SubtitleSelector;

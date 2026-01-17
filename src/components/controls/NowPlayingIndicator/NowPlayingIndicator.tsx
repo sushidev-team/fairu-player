@@ -1,10 +1,13 @@
 import { cn } from '@/utils';
+import { useLabels } from '@/context/LabelsContext';
+import type { PlayerLabels } from '@/types/labels';
 
 export interface NowPlayingIndicatorProps {
   isPlaying: boolean;
   bars?: number;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  labels?: Pick<PlayerLabels, 'nowPlaying' | 'paused'>;
 }
 
 const sizeClasses = {
@@ -24,7 +27,10 @@ export function NowPlayingIndicator({
   bars = 4,
   size = 'md',
   className,
+  labels: labelsProp,
 }: NowPlayingIndicatorProps) {
+  const contextLabels = useLabels();
+  const labels = labelsProp ?? contextLabels;
   return (
     <div
       className={cn(
@@ -32,7 +38,7 @@ export function NowPlayingIndicator({
         sizeClasses[size],
         className
       )}
-      aria-label={isPlaying ? 'Now playing' : 'Paused'}
+      aria-label={isPlaying ? labels.nowPlaying : labels.paused}
       role="img"
     >
       {Array.from({ length: bars }).map((_, index) => (

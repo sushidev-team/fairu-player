@@ -1,6 +1,7 @@
 import React, { createContext, useRef, useMemo, useCallback } from 'react';
 import { useAudio } from '@/hooks/useAudio';
 import { usePlaylist } from '@/hooks/usePlaylist';
+import { LabelsProvider } from './LabelsContext';
 import type {
   PlayerConfig,
   PlayerContextValue,
@@ -129,10 +130,12 @@ export function PlayerProvider({
   }), [audioReturn.state, audioReturn.controls, audioReturn.audioRef, playlistReturn.state, playlistReturn.controls, config]);
 
   return (
-    <PlayerContext.Provider value={contextValue}>
-      <audio ref={audioReturn.audioRef as React.RefObject<HTMLAudioElement>} preload="metadata" />
-      {children}
-    </PlayerContext.Provider>
+    <LabelsProvider labels={config.labels}>
+      <PlayerContext.Provider value={contextValue}>
+        <audio ref={audioReturn.audioRef as React.RefObject<HTMLAudioElement>} preload="metadata" />
+        {children}
+      </PlayerContext.Provider>
+    </LabelsProvider>
   );
 }
 

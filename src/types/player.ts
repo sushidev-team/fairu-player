@@ -42,6 +42,8 @@ export interface PlayerConfig {
   volume?: number;
   muted?: boolean;
   autoPlay?: boolean;
+  /** Custom labels for text localization */
+  labels?: import('./labels').PartialLabels;
 }
 
 export interface PlayerState {

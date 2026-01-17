@@ -7,6 +7,7 @@ A lightweight, modular React media player with TypeScript support. Supports audi
 - **React 18+ with TypeScript** - Full type safety and modern React features
 - **Audio & Video Player** - Unified API for audio podcasts and video content
 - **HLS Streaming** - Adaptive bitrate streaming with quality selection
+- **Live Streaming** - HLS live streams with low latency mode
 - **Tailwind CSS + CSS Variables** - Easy theming with CSS custom properties
 - **Playlist Support** - Queue management, shuffle, repeat modes
 - **Chapters** - Display and navigate podcast chapters
@@ -109,6 +110,53 @@ function App() {
   );
 }
 ```
+
+### Live Streaming
+
+The player supports live streaming via HLS. For optimal live stream playback, enable `lowLatencyMode`:
+
+```tsx
+import { VideoProvider, VideoPlayer } from '@fairu/player';
+
+function LiveStream() {
+  return (
+    <VideoProvider
+      config={{
+        track: {
+          id: 'live-1',
+          src: 'https://stream.example.com/live.m3u8',
+          title: 'Live Broadcast',
+        },
+        hls: {
+          enabled: true,
+          lowLatencyMode: true, // Reduces latency for live streams
+          maxBufferLength: 10,  // Smaller buffer for live
+        },
+      }}
+    >
+      <VideoPlayer />
+    </VideoProvider>
+  );
+}
+```
+
+**Supported Live Stream Formats:**
+
+| Format | Support | Notes |
+|--------|---------|-------|
+| HLS Live (.m3u8) | Yes | Full support with hls.js |
+| Audio Streams (Icecast/Shoutcast) | Yes | Via native HTML5 audio |
+| DASH Live | No | Not currently supported |
+| WebRTC | No | Not currently supported |
+
+**Current Limitations:**
+
+- No built-in "LIVE" badge indicator
+- Progress bar shows buffered position (not live edge indicator)
+- No "Go to Live" button for DVR streams
+- Duration displays as stream length, not "LIVE"
+
+For full live streaming UI features (LIVE badge, DVR controls, live edge indicator), a future update is planned. The current implementation focuses on reliable playback of HLS live streams with low latency support.
 
 ### Playlist
 
@@ -832,6 +880,45 @@ import { PlayerProvider, TrackingProvider, Player } from '@fairu/player';
 | `F` | Toggle fullscreen (video) |
 | `C` | Toggle subtitles (video) |
 
+## Storybook
+
+The project includes a comprehensive Storybook setup for interactive component development and documentation.
+
+### Running Storybook
+
+```bash
+npm run storybook
+```
+
+This starts Storybook at [http://localhost:6006](http://localhost:6006).
+
+### Available Stories
+
+| Category | Components |
+|----------|------------|
+| **Player** | `Player`, `NowPlayingView`, `CoverArtView` |
+| **VideoPlayer** | `VideoPlayer`, `VideoOverlay`, `VideoControls` |
+| **Controls** | `PlayButton`, `ProgressBar`, `VolumeControl`, `TimeDisplay`, `PlaybackSpeed`, `SkipButtons`, `FullscreenButton`, `QualitySelector` |
+| **Playlist** | `PlaylistView`, `TrackItem`, `PlaylistControls` |
+| **Chapters** | `ChapterList`, `ChapterMarker` |
+| **Ads** | `AdOverlay`, `AdSkipButton` |
+
+### Story Features
+
+Each component includes multiple story variants:
+- **Default** - Basic usage with minimal props
+- **With Controls** - Interactive Storybook controls for all props
+- **Edge Cases** - Long text, missing data, loading states
+- **Theming** - Light/dark mode variants
+
+### Building Static Storybook
+
+```bash
+npm run build-storybook
+```
+
+This generates a static build in the `storybook-static` directory, ready for deployment.
+
 ## Development
 
 ```bash
@@ -854,6 +941,165 @@ npm run build:lib
 npm run typecheck
 ```
 
+## Fairu.app Hosting
+
+The player includes built-in support for [fairu.app](https://fairu.app) as a media hosting solution. When using fairu.app, you only need to provide the file UUID - the player automatically constructs the correct URLs for media files and cover images.
+
+### Quick Start with Fairu Hosting
+
+```tsx
+import { PlayerProvider, Player, createTrackFromFairu } from '@fairu/player';
+import '@fairu/player/styles.css';
+
+function App() {
+  // Just provide the UUID from fairu.app
+  const track = createTrackFromFairu({
+    uuid: '123e4567-e89b-12d3-a456-426614174000',
+    title: 'My Podcast Episode',
+    artist: 'Podcast Host',
+  });
+
+  return (
+    <PlayerProvider config={{ track }}>
+      <Player />
+    </PlayerProvider>
+  );
+}
+```
+
+### Video with Fairu Hosting
+
+```tsx
+import { VideoProvider, VideoPlayer, createVideoTrackFromFairu } from '@fairu/player';
+
+function App() {
+  const track = createVideoTrackFromFairu({
+    uuid: '123e4567-e89b-12d3-a456-426614174000',
+    title: 'My Video',
+    version: 'high', // Optional: 'low', 'medium', or 'high'
+  });
+
+  return (
+    <VideoProvider config={{ track }}>
+      <VideoPlayer />
+    </VideoProvider>
+  );
+}
+```
+
+### Playlist with Fairu Hosting
+
+```tsx
+import { createPlaylistFromFairu, createVideoPlaylistFromFairu } from '@fairu/player';
+
+// Audio playlist
+const audioPlaylist = createPlaylistFromFairu([
+  { uuid: 'uuid-1', title: 'Episode 1' },
+  { uuid: 'uuid-2', title: 'Episode 2' },
+  { uuid: 'uuid-3', title: 'Episode 3' },
+]);
+
+// Video playlist
+const videoPlaylist = createVideoPlaylistFromFairu([
+  { uuid: 'uuid-1', title: 'Video 1', version: 'high' },
+  { uuid: 'uuid-2', title: 'Video 2', version: 'high' },
+]);
+```
+
+### Fairu URL Utilities
+
+The package exports utility functions for generating fairu.app URLs:
+
+```tsx
+import {
+  getFairuAudioUrl,
+  getFairuVideoUrl,
+  getFairuHlsUrl,
+  getFairuCoverUrl,
+  getFairuThumbnailUrl,
+} from '@fairu/player';
+
+// Audio URL
+const audioUrl = getFairuAudioUrl('uuid');
+// → https://files.fairu.app/uuid/audio.mp3
+
+// Video URL with quality
+const videoUrl = getFairuVideoUrl('uuid', { version: 'high' });
+// → https://files.fairu.app/uuid/video.mp4?version=high
+
+// HLS streaming URL
+const hlsUrl = getFairuHlsUrl('uuid', 'tenant-id');
+// → https://files.fairu.app/hls/tenant-id/uuid/master.m3u8
+
+// Cover image with dimensions
+const coverUrl = getFairuCoverUrl('uuid', { width: 800, height: 450 });
+// → https://files.fairu.app/uuid/cover.jpg?width=800&height=450
+
+// Video thumbnail at specific timestamp
+const thumbUrl = getFairuThumbnailUrl('uuid', '00:01:30.000', { width: 320 });
+// → https://files.fairu.app/uuid/thumbnail.jpg?timestamp=00:01:30.000&width=320
+```
+
+### Fairu Track Types
+
+```typescript
+import type { FairuTrack, FairuVideoTrack } from '@fairu/player';
+
+// Audio track
+const audioTrack: FairuTrack = {
+  uuid: '123e4567-e89b-12d3-a456-426614174000',
+  title: 'My Podcast',
+  artist: 'Host Name',
+  album: 'Podcast Series',
+  duration: 3600,
+  coverOptions: {
+    width: 400,
+    height: 400,
+    format: 'webp',
+  },
+};
+
+// Video track
+const videoTrack: FairuVideoTrack = {
+  uuid: '123e4567-e89b-12d3-a456-426614174000',
+  title: 'My Video',
+  version: 'high',
+  posterOptions: {
+    width: 1280,
+    height: 720,
+  },
+};
+```
+
+### Cover Image Options
+
+When generating cover images, you can customize the output:
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `width` | `number` | `400` | Width in pixels (1-6000) |
+| `height` | `number` | `400` | Height in pixels (1-6000) |
+| `format` | `'jpg' \| 'png' \| 'webp'` | - | Output format |
+| `quality` | `number` | `95` | Quality for JPEG/WebP (1-100) |
+| `fit` | `'cover' \| 'contain'` | `'cover'` | Resize mode |
+| `focal` | `string` | - | Focal point for smart crop (`"x-y-zoom"`) |
+
 ## License
 
-MIT
+Fairu Source Available License
+
+This software is source available under a custom license. You can use, modify, and distribute this player freely, except for uses that compete with [fairu.app](https://fairu.app)'s media hosting services.
+
+**What you CAN do:**
+- Use the player to embed and play your own media content
+- Use it with any hosting service (self-hosted, CDN, etc.)
+- Modify and customize the player
+- Use it in commercial projects
+- Use it in open source projects
+
+**What you CANNOT do:**
+- Build a competing media hosting/player service using this code
+
+For alternative licensing arrangements, contact support@sushi.dev.
+
+See [LICENSE](./LICENSE) for the full license text.

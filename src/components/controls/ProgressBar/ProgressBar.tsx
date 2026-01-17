@@ -1,6 +1,8 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { cn, formatTime } from '@/utils';
+import { useLabels } from '@/context/LabelsContext';
 import type { Chapter } from '@/types/player';
+import type { PlayerLabels } from '@/types/labels';
 
 export interface ProgressBarProps {
   currentTime: number;
@@ -13,6 +15,7 @@ export interface ProgressBarProps {
   onSeekStart?: () => void;
   onSeekEnd?: () => void;
   className?: string;
+  labels?: Pick<PlayerLabels, 'seekSlider'>;
 }
 
 export function ProgressBar({
@@ -26,7 +29,10 @@ export function ProgressBar({
   onSeekStart,
   onSeekEnd,
   className,
+  labels: labelsProp,
 }: ProgressBarProps) {
+  const contextLabels = useLabels();
+  const labels = labelsProp ?? contextLabels;
   const progressRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -170,7 +176,7 @@ export function ProgressBar({
       ref={progressRef}
       role="slider"
       tabIndex={disabled ? -1 : 0}
-      aria-label="Seek slider"
+      aria-label={labels.seekSlider}
       aria-valuemin={0}
       aria-valuemax={duration}
       aria-valuenow={currentTime}

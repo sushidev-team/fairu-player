@@ -2,8 +2,11 @@ import { useCallback, useEffect, useRef } from 'react';
 import { cn } from '@/utils/cn';
 import { VideoProvider, useVideoPlayer } from '@/context/VideoContext';
 import { VideoAdProvider, useVideoAds } from '@/context/VideoAdContext';
+import { useLabels } from '@/context/LabelsContext';
+import { interpolateLabel } from '@/types/labels';
 import { VideoOverlay } from './VideoOverlay';
 import { VideoControls } from './VideoControls';
+import { LogoOverlay } from './LogoOverlay';
 import { useKeyboardControls } from '@/hooks/useKeyboardControls';
 import type { VideoConfig, VideoPlayerProps, VideoAdConfig, WatchProgress, VideoAdBreak, CustomAdComponentProps, VideoAd } from '@/types/video';
 
@@ -20,6 +23,7 @@ interface VideoPlayerInnerProps {
  */
 function VideoPlayerInner({ className, adState, adControls, adVideoRef, componentAdProps }: VideoPlayerInnerProps) {
   const { state, controls, config, videoRef, containerRef, currentTrack, playlistState, playlistControls } = useVideoPlayer();
+  const labels = useLabels();
 
   // Determine if controls should be disabled
   const isAdPlaying = adState?.isPlayingAd ?? false;
@@ -71,7 +75,19 @@ function VideoPlayerInner({ className, adState, adControls, adVideoRef, componen
         preload="metadata"
         playsInline
         poster={currentTrack?.poster || config.poster}
-      />
+      >
+        {/* Subtitle/caption tracks */}
+        {currentTrack?.subtitles?.map((subtitle) => (
+          <track
+            key={subtitle.id}
+            kind="subtitles"
+            label={subtitle.id}
+            srcLang={subtitle.language}
+            src={subtitle.src}
+            default={subtitle.default}
+          />
+        ))}
+      </video>
 
       {/* Ad Video Element */}
       {adVideoRef && (
@@ -114,7 +130,7 @@ function VideoPlayerInner({ className, adState, adControls, adVideoRef, componen
                   {/* Ad badge */}
                   <div className="flex items-center gap-3">
                     <span className="px-2 py-1 bg-yellow-500 text-black text-xs font-bold rounded">
-                      AD
+                      {labels.ad}
                     </span>
                     {adState.currentAd?.title && (
                       <span className="text-white text-sm">{adState.currentAd.title}</span>
@@ -132,11 +148,11 @@ function VideoPlayerInner({ className, adState, adControls, adVideoRef, componen
                       onClick={adControls.skipAd}
                       className="px-4 py-2 bg-white text-black text-sm font-medium rounded hover:bg-white/90 transition-colors"
                     >
-                      Skip Ad
+                      {labels.skipAd}
                     </button>
                   ) : adState.skipCountdown > 0 ? (
                     <span className="px-4 py-2 bg-white/20 text-white text-sm rounded">
-                      Skip in {adState.skipCountdown}s
+                      {interpolateLabel(labels.skipIn, { seconds: adState.skipCountdown })}
                     </span>
                   ) : null}
                 </div>
@@ -156,12 +172,22 @@ function VideoPlayerInner({ className, adState, adControls, adVideoRef, componen
                   onClick={adControls.clickThrough}
                   className="absolute inset-0 z-30 cursor-pointer"
                   style={{ bottom: '80px' }}
-                  aria-label="Learn more about this ad"
+                  aria-label={labels.learnMore}
                 />
               )}
             </>
           )}
         </div>
+      )}
+
+      {/* Logo Overlay */}
+      {!isAdPlaying && config.logo && config.features?.logoOverlay !== false && (
+        <LogoOverlay
+          config={config.logo}
+          visible={state.controlsVisible || !state.isPlaying}
+          isPlaying={state.isPlaying}
+          isFullscreen={state.isFullscreen}
+        />
       )}
 
       {/* Video Controls */}
@@ -174,6 +200,7 @@ function VideoPlayerInner({ className, adState, adControls, adVideoRef, componen
           disabled={controlsDisabled}
           playlistState={playlistState}
           playlistControls={playlistControls}
+          subtitles={currentTrack?.subtitles}
         />
       )}
     </div>
@@ -345,6 +372,7 @@ function VideoPlayerInnerWithAds({
   componentAdProps,
 }: VideoPlayerInnerWithAdsProps) {
   const { state, controls, config, videoRef, containerRef, currentTrack, playlistState, playlistControls } = useVideoPlayer();
+  const labels = useLabels();
 
   // Determine if controls should be disabled
   const isAdPlaying = adState?.isPlayingAd ?? false;
@@ -419,7 +447,19 @@ function VideoPlayerInnerWithAds({
         preload="metadata"
         playsInline
         poster={currentTrack?.poster || config.poster}
-      />
+      >
+        {/* Subtitle/caption tracks */}
+        {currentTrack?.subtitles?.map((subtitle) => (
+          <track
+            key={subtitle.id}
+            kind="subtitles"
+            label={subtitle.id}
+            srcLang={subtitle.language}
+            src={subtitle.src}
+            default={subtitle.default}
+          />
+        ))}
+      </video>
 
       {/* Ad Video Element */}
       {adVideoRef && (
@@ -462,7 +502,7 @@ function VideoPlayerInnerWithAds({
                   {/* Ad badge */}
                   <div className="flex items-center gap-3">
                     <span className="px-2 py-1 bg-yellow-500 text-black text-xs font-bold rounded">
-                      AD
+                      {labels.ad}
                     </span>
                     {adState.currentAd?.title && (
                       <span className="text-white text-sm">{adState.currentAd.title}</span>
@@ -480,11 +520,11 @@ function VideoPlayerInnerWithAds({
                       onClick={adControls.skipAd}
                       className="px-4 py-2 bg-white text-black text-sm font-medium rounded hover:bg-white/90 transition-colors"
                     >
-                      Skip Ad
+                      {labels.skipAd}
                     </button>
                   ) : adState.skipCountdown > 0 ? (
                     <span className="px-4 py-2 bg-white/20 text-white text-sm rounded">
-                      Skip in {adState.skipCountdown}s
+                      {interpolateLabel(labels.skipIn, { seconds: adState.skipCountdown })}
                     </span>
                   ) : null}
                 </div>
@@ -504,12 +544,22 @@ function VideoPlayerInnerWithAds({
                   onClick={adControls.clickThrough}
                   className="absolute inset-0 z-30 cursor-pointer"
                   style={{ bottom: '80px' }}
-                  aria-label="Learn more about this ad"
+                  aria-label={labels.learnMore}
                 />
               )}
             </>
           )}
         </div>
+      )}
+
+      {/* Logo Overlay */}
+      {!isAdPlaying && config.logo && config.features?.logoOverlay !== false && (
+        <LogoOverlay
+          config={config.logo}
+          visible={state.controlsVisible || !state.isPlaying}
+          isPlaying={state.isPlaying}
+          isFullscreen={state.isFullscreen}
+        />
       )}
 
       {/* Video Controls */}
@@ -522,6 +572,7 @@ function VideoPlayerInnerWithAds({
           disabled={controlsDisabled}
           playlistState={playlistState}
           playlistControls={playlistControls}
+          subtitles={currentTrack?.subtitles}
         />
       )}
     </div>
