@@ -1,6 +1,6 @@
 {
   "name": "@fairu/player",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "A lightweight, modular React podcast player with TypeScript",
   "main": "./dist/index.cjs",
