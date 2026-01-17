@@ -151,6 +151,12 @@ export interface VideoConfig {
   labels?: PartialLabels;
   /** Logo/watermark configuration */
   logo?: LogoConfig;
+  /** Overlay ads (banner ads during playback) */
+  overlayAds?: OverlayAd[];
+  /** Info cards (sponsored cards during playback) */
+  infoCards?: InfoCard[];
+  /** End screen with recommended videos */
+  endScreen?: EndScreenConfig;
 }
 
 /**
@@ -188,6 +194,11 @@ export interface CustomAdComponentProps {
 }
 
 /**
+ * Video ad type - standard or bumper (6s non-skippable)
+ */
+export type VideoAdType = 'standard' | 'bumper';
+
+/**
  * Video ad extending base Ad
  */
 export interface VideoAd {
@@ -203,6 +214,129 @@ export interface VideoAd {
   trackingUrls?: import('./ads').AdTrackingUrls;
   /** Custom React component to render instead of video */
   component?: React.ComponentType<CustomAdComponentProps>;
+  /** Ad type - 'bumper' for 6s non-skippable ads (default: 'standard') */
+  type?: VideoAdType;
+}
+
+/**
+ * Overlay ad (banner ad displayed during playback)
+ */
+export interface OverlayAd {
+  id: string;
+  /** Banner image URL */
+  imageUrl: string;
+  /** Click destination URL */
+  clickThroughUrl?: string;
+  /** When to display (seconds from start) */
+  displayAt: number;
+  /** How long to display in seconds (default: 10) */
+  duration?: number;
+  /** Banner position (default: 'bottom') */
+  position?: 'bottom' | 'top';
+  /** Allow user to close (default: true) */
+  closeable?: boolean;
+  /** Alt text for the banner image */
+  altText?: string;
+  /** Tracking URLs */
+  trackingUrls?: {
+    impression?: string;
+    click?: string;
+    close?: string;
+  };
+}
+
+/**
+ * Info card type
+ */
+export type InfoCardType = 'video' | 'product' | 'link' | 'custom';
+
+/**
+ * Info card (sponsored/clickable card that appears during video)
+ */
+export interface InfoCard {
+  id: string;
+  /** Card type */
+  type: InfoCardType;
+  /** Card title */
+  title: string;
+  /** Card description */
+  description?: string;
+  /** Thumbnail image URL */
+  thumbnail?: string;
+  /** Click-through URL */
+  url?: string;
+  /** When to display (seconds from start) */
+  displayAt: number;
+  /** How long to display in seconds (default: until dismissed or video ends) */
+  duration?: number;
+  /** Position on screen (default: 'top-right') */
+  position?: 'top-right' | 'top-left';
+  /** For product cards - price display */
+  price?: string;
+  /** For video cards - video ID for internal navigation */
+  videoId?: string;
+  /** Custom callback when card is selected */
+  onSelect?: (card: InfoCard) => void;
+  /** Tracking URLs */
+  trackingUrls?: {
+    impression?: string;
+    click?: string;
+    dismiss?: string;
+  };
+}
+
+/**
+ * Recommended video for end screen
+ */
+export interface RecommendedVideo {
+  id: string;
+  /** Video title */
+  title: string;
+  /** Thumbnail image URL */
+  thumbnail: string;
+  /** Video duration in seconds */
+  duration?: number;
+  /** Video source (if playable in same player) */
+  src?: string;
+  /** External link URL */
+  url?: string;
+  /** View count display (e.g., "1.2M views") */
+  views?: string;
+  /** Channel/author name */
+  channel?: string;
+  /** Channel avatar URL */
+  channelAvatar?: string;
+}
+
+/**
+ * End screen layout type
+ */
+export type EndScreenLayout = 'grid' | 'carousel';
+
+/**
+ * End screen configuration
+ */
+export interface EndScreenConfig {
+  /** Whether end screen is enabled */
+  enabled: boolean;
+  /** Seconds before video end to show (default: 10, 0 = only after video ends) */
+  showAt?: number;
+  /** Recommended videos to display */
+  recommendations: RecommendedVideo[];
+  /** Layout style (default: 'grid') */
+  layout?: EndScreenLayout;
+  /** Number of columns in grid layout (default: 3) */
+  columns?: 2 | 3 | 4;
+  /** Callback when a video is selected */
+  onVideoSelect?: (video: RecommendedVideo) => void;
+  /** Enable auto-play of next video */
+  autoPlayNext?: boolean;
+  /** Seconds before auto-play starts (default: 5) */
+  autoPlayDelay?: number;
+  /** Title for the end screen (default: "Recommended Videos") */
+  title?: string;
+  /** Show replay button (default: true) */
+  showReplay?: boolean;
 }
 
 /**
@@ -228,6 +362,10 @@ export interface VideoAdState extends AdState {
  */
 export interface VideoAdConfig extends Omit<AdConfig, 'adBreaks'> {
   adBreaks?: VideoAdBreak[];
+  /** Callback when a bumper ad starts */
+  onBumperStart?: (ad: VideoAd) => void;
+  /** Callback when a bumper ad completes */
+  onBumperComplete?: (ad: VideoAd) => void;
 }
 
 /**

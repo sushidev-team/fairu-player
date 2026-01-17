@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { cn } from '@/utils/cn';
-import type { LogoConfig, LogoComponentProps, LogoPosition, LogoAnimationType } from '@/types/logo';
+import type { LogoConfig, LogoComponentProps } from '@/types/logo';
 
 export interface LogoOverlayProps {
   config: LogoConfig;

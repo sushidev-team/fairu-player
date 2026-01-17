@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { useState } from 'react';
 import { Rating } from './Rating';
 import { LabelsProvider } from '@/context/LabelsContext';
-import type { RatingValue, RatingState } from '@/types/stats';
+import type { RatingState } from '@/types/stats';
 
 const meta: Meta<typeof Rating> = {
   title: 'Components/Rating',

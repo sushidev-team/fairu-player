@@ -1,14 +1,26 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import { cn } from '@/utils/cn';
 import { VideoProvider, useVideoPlayer } from '@/context/VideoContext';
 import { VideoAdProvider, useVideoAds } from '@/context/VideoAdContext';
+import { OverlayAdProvider, useOverlayAds, type OverlayAdControls } from '@/context/OverlayAdContext';
 import { useLabels } from '@/context/LabelsContext';
 import { interpolateLabel } from '@/types/labels';
 import { VideoOverlay } from './VideoOverlay';
 import { VideoControls } from './VideoControls';
 import { LogoOverlay } from './LogoOverlay';
+import { EndScreen } from './EndScreen';
+import { OverlayAd } from '@/components/ads/OverlayAd';
+import { InfoCard, InfoCardIcon } from '@/components/ads/InfoCard';
 import { useKeyboardControls } from '@/hooks/useKeyboardControls';
-import type { VideoConfig, VideoPlayerProps, VideoAdConfig, WatchProgress, VideoAdBreak, CustomAdComponentProps, VideoAd } from '@/types/video';
+import type { VideoConfig, VideoPlayerProps, VideoAdConfig, WatchProgress, VideoAdBreak, CustomAdComponentProps, VideoAd, OverlayAd as OverlayAdType, InfoCard as InfoCardType, RecommendedVideo } from '@/types/video';
+
+/**
+ * Ref handle for controlling the video player externally
+ */
+export interface VideoPlayerRef {
+  /** Controls for dynamically showing/hiding overlay ads and info cards */
+  overlayAdControls: OverlayAdControls;
+}
 
 interface VideoPlayerInnerProps {
   className?: string;
@@ -16,18 +28,45 @@ interface VideoPlayerInnerProps {
   adControls?: ReturnType<typeof useVideoAds>['controls'];
   adVideoRef?: React.RefObject<HTMLVideoElement | null>;
   componentAdProps?: CustomAdComponentProps | null;
+  /** Callback when overlay ad is closed */
+  onOverlayAdClose?: (ad: OverlayAdType) => void;
+  /** Callback when overlay ad is clicked */
+  onOverlayAdClick?: (ad: OverlayAdType) => void;
+  /** Callback when info card is dismissed */
+  onInfoCardDismiss?: (card: InfoCardType) => void;
+  /** Callback when info card is selected */
+  onInfoCardSelect?: (card: InfoCardType) => void;
+  /** Callback when recommended video is selected */
+  onVideoSelect?: (video: RecommendedVideo) => void;
 }
 
 /**
  * Inner video player component that uses context
  */
-function VideoPlayerInner({ className, adState, adControls, adVideoRef, componentAdProps }: VideoPlayerInnerProps) {
+function VideoPlayerInner({
+  className,
+  adState,
+  adControls,
+  adVideoRef,
+  componentAdProps,
+  onOverlayAdClose,
+  onOverlayAdClick,
+  onInfoCardDismiss,
+  onInfoCardSelect,
+  onVideoSelect,
+}: VideoPlayerInnerProps) {
   const { state, controls, config, videoRef, containerRef, currentTrack, playlistState, playlistControls } = useVideoPlayer();
+  const { state: overlayState, controls: overlayControls } = useOverlayAds();
   const labels = useLabels();
+  const [infoCardsExpanded, setInfoCardsExpanded] = useState(false);
 
   // Determine if controls should be disabled
   const isAdPlaying = adState?.isPlayingAd ?? false;
   const controlsDisabled = state.isLoading || isAdPlaying;
+
+  // Get active overlay ads and info cards from context
+  const activeOverlayAds = overlayState.activeOverlayAds;
+  const activeInfoCards = overlayState.activeInfoCards;
 
   // Handle mouse movement to show controls
   const handleMouseMove = useCallback(() => {
@@ -47,6 +86,24 @@ function VideoPlayerInner({ className, adState, adControls, adVideoRef, componen
       controls.toggle();
     }
   }, [isAdPlaying, controls]);
+
+  // Handle replay
+  const handleReplay = useCallback(() => {
+    controls.seek(0);
+    controls.play();
+  }, [controls]);
+
+  // Handle video selection from end screen
+  const handleVideoSelect = useCallback((video: RecommendedVideo) => {
+    config.endScreen?.onVideoSelect?.(video);
+    onVideoSelect?.(video);
+
+    // If the video has a src, load it into the player
+    if (video.src) {
+      // This would require playlist support to work fully
+      // For now, just trigger the callback
+    }
+  }, [config.endScreen, onVideoSelect]);
 
   // Keyboard controls
   useKeyboardControls({
@@ -190,6 +247,59 @@ function VideoPlayerInner({ className, adState, adControls, adVideoRef, componen
         />
       )}
 
+      {/* Overlay Ads */}
+      {!isAdPlaying && activeOverlayAds.map((ad) => (
+        <OverlayAd
+          key={ad.id}
+          ad={ad}
+          currentTime={state.currentTime}
+          visible={state.isPlaying}
+          onClose={(closedAd) => {
+            overlayControls.hideOverlayAd(closedAd.id);
+            onOverlayAdClose?.(closedAd);
+          }}
+          onClick={onOverlayAdClick}
+        />
+      ))}
+
+      {/* Info Card Icon */}
+      {!isAdPlaying && activeInfoCards.length > 0 && (
+        <InfoCardIcon
+          hasActiveCards={activeInfoCards.length > 0}
+          cardCount={activeInfoCards.length}
+          expanded={infoCardsExpanded}
+          onToggle={() => setInfoCardsExpanded(!infoCardsExpanded)}
+        />
+      )}
+
+      {/* Info Cards */}
+      {!isAdPlaying && activeInfoCards.map((card) => (
+        <InfoCard
+          key={card.id}
+          card={card}
+          currentTime={state.currentTime}
+          duration={state.duration}
+          expanded={infoCardsExpanded}
+          onDismiss={(dismissedCard) => {
+            overlayControls.hideInfoCard(dismissedCard.id);
+            onInfoCardDismiss?.(dismissedCard);
+          }}
+          onSelect={onInfoCardSelect}
+        />
+      ))}
+
+      {/* End Screen */}
+      {!isAdPlaying && config.endScreen?.enabled && (
+        <EndScreen
+          config={config.endScreen}
+          currentTime={state.currentTime}
+          duration={state.duration}
+          isEnded={state.isEnded}
+          onVideoSelect={handleVideoSelect}
+          onReplay={handleReplay}
+        />
+      )}
+
       {/* Video Controls */}
       {!isAdPlaying && (
         <VideoControls
@@ -220,7 +330,7 @@ export interface VideoPlayerWithProviderProps extends VideoPlayerProps {
 /**
  * Complete video player component with providers
  */
-export function VideoPlayer({
+export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerWithProviderProps>(function VideoPlayer({
   config,
   track,
   playlist,
@@ -236,7 +346,7 @@ export function VideoPlayer({
   onTrackChange,
   onError,
   onFullscreenChange,
-}: VideoPlayerWithProviderProps) {
+}, ref) {
   const videoConfig: VideoConfig = {
     ...config,
     track,
@@ -257,6 +367,40 @@ export function VideoPlayer({
       onError={onError}
       onFullscreenChange={onFullscreenChange}
     >
+      <VideoPlayerWithOverlayProvider
+        className={className}
+        videoConfig={videoConfig}
+        adConfig={adConfig}
+        playerRef={ref}
+      />
+    </VideoProvider>
+  );
+});
+
+/**
+ * Internal component that wraps OverlayAdProvider with video state access
+ */
+function VideoPlayerWithOverlayProvider({
+  className,
+  videoConfig,
+  adConfig,
+  playerRef,
+}: {
+  className?: string;
+  videoConfig: VideoConfig;
+  adConfig?: VideoAdConfig;
+  playerRef: React.ForwardedRef<VideoPlayerRef>;
+}) {
+  const { state } = useVideoPlayer();
+
+  return (
+    <OverlayAdProvider
+      overlayAds={videoConfig.overlayAds}
+      infoCards={videoConfig.infoCards}
+      currentTime={state.currentTime}
+      duration={state.duration}
+    >
+      <VideoPlayerRefHandler playerRef={playerRef} />
       {adConfig?.enabled ? (
         <VideoAdProvider config={adConfig}>
           <VideoPlayerWithAds className={className} />
@@ -264,8 +408,21 @@ export function VideoPlayer({
       ) : (
         <VideoPlayerInner className={className} />
       )}
-    </VideoProvider>
+    </OverlayAdProvider>
   );
+}
+
+/**
+ * Component that exposes overlay ad controls via ref
+ */
+function VideoPlayerRefHandler({ playerRef }: { playerRef: React.ForwardedRef<VideoPlayerRef> }) {
+  const { controls } = useOverlayAds();
+
+  useImperativeHandle(playerRef, () => ({
+    overlayAdControls: controls,
+  }), [controls]);
+
+  return null;
 }
 
 /**
@@ -370,13 +527,24 @@ function VideoPlayerInnerWithAds({
   adVideoRef,
   onPlayWithAds,
   componentAdProps,
+  onOverlayAdClose,
+  onOverlayAdClick,
+  onInfoCardDismiss,
+  onInfoCardSelect,
+  onVideoSelect,
 }: VideoPlayerInnerWithAdsProps) {
   const { state, controls, config, videoRef, containerRef, currentTrack, playlistState, playlistControls } = useVideoPlayer();
+  const { state: overlayState, controls: overlayControls } = useOverlayAds();
   const labels = useLabels();
+  const [infoCardsExpanded, setInfoCardsExpanded] = useState(false);
 
   // Determine if controls should be disabled
   const isAdPlaying = adState?.isPlayingAd ?? false;
   const controlsDisabled = state.isLoading || isAdPlaying;
+
+  // Get active overlay ads and info cards from context
+  const activeOverlayAds = overlayState.activeOverlayAds;
+  const activeInfoCards = overlayState.activeInfoCards;
 
   // Handle mouse movement to show controls
   const handleMouseMove = useCallback(() => {
@@ -400,6 +568,18 @@ function VideoPlayerInnerWithAds({
       controls.toggle();
     }
   }, [isAdPlaying, state.isPlaying, onPlayWithAds, controls]);
+
+  // Handle replay
+  const handleReplay = useCallback(() => {
+    controls.seek(0);
+    controls.play();
+  }, [controls]);
+
+  // Handle video selection from end screen
+  const handleVideoSelect = useCallback((video: RecommendedVideo) => {
+    config.endScreen?.onVideoSelect?.(video);
+    onVideoSelect?.(video);
+  }, [config.endScreen, onVideoSelect]);
 
   // Wrapped controls for ad integration
   const wrappedControls = {
@@ -559,6 +739,59 @@ function VideoPlayerInnerWithAds({
           visible={state.controlsVisible || !state.isPlaying}
           isPlaying={state.isPlaying}
           isFullscreen={state.isFullscreen}
+        />
+      )}
+
+      {/* Overlay Ads */}
+      {!isAdPlaying && activeOverlayAds.map((ad) => (
+        <OverlayAd
+          key={ad.id}
+          ad={ad}
+          currentTime={state.currentTime}
+          visible={state.isPlaying}
+          onClose={(closedAd) => {
+            overlayControls.hideOverlayAd(closedAd.id);
+            onOverlayAdClose?.(closedAd);
+          }}
+          onClick={onOverlayAdClick}
+        />
+      ))}
+
+      {/* Info Card Icon */}
+      {!isAdPlaying && activeInfoCards.length > 0 && (
+        <InfoCardIcon
+          hasActiveCards={activeInfoCards.length > 0}
+          cardCount={activeInfoCards.length}
+          expanded={infoCardsExpanded}
+          onToggle={() => setInfoCardsExpanded(!infoCardsExpanded)}
+        />
+      )}
+
+      {/* Info Cards */}
+      {!isAdPlaying && activeInfoCards.map((card) => (
+        <InfoCard
+          key={card.id}
+          card={card}
+          currentTime={state.currentTime}
+          duration={state.duration}
+          expanded={infoCardsExpanded}
+          onDismiss={(dismissedCard) => {
+            overlayControls.hideInfoCard(dismissedCard.id);
+            onInfoCardDismiss?.(dismissedCard);
+          }}
+          onSelect={onInfoCardSelect}
+        />
+      ))}
+
+      {/* End Screen */}
+      {!isAdPlaying && config.endScreen?.enabled && (
+        <EndScreen
+          config={config.endScreen}
+          currentTime={state.currentTime}
+          duration={state.duration}
+          isEnded={state.isEnded}
+          onVideoSelect={handleVideoSelect}
+          onReplay={handleReplay}
         />
       )}
 

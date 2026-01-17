@@ -181,11 +181,20 @@ export function VideoAdProvider({ children, config: userConfig = {} }: VideoAdPr
       }, 100);
     }
 
+    // Check if this is a bumper ad (6s non-skippable)
+    const isBumperAd = ad.type === 'bumper';
+
+    // Bumper ads are always 6 seconds and non-skippable
+    if (isBumperAd) {
+      config.onBumperStart?.(ad);
+    }
+
     // Determine if skip is allowed:
+    // - Bumper ads are never skippable
     // - config.skipAllowed === false disables all skipping globally
     // - ad.skipAfterSeconds === null makes this specific ad non-skippable
     // - Otherwise use ad's skipAfterSeconds or config.defaultSkipAfter
-    const globalSkipAllowed = config.skipAllowed !== false;
+    const globalSkipAllowed = config.skipAllowed !== false && !isBumperAd;
     const adSkipAfter = ad.skipAfterSeconds;
 
     let skipAfter: number | null = null;
@@ -370,8 +379,14 @@ export function VideoAdProvider({ children, config: userConfig = {} }: VideoAdPr
         clearInterval(skipTimer.current);
       }
 
-      trackAdEvent(state.currentAd as VideoAd, 'complete');
+      const ad = state.currentAd as VideoAd;
+      trackAdEvent(ad, 'complete');
       config.onAdComplete?.(state.currentAd, state.currentAdBreak);
+
+      // Fire bumper complete callback if this was a bumper ad
+      if (ad.type === 'bumper') {
+        config.onBumperComplete?.(ad);
+      }
 
       // Move to next ad or end ad break
       const ads = state.currentAdBreak.ads as VideoAd[];

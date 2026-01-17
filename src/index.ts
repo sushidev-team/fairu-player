@@ -7,10 +7,17 @@ export {
   VideoOverlay,
   VideoControls,
   LogoOverlay,
+  EndScreen,
+  RecommendedCard,
+  AutoPlayCountdown,
   type VideoPlayerWithProviderProps,
+  type VideoPlayerRef,
   type VideoOverlayProps,
   type VideoControlsProps,
   type LogoOverlayProps,
+  type EndScreenProps,
+  type RecommendedCardProps,
+  type AutoPlayCountdownProps,
 } from './components/VideoPlayer';
 export {
   PlayButton,
@@ -51,8 +58,14 @@ export {
 export {
   AdOverlay,
   AdSkipButton,
+  OverlayAd,
+  InfoCard,
+  InfoCardIcon,
   type AdOverlayProps,
   type AdSkipButtonProps,
+  type OverlayAdProps,
+  type InfoCardProps,
+  type InfoCardIconProps,
 } from './components/ads';
 export {
   Rating,
@@ -118,6 +131,16 @@ export {
   useLabels,
   type LabelsProviderProps,
 } from './context/LabelsContext';
+export {
+  OverlayAdContext,
+  OverlayAdProvider,
+  useOverlayAds,
+  useOverlayAdControls,
+  type OverlayAdProviderProps,
+  type OverlayAdContextValue,
+  type OverlayAdState,
+  type OverlayAdControls,
+} from './context/OverlayAdContext';
 
 // Hooks
 export {
@@ -216,6 +239,14 @@ export type {
   Subtitle,
   HLSConfig,
   CustomAdComponentProps,
+  // New ad/feature types
+  VideoAdType,
+  OverlayAd as OverlayAdType,
+  InfoCard as InfoCardType,
+  InfoCardType as InfoCardTypeEnum,
+  RecommendedVideo,
+  EndScreenConfig,
+  EndScreenLayout,
 } from './types/video';
 
 // Logo types

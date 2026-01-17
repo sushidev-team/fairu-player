@@ -4,7 +4,6 @@ import { TrackingProvider } from '@/context/TrackingContext';
 import { Player } from './index';
 import type { Track, PlayerConfig } from '@/types/player';
 import {
-  createTrackFromFairu,
   createPlaylistFromFairu,
   getFairuAudioUrl,
   getFairuCoverUrl,

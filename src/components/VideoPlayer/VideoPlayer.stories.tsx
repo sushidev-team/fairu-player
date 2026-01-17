@@ -1,11 +1,19 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { useState, useCallback } from 'react';
-import { VideoPlayer } from './VideoPlayer';
+import { useState, useCallback, useRef } from 'react';
+import { VideoPlayer, type VideoPlayerRef } from './VideoPlayer';
 import { VideoProvider, useVideoPlayer } from '@/context/VideoContext';
 import { VideoAdProvider, useVideoAds } from '@/context/VideoAdContext';
-import type { VideoTrack, VideoAdBreak, WatchProgress, CustomAdComponentProps } from '@/types/video';
+import type {
+  VideoTrack,
+  VideoAdBreak,
+  WatchProgress,
+  CustomAdComponentProps,
+  EndScreenConfig,
+  RecommendedVideo,
+  OverlayAd as OverlayAdType,
+  InfoCard as InfoCardType,
+} from '@/types/video';
 import {
-  createVideoTrackFromFairu,
   createVideoPlaylistFromFairu,
   getFairuVideoUrl,
   getFairuCoverUrl,
@@ -940,7 +948,7 @@ export const WithMixedAds: Story = {
       adBreaks: [mixedAdBreak],
       skipAllowed: true,
       defaultSkipAfter: 5,
-      onAdStart: (ad) => console.log('Ad started:', ad.title, ad.component ? '(component)' : '(video)'),
+      onAdStart: (ad) => console.log('Ad started:', ad.title, 'component' in ad ? '(component)' : '(video)'),
       onAdComplete: (ad) => console.log('Ad completed:', ad.title),
     },
   },
@@ -1521,4 +1529,702 @@ function LogoInteractiveDemo() {
 
 export const LogoInteractive: Story = {
   render: () => <LogoInteractiveDemo />,
+};
+
+// ============= End Screen Stories =============
+
+const recommendedVideos: RecommendedVideo[] = [
+  {
+    id: 'rec-1',
+    title: 'Introduction to TypeScript - Complete Guide 2024',
+    thumbnail: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
+    duration: 1245,
+    views: '1.2M views',
+    channel: 'Code Academy',
+    channelAvatar: 'https://placehold.co/32x32/2d5a27/ffffff?text=CA',
+    src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+  },
+  {
+    id: 'rec-2',
+    title: 'React Best Practices You Need to Know',
+    thumbnail: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ElephantsDream.jpg',
+    duration: 845,
+    views: '856K views',
+    channel: 'Frontend Masters',
+    channelAvatar: 'https://placehold.co/32x32/5a272d/ffffff?text=FM',
+    src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+  },
+  {
+    id: 'rec-3',
+    title: 'Building a Video Player from Scratch',
+    thumbnail: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/Sintel.jpg',
+    duration: 2100,
+    views: '432K views',
+    channel: 'Dev Tutorials',
+    channelAvatar: 'https://placehold.co/32x32/1a1a2e/ffffff?text=DT',
+    src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+  },
+  {
+    id: 'rec-4',
+    title: 'CSS Grid Layout - Master Guide',
+    thumbnail: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+    duration: 1560,
+    views: '678K views',
+    channel: 'CSS Wizards',
+  },
+  {
+    id: 'rec-5',
+    title: 'Node.js Performance Optimization',
+    thumbnail: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerEscapes.jpg',
+    duration: 1890,
+    views: '234K views',
+    channel: 'Backend Pro',
+  },
+  {
+    id: 'rec-6',
+    title: 'Database Design Fundamentals',
+    thumbnail: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerFun.jpg',
+    duration: 2400,
+    views: '567K views',
+    channel: 'Data School',
+  },
+];
+
+/**
+ * Video player with End Screen
+ * Watch the video to the end or skip to see the end screen with recommendations
+ */
+export const WithEndScreen: Story = {
+  args: {
+    track: {
+      id: 'short-video',
+      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      title: 'Short Demo Video',
+      poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+      duration: 15,
+    },
+    config: {
+      endScreen: {
+        enabled: true,
+        showAt: 5, // Show 5 seconds before end
+        recommendations: recommendedVideos,
+        layout: 'grid',
+        columns: 3,
+        autoPlayNext: false,
+        showReplay: true,
+        title: 'Recommended Videos',
+      },
+    },
+  },
+};
+
+/**
+ * End Screen with Auto-Play
+ * The next video will automatically start after a countdown
+ */
+export const EndScreenWithAutoPlay: Story = {
+  args: {
+    track: {
+      id: 'short-video-autoplay',
+      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      title: 'Short Demo Video',
+      poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+      duration: 15,
+    },
+    config: {
+      endScreen: {
+        enabled: true,
+        showAt: 5,
+        recommendations: recommendedVideos,
+        layout: 'grid',
+        columns: 3,
+        autoPlayNext: true,
+        autoPlayDelay: 5,
+        showReplay: true,
+        title: 'Up Next',
+      },
+    },
+  },
+};
+
+/**
+ * End Screen with Carousel Layout
+ */
+export const EndScreenCarousel: Story = {
+  args: {
+    track: {
+      id: 'short-video-carousel',
+      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      title: 'Short Demo Video',
+      poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+      duration: 15,
+    },
+    config: {
+      endScreen: {
+        enabled: true,
+        showAt: 5,
+        recommendations: recommendedVideos,
+        layout: 'carousel',
+        autoPlayNext: false,
+        showReplay: true,
+        title: 'More Videos',
+      },
+    },
+  },
+};
+
+/**
+ * Interactive End Screen Demo
+ * Full control over end screen features with event logging
+ */
+function EndScreenInteractiveDemo() {
+  const [events, setEvents] = useState<string[]>([]);
+  const [currentVideo, setCurrentVideo] = useState<VideoTrack>({
+    id: 'demo-video',
+    src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    title: 'Demo Video',
+    poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+  });
+
+  const addEvent = useCallback((event: string) => {
+    setEvents((prev) => [...prev.slice(-9), `${new Date().toLocaleTimeString()}: ${event}`]);
+  }, []);
+
+  const handleVideoSelect = useCallback((video: RecommendedVideo) => {
+    addEvent(`Selected: ${video.title}`);
+    if (video.src) {
+      setCurrentVideo({
+        id: video.id,
+        src: video.src,
+        title: video.title,
+        poster: video.thumbnail,
+      });
+      addEvent(`Now playing: ${video.title}`);
+    }
+  }, [addEvent]);
+
+  const endScreenConfig: EndScreenConfig = {
+    enabled: true,
+    showAt: 5,
+    recommendations: recommendedVideos,
+    layout: 'grid',
+    columns: 3,
+    autoPlayNext: true,
+    autoPlayDelay: 8,
+    showReplay: true,
+    title: 'Recommended Videos',
+    onVideoSelect: handleVideoSelect,
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Info Banner */}
+      <div className="bg-blue-900/50 border border-blue-500 rounded-lg p-4 text-white text-sm">
+        <h3 className="font-semibold mb-2">End Screen Demo</h3>
+        <p className="text-blue-200">
+          Spiele das Video ab und warte bis zum Ende (oder skippe vorwärts). Der End Screen erscheint 5 Sekunden vor Ende.
+          Klicke auf ein Video um es abzuspielen, oder nutze den Replay-Button.
+        </p>
+      </div>
+
+      {/* Video Player */}
+      <VideoPlayer
+        key={currentVideo.id}
+        track={currentVideo}
+        config={{ endScreen: endScreenConfig }}
+        onEnded={() => addEvent('Video ended')}
+        onPlay={() => addEvent('Playing')}
+      />
+
+      {/* Event Log */}
+      <div className="bg-gray-800 rounded-lg p-4 text-white">
+        <h3 className="text-lg font-semibold mb-2">Event Log</h3>
+        <div className="space-y-1 text-sm font-mono max-h-32 overflow-y-auto">
+          {events.length === 0 ? (
+            <span className="text-gray-500">Noch keine Events. Starte das Video...</span>
+          ) : (
+            events.map((event, i) => <div key={i}>{event}</div>)
+          )}
+        </div>
+      </div>
+
+      {/* Current Video Info */}
+      <div className="bg-gray-800 rounded-lg p-4 text-white">
+        <h3 className="text-sm font-semibold text-gray-400 mb-2">Now Playing:</h3>
+        <p className="font-medium">{currentVideo.title}</p>
+      </div>
+    </div>
+  );
+}
+
+export const EndScreenInteractive: Story = {
+  render: () => <EndScreenInteractiveDemo />,
+};
+
+// ============= Overlay Ad & Info Card Stories =============
+
+/**
+ * Video player with Overlay Ads (Banner Ads)
+ * Overlay ads appear during video playback as banners
+ */
+export const WithOverlayAds: Story = {
+  args: {
+    track: sampleVideo,
+    config: {
+      overlayAds: [
+        {
+          id: 'overlay-1',
+          imageUrl: 'https://placehold.co/600x80/1a1a2e/ffffff?text=Special+Offer+-+50%25+Off+Today+Only!',
+          clickThroughUrl: 'https://example.com/promo',
+          displayAt: 5,
+          duration: 10,
+          position: 'bottom',
+          closeable: true,
+          altText: '50% off promotion',
+        },
+        {
+          id: 'overlay-2',
+          imageUrl: 'https://placehold.co/600x80/2d5a27/ffffff?text=Subscribe+to+Our+Newsletter',
+          clickThroughUrl: 'https://example.com/subscribe',
+          displayAt: 20,
+          duration: 8,
+          position: 'bottom',
+          closeable: true,
+        },
+      ],
+    },
+  },
+};
+
+/**
+ * Video player with Info Cards (Sponsored Cards)
+ * Info cards appear as clickable cards with product/video info
+ */
+export const WithInfoCards: Story = {
+  args: {
+    track: sampleVideo,
+    config: {
+      infoCards: [
+        {
+          id: 'card-1',
+          type: 'product',
+          title: 'Wireless Headphones Pro',
+          description: 'Premium noise-cancelling headphones featured in this video.',
+          thumbnail: 'https://placehold.co/300x200/1a1a2e/ffffff?text=Headphones',
+          url: 'https://example.com/product',
+          displayAt: 5,
+          duration: 20,
+          price: '$299.99',
+          position: 'top-right',
+        },
+        {
+          id: 'card-2',
+          type: 'video',
+          title: 'Watch the Full Tutorial',
+          description: 'Extended version with bonus content.',
+          thumbnail: 'https://placehold.co/300x200/2d5a27/ffffff?text=Tutorial',
+          url: 'https://example.com/tutorial',
+          displayAt: 30,
+          duration: 15,
+          position: 'top-right',
+        },
+      ],
+    },
+  },
+};
+
+/**
+ * Interactive demo with all new ad features
+ */
+function AllAdFeaturesDemo() {
+  const [events, setEvents] = useState<string[]>([]);
+
+  const addEvent = useCallback((event: string) => {
+    setEvents((prev) => [...prev.slice(-14), `${new Date().toLocaleTimeString()}: ${event}`]);
+  }, []);
+
+  const overlayAds: OverlayAdType[] = [
+    {
+      id: 'overlay-1',
+      imageUrl: 'https://placehold.co/600x80/8b5cf6/ffffff?text=Premium+Subscription+-+Start+Free+Trial',
+      clickThroughUrl: 'https://example.com/premium',
+      displayAt: 3,
+      duration: 8,
+      position: 'bottom',
+      closeable: true,
+    },
+  ];
+
+  const infoCards: InfoCardType[] = [
+    {
+      id: 'card-1',
+      type: 'product',
+      title: 'Featured Product',
+      description: 'Check out this amazing product!',
+      thumbnail: 'https://placehold.co/300x200/1a1a2e/ffffff?text=Product',
+      url: 'https://example.com',
+      displayAt: 5,
+      duration: 20,
+      price: '$49.99',
+      position: 'top-right',
+    },
+  ];
+
+  const endScreenConfig: EndScreenConfig = {
+    enabled: true,
+    showAt: 5,
+    recommendations: recommendedVideos.slice(0, 6),
+    layout: 'grid',
+    columns: 3,
+    autoPlayNext: true,
+    autoPlayDelay: 8,
+    showReplay: true,
+    title: 'Recommended',
+    onVideoSelect: (video) => addEvent(`End screen: Selected "${video.title}"`),
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Info Banner */}
+      <div className="bg-gradient-to-r from-purple-900 to-indigo-900 border border-purple-500 rounded-lg p-4 text-white text-sm">
+        <h3 className="font-semibold mb-2">Alle neuen Ad-Features Demo</h3>
+        <ul className="text-purple-200 space-y-1 text-xs">
+          <li>• <strong>Overlay Ad:</strong> Banner erscheint bei 3s (8s Dauer)</li>
+          <li>• <strong>Info Card:</strong> Produkt-Karte erscheint bei 5s (klicke auf das "i" Icon)</li>
+          <li>• <strong>End Screen:</strong> Erscheint 5s vor Video-Ende mit Auto-Play</li>
+        </ul>
+      </div>
+
+      {/* Video Player mit allen Features */}
+      <VideoPlayer
+        track={{
+          id: 'demo-all-features',
+          src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+          title: 'Demo Video mit allen Features',
+          poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+        }}
+        config={{
+          overlayAds,
+          infoCards,
+          endScreen: endScreenConfig,
+        }}
+        onPlay={() => addEvent('Video playing')}
+        onEnded={() => addEvent('Video ended')}
+      />
+
+      {/* Event Log */}
+      <div className="bg-gray-800 rounded-lg p-4 text-white">
+        <h3 className="text-lg font-semibold mb-2">Event Log</h3>
+        <div className="space-y-1 text-sm font-mono max-h-40 overflow-y-auto">
+          {events.length === 0 ? (
+            <span className="text-gray-500">Starte das Video um Events zu sehen...</span>
+          ) : (
+            events.map((event, i) => <div key={i}>{event}</div>)
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export const AllAdFeatures: Story = {
+  render: () => <AllAdFeaturesDemo />,
+};
+
+// ============= Bumper Ad Story =============
+
+/**
+ * Video player with Bumper Ad (6s non-skippable)
+ * Bumper ads are short, non-skippable ads ideal for brand awareness
+ */
+const bumperAdBreak: VideoAdBreak = {
+  id: 'bumper-preroll',
+  position: 'pre-roll',
+  ads: [
+    {
+      id: 'bumper-1',
+      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      duration: 6,
+      type: 'bumper', // Bumper ads are always 6s and non-skippable
+      title: 'Bumper Ad',
+      clickThroughUrl: 'https://example.com',
+    },
+  ],
+};
+
+export const WithBumperAd: Story = {
+  args: {
+    track: sampleVideo,
+    adConfig: {
+      enabled: true,
+      adBreaks: [bumperAdBreak],
+      onBumperStart: (ad) => console.log('Bumper ad started:', ad.title),
+      onBumperComplete: (ad) => console.log('Bumper ad completed:', ad.title),
+    },
+  },
+};
+
+// ============= Dynamic Ad Triggering Story =============
+
+/**
+ * Dynamic Ad Triggering Demo
+ * Shows how to programmatically trigger overlay ads and info cards using the player ref
+ */
+function DynamicAdTriggeringDemo() {
+  const playerRef = useRef<VideoPlayerRef>(null);
+  const [events, setEvents] = useState<string[]>([]);
+
+  const addEvent = useCallback((event: string) => {
+    setEvents((prev) => [...prev.slice(-9), `${new Date().toLocaleTimeString()}: ${event}`]);
+  }, []);
+
+  // Sample overlay ads for dynamic triggering
+  const sampleOverlayAds: OverlayAdType[] = [
+    {
+      id: 'dynamic-overlay-1',
+      imageUrl: 'https://placehold.co/600x80/4f46e5/ffffff?text=Dynamic+Overlay+Ad+1',
+      clickThroughUrl: 'https://example.com/ad1',
+      displayAt: 0, // Ignored for manual triggering
+      duration: 10,
+      position: 'bottom',
+      closeable: true,
+      altText: 'Dynamic Ad 1',
+    },
+    {
+      id: 'dynamic-overlay-2',
+      imageUrl: 'https://placehold.co/600x80/10b981/ffffff?text=Dynamic+Overlay+Ad+2',
+      clickThroughUrl: 'https://example.com/ad2',
+      displayAt: 0,
+      duration: 10,
+      position: 'top',
+      closeable: true,
+      altText: 'Dynamic Ad 2',
+    },
+  ];
+
+  // Sample info cards for dynamic triggering
+  const sampleInfoCards: InfoCardType[] = [
+    {
+      id: 'dynamic-card-1',
+      type: 'product',
+      title: 'Featured Product',
+      description: 'Dynamically triggered product card!',
+      thumbnail: 'https://placehold.co/300x200/f59e0b/ffffff?text=Product',
+      url: 'https://example.com/product',
+      displayAt: 0,
+      price: '$99.99',
+      position: 'top-right',
+    },
+    {
+      id: 'dynamic-card-2',
+      type: 'video',
+      title: 'Related Video',
+      description: 'Watch this related content',
+      thumbnail: 'https://placehold.co/300x200/ec4899/ffffff?text=Video',
+      url: 'https://example.com/video',
+      displayAt: 0,
+      position: 'top-right',
+    },
+  ];
+
+  // Button handlers
+  const showOverlayAd = (index: number) => {
+    const ad = sampleOverlayAds[index];
+    playerRef.current?.overlayAdControls.showOverlayAd(ad);
+    addEvent(`Showed overlay ad: ${ad.altText}`);
+  };
+
+  const hideOverlayAd = (index: number) => {
+    const ad = sampleOverlayAds[index];
+    playerRef.current?.overlayAdControls.hideOverlayAd(ad.id);
+    addEvent(`Hid overlay ad: ${ad.altText}`);
+  };
+
+  const hideAllOverlayAds = () => {
+    playerRef.current?.overlayAdControls.hideAllOverlayAds();
+    addEvent('Hid all overlay ads');
+  };
+
+  const showInfoCard = (index: number) => {
+    const card = sampleInfoCards[index];
+    playerRef.current?.overlayAdControls.showInfoCard(card);
+    addEvent(`Showed info card: ${card.title}`);
+  };
+
+  const hideInfoCard = (index: number) => {
+    const card = sampleInfoCards[index];
+    playerRef.current?.overlayAdControls.hideInfoCard(card.id);
+    addEvent(`Hid info card: ${card.title}`);
+  };
+
+  const hideAllInfoCards = () => {
+    playerRef.current?.overlayAdControls.hideAllInfoCards();
+    addEvent('Hid all info cards');
+  };
+
+  const resetAll = () => {
+    playerRef.current?.overlayAdControls.resetDismissed();
+    addEvent('Reset all dismissed states');
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Info Banner */}
+      <div className="bg-gradient-to-r from-cyan-900 to-blue-900 border border-cyan-500 rounded-lg p-4 text-white text-sm">
+        <h3 className="font-semibold mb-2">🎮 Dynamic Ad Triggering Demo</h3>
+        <p className="text-cyan-200 text-xs">
+          Use the buttons below to dynamically show/hide overlay ads and info cards.
+          This demonstrates how to programmatically control ads using the player ref.
+        </p>
+      </div>
+
+      {/* Video Player */}
+      <VideoPlayer
+        ref={playerRef}
+        track={{
+          id: 'demo-dynamic',
+          src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+          title: 'Dynamic Ad Triggering Demo',
+          poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
+        }}
+      />
+
+      {/* Control Panel */}
+      <div className="bg-gray-800 rounded-lg p-4 space-y-4">
+        {/* Overlay Ad Controls */}
+        <div>
+          <h4 className="text-white font-semibold mb-2">Overlay Ads</h4>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => showOverlayAd(0)}
+              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded transition-colors"
+            >
+              Show Ad 1 (Bottom)
+            </button>
+            <button
+              onClick={() => showOverlayAd(1)}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded transition-colors"
+            >
+              Show Ad 2 (Top)
+            </button>
+            <button
+              onClick={() => hideOverlayAd(0)}
+              className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-xs rounded transition-colors"
+            >
+              Hide Ad 1
+            </button>
+            <button
+              onClick={() => hideOverlayAd(1)}
+              className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-xs rounded transition-colors"
+            >
+              Hide Ad 2
+            </button>
+            <button
+              onClick={hideAllOverlayAds}
+              className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
+            >
+              Hide All
+            </button>
+          </div>
+        </div>
+
+        {/* Info Card Controls */}
+        <div>
+          <h4 className="text-white font-semibold mb-2">Info Cards</h4>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => showInfoCard(0)}
+              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs rounded transition-colors"
+            >
+              Show Product Card
+            </button>
+            <button
+              onClick={() => showInfoCard(1)}
+              className="px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white text-xs rounded transition-colors"
+            >
+              Show Video Card
+            </button>
+            <button
+              onClick={() => hideInfoCard(0)}
+              className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-xs rounded transition-colors"
+            >
+              Hide Product
+            </button>
+            <button
+              onClick={() => hideInfoCard(1)}
+              className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-xs rounded transition-colors"
+            >
+              Hide Video
+            </button>
+            <button
+              onClick={hideAllInfoCards}
+              className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
+            >
+              Hide All
+            </button>
+          </div>
+        </div>
+
+        {/* Reset */}
+        <div>
+          <button
+            onClick={resetAll}
+            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded transition-colors"
+          >
+            Reset All Dismissed
+          </button>
+        </div>
+      </div>
+
+      {/* Event Log */}
+      <div className="bg-gray-900 rounded-lg p-4 text-white">
+        <h3 className="text-sm font-semibold mb-2 text-gray-400">Event Log</h3>
+        <div className="space-y-1 text-xs font-mono max-h-32 overflow-y-auto">
+          {events.length === 0 ? (
+            <span className="text-gray-500">Click buttons to see events...</span>
+          ) : (
+            events.map((event, i) => <div key={i} className="text-cyan-300">{event}</div>)
+          )}
+        </div>
+      </div>
+
+      {/* Code Example */}
+      <div className="bg-gray-900 rounded-lg p-4">
+        <h4 className="text-sm font-semibold mb-2 text-gray-400">Code Example</h4>
+        <pre className="text-xs overflow-x-auto text-green-300">
+{`import { useRef } from 'react';
+import { VideoPlayer, VideoPlayerRef, OverlayAdType, InfoCardType } from '@fairu/player';
+
+function MyPlayer() {
+  const playerRef = useRef<VideoPlayerRef>(null);
+
+  const showAd = () => {
+    playerRef.current?.overlayAdControls.showOverlayAd({
+      id: 'my-ad',
+      imageUrl: 'https://example.com/ad.png',
+      displayAt: 0,
+      clickThroughUrl: 'https://example.com',
+    });
+  };
+
+  const hideAd = () => {
+    playerRef.current?.overlayAdControls.hideOverlayAd('my-ad');
+  };
+
+  return (
+    <div>
+      <VideoPlayer ref={playerRef} track={...} />
+      <button onClick={showAd}>Show Ad</button>
+      <button onClick={hideAd}>Hide Ad</button>
+    </div>
+  );
+}`}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+export const DynamicAdTriggering: Story = {
+  render: () => <DynamicAdTriggeringDemo />,
 };
