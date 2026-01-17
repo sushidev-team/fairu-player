@@ -1,6 +1,15 @@
 export { formatTime, formatDuration, parseTime, calculatePercentage } from './formatTime';
 export { cn } from './cn';
 export {
+  createAdEventBus,
+  getGlobalAdEventBus,
+  resetGlobalAdEventBus,
+  type AdEventBus,
+  type AdEventType,
+  type AdEventPayloads,
+  type AdEventListener,
+} from './AdEventBus';
+export {
   // Constants
   FAIRU_FILES_BASE_URL,
   FAIRU_DEFAULT_COVER_WIDTH,

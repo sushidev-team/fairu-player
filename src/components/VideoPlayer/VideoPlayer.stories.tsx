@@ -1,8 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { VideoPlayer, type VideoPlayerRef } from './VideoPlayer';
 import { VideoProvider, useVideoPlayer } from '@/context/VideoContext';
 import { VideoAdProvider, useVideoAds } from '@/context/VideoAdContext';
+import { createAdEventBus } from '@/utils/AdEventBus';
 import type {
   VideoTrack,
   VideoAdBreak,
@@ -2227,4 +2228,262 @@ function MyPlayer() {
 
 export const DynamicAdTriggering: Story = {
   render: () => <DynamicAdTriggeringDemo />,
+};
+
+// ============= Event Pipeline Story =============
+
+/**
+ * Event Pipeline Demo
+ * Shows how to control ads from anywhere in your app using the AdEventBus
+ */
+function EventPipelineDemo() {
+  const adEventBus = useMemo(() => createAdEventBus(), []);
+  const [events, setEvents] = useState<string[]>([]);
+  const [triggerSource, setTriggerSource] = useState<string>('manual');
+
+  const addEvent = useCallback((event: string) => {
+    setEvents((prev) => [...prev.slice(-14), `${new Date().toLocaleTimeString()}: ${event}`]);
+  }, []);
+
+  const eventOverlayAds: OverlayAdType[] = useMemo(
+    () => [
+      {
+        id: 'event-overlay-1',
+        imageUrl: 'https://placehold.co/600x80/7c3aed/ffffff?text=Event-Triggered+Overlay+Ad',
+        clickThroughUrl: 'https://example.com/ad1',
+        displayAt: 0,
+        position: 'bottom' as const,
+        closeable: true,
+        altText: 'Event Overlay Ad',
+      },
+      {
+        id: 'event-overlay-2',
+        imageUrl: 'https://placehold.co/600x80/059669/ffffff?text=Promo+Banner+-+Limited+Time!',
+        clickThroughUrl: 'https://example.com/promo',
+        displayAt: 0,
+        position: 'top' as const,
+        closeable: true,
+        altText: 'Promo Banner',
+      },
+    ],
+    []
+  );
+
+  const eventInfoCards: InfoCardType[] = useMemo(
+    () => [
+      {
+        id: 'event-card-1',
+        type: 'product' as const,
+        title: 'Event-Triggered Product',
+        description: 'This card was triggered via event pipeline!',
+        thumbnail: 'https://placehold.co/300x200/dc2626/ffffff?text=Hot+Deal',
+        url: 'https://example.com/product',
+        displayAt: 0,
+        price: '$149.99',
+        position: 'top-right' as const,
+      },
+    ],
+    []
+  );
+
+  const simulateExternalTrigger = useCallback((source: string, action: () => void) => {
+    setTriggerSource(source);
+    action();
+  }, []);
+
+  const showOverlayAd = useCallback(
+    (ad: OverlayAdType, source: string) => {
+      simulateExternalTrigger(source, () => {
+        adEventBus.emit('showOverlayAd', ad);
+        addEvent(`[${source}] showOverlayAd: ${ad.altText}`);
+      });
+    },
+    [adEventBus, addEvent, simulateExternalTrigger]
+  );
+
+  const hideAllOverlayAds = useCallback(
+    (source: string) => {
+      simulateExternalTrigger(source, () => {
+        adEventBus.emit('hideAllOverlayAds');
+        addEvent(`[${source}] hideAllOverlayAds`);
+      });
+    },
+    [adEventBus, addEvent, simulateExternalTrigger]
+  );
+
+  const showInfoCard = useCallback(
+    (card: InfoCardType, source: string) => {
+      simulateExternalTrigger(source, () => {
+        adEventBus.emit('showInfoCard', card);
+        addEvent(`[${source}] showInfoCard: ${card.title}`);
+      });
+    },
+    [adEventBus, addEvent, simulateExternalTrigger]
+  );
+
+  const hideAllInfoCards = useCallback(
+    (source: string) => {
+      simulateExternalTrigger(source, () => {
+        adEventBus.emit('hideAllInfoCards');
+        addEvent(`[${source}] hideAllInfoCards`);
+      });
+    },
+    [adEventBus, addEvent, simulateExternalTrigger]
+  );
+
+  const resetDismissed = useCallback(
+    (source: string) => {
+      simulateExternalTrigger(source, () => {
+        adEventBus.emit('resetDismissed');
+        addEvent(`[${source}] resetDismissed`);
+      });
+    },
+    [adEventBus, addEvent, simulateExternalTrigger]
+  );
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      showOverlayAd(eventOverlayAds[1], 'auto-timer');
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [eventOverlayAds, showOverlayAd]);
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-gradient-to-r from-violet-900 to-purple-900 border border-violet-500 rounded-lg p-4 text-white text-sm">
+        <h3 className="font-semibold mb-2">Event Pipeline Demo</h3>
+        <p className="text-violet-200 text-xs mb-3">
+          Control ads from anywhere using <code className="bg-black/30 px-1 rounded">AdEventBus</code>.
+          Events can come from analytics, timers, WebSockets, or any external source.
+        </p>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-violet-300">Last trigger:</span>
+          <span className="px-2 py-0.5 bg-violet-500 rounded font-mono">{triggerSource}</span>
+        </div>
+      </div>
+
+      <VideoPlayer
+        track={{
+          id: 'demo-event-pipeline',
+          src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+          title: 'Event Pipeline Demo',
+          poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
+        }}
+        adEventBus={adEventBus}
+      />
+
+      <div className="grid md:grid-cols-3 gap-4">
+        <div className="bg-gray-800 rounded-lg p-4">
+          <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-blue-400" />
+            Manual Triggers
+          </h4>
+          <div className="space-y-2">
+            <button
+              onClick={() => showOverlayAd(eventOverlayAds[0], 'manual')}
+              className="w-full px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs rounded"
+            >
+              Show Overlay Ad
+            </button>
+            <button
+              onClick={() => showInfoCard(eventInfoCards[0], 'manual')}
+              className="w-full px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs rounded"
+            >
+              Show Product Card
+            </button>
+            <button
+              onClick={() => hideAllOverlayAds('manual')}
+              className="w-full px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-xs rounded"
+            >
+              Hide All Overlays
+            </button>
+            <button
+              onClick={() => hideAllInfoCards('manual')}
+              className="w-full px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-xs rounded"
+            >
+              Hide All Cards
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-gray-800 rounded-lg p-4">
+          <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-green-400" />
+            Analytics Triggers
+          </h4>
+          <div className="space-y-2">
+            <button
+              onClick={() => showOverlayAd(eventOverlayAds[0], 'analytics')}
+              className="w-full px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded"
+            >
+              User Milestone
+            </button>
+            <button
+              onClick={() => showInfoCard(eventInfoCards[0], 'analytics')}
+              className="w-full px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded"
+            >
+              High Engagement
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-gray-800 rounded-lg p-4">
+          <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-orange-400" />
+            External Systems
+          </h4>
+          <div className="space-y-2">
+            <button
+              onClick={() => showOverlayAd(eventOverlayAds[1], 'e-commerce')}
+              className="w-full px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs rounded"
+            >
+              Cart Abandoned
+            </button>
+            <button
+              onClick={() => resetDismissed('admin')}
+              className="w-full px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded"
+            >
+              Admin: Reset All
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-gray-900 rounded-lg p-4 text-white">
+        <h3 className="text-sm font-semibold mb-2 text-gray-400">Event Log</h3>
+        <div className="space-y-1 text-xs font-mono max-h-32 overflow-y-auto">
+          {events.length === 0 ? (
+            <span className="text-gray-500">Waiting... (promo in 5s)</span>
+          ) : (
+            events.map((event, i) => (
+              <div key={i} className="text-violet-300">
+                {event}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="bg-gray-900 rounded-lg p-4">
+        <h4 className="text-sm font-semibold mb-2 text-gray-400">Usage</h4>
+        <pre className="text-xs overflow-x-auto text-green-300">
+          {`import { createAdEventBus, VideoPlayer } from '@fairu/player';
+
+const adEventBus = createAdEventBus();
+
+<VideoPlayer track={track} adEventBus={adEventBus} />
+
+// Trigger from anywhere:
+adEventBus.emit('showOverlayAd', { id: 'promo', imageUrl: '...', displayAt: 0 });
+adEventBus.emit('hideOverlayAd', { id: 'promo' });
+adEventBus.emit('showInfoCard', { id: 'card', type: 'product', ... });
+adEventBus.emit('resetDismissed');`}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+export const EventPipeline: Story = {
+  render: () => <EventPipelineDemo />,
 };

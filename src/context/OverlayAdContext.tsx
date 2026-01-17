@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
 import type { OverlayAd, InfoCard } from '@/types/video';
+import type { AdEventBus } from '@/utils/AdEventBus';
 
 /**
  * State for dynamic overlay ads and info cards
@@ -63,6 +64,8 @@ export interface OverlayAdProviderProps {
   currentTime?: number;
   /** Video duration */
   duration?: number;
+  /** Event bus for external control of ads */
+  adEventBus?: AdEventBus;
   /** Callback when an overlay ad is shown */
   onOverlayAdShow?: (ad: OverlayAd) => void;
   /** Callback when an overlay ad is hidden/dismissed */
@@ -82,6 +85,7 @@ export function OverlayAdProvider({
   infoCards = [],
   currentTime = 0,
   duration = 0,
+  adEventBus,
   onOverlayAdShow,
   onOverlayAdHide,
   onInfoCardShow,
@@ -266,6 +270,68 @@ export function OverlayAdProvider({
     isOverlayAdVisible,
     isInfoCardVisible,
   };
+
+  // Subscribe to AdEventBus events
+  useEffect(() => {
+    if (!adEventBus) return;
+
+    const unsubscribers: (() => void)[] = [];
+
+    unsubscribers.push(
+      adEventBus.on('showOverlayAd', (ad) => {
+        showOverlayAd(ad);
+      })
+    );
+
+    unsubscribers.push(
+      adEventBus.on('hideOverlayAd', ({ id }) => {
+        hideOverlayAd(id);
+      })
+    );
+
+    unsubscribers.push(
+      adEventBus.on('hideAllOverlayAds', () => {
+        hideAllOverlayAds();
+      })
+    );
+
+    unsubscribers.push(
+      adEventBus.on('showInfoCard', (card) => {
+        showInfoCard(card);
+      })
+    );
+
+    unsubscribers.push(
+      adEventBus.on('hideInfoCard', ({ id }) => {
+        hideInfoCard(id);
+      })
+    );
+
+    unsubscribers.push(
+      adEventBus.on('hideAllInfoCards', () => {
+        hideAllInfoCards();
+      })
+    );
+
+    unsubscribers.push(
+      adEventBus.on('resetDismissed', () => {
+        resetDismissed();
+      })
+    );
+
+    return () => {
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [
+    adEventBus,
+    showOverlayAd,
+    hideOverlayAd,
+    hideAllOverlayAds,
+    showInfoCard,
+    hideInfoCard,
+    hideAllInfoCards,
+    resetDismissed,
+  ]);
 
   const contextValue = useMemo(() => ({ state, controls }), [state, controls]);
 

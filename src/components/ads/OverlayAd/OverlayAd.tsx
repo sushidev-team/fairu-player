@@ -9,6 +9,8 @@ export interface OverlayAdProps {
   currentTime: number;
   /** Whether to show the overlay */
   visible?: boolean;
+  /** Skip time-based visibility check (for manually triggered ads) */
+  forceShow?: boolean;
   /** Callback when the overlay is closed */
   onClose?: (ad: OverlayAdType) => void;
   /** Callback when the overlay is clicked */
@@ -26,6 +28,7 @@ export function OverlayAd({
   ad,
   currentTime,
   visible = true,
+  forceShow = false,
   onClose,
   onClick,
   onImpression,
@@ -39,18 +42,19 @@ export function OverlayAd({
   const position = ad.position ?? 'bottom';
   const closeable = ad.closeable !== false;
 
-  // Determine if the ad should be visible based on time
+  // Determine if the ad should be visible based on time (or forceShow)
   useEffect(() => {
     if (wasClosed) {
       setIsShowing(false);
       return;
     }
 
-    const shouldShow = currentTime >= ad.displayAt && currentTime < ad.displayAt + duration;
+    // If forceShow is true, skip time-based check
+    const shouldShow = forceShow || (currentTime >= ad.displayAt && currentTime < ad.displayAt + duration);
     setIsShowing(shouldShow && visible);
 
     // Fire impression when first shown
-    if (shouldShow && !impressionFired) {
+    if (shouldShow && visible && !impressionFired) {
       setImpressionFired(true);
       onImpression?.(ad);
 
@@ -59,7 +63,7 @@ export function OverlayAd({
         fetch(ad.trackingUrls.impression, { method: 'GET', mode: 'no-cors' }).catch(() => {});
       }
     }
-  }, [currentTime, ad, duration, visible, wasClosed, impressionFired, onImpression]);
+  }, [currentTime, ad, duration, visible, forceShow, wasClosed, impressionFired, onImpression]);
 
   // Handle close
   const handleClose = useCallback((e: React.MouseEvent) => {

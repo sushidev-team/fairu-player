@@ -662,6 +662,131 @@ const adBreaks = [
 ];
 ```
 
+### Dynamic Ad Triggering (Event Pipeline)
+
+For advanced use cases, you can trigger overlay ads and info cards programmatically from anywhere in your application using the `AdEventBus`. This is useful for:
+
+- Analytics-driven ad triggers (show ads when users reach milestones)
+- E-commerce integration (cart abandonment reminders)
+- Real-time events (WebSocket-triggered promotions)
+- Timer-based campaigns
+- A/B testing different ad placements
+
+```tsx
+import { createAdEventBus, VideoPlayer } from '@fairu/player';
+
+// Create an event bus (can be a singleton for app-wide access)
+const adEventBus = createAdEventBus();
+
+function App() {
+  return (
+    <VideoPlayer
+      track={myTrack}
+      adEventBus={adEventBus}  // Pass the event bus to the player
+    />
+  );
+}
+
+// Trigger ads from ANYWHERE in your app:
+
+// Show an overlay ad
+adEventBus.emit('showOverlayAd', {
+  id: 'promo-1',
+  imageUrl: 'https://example.com/promo.png',
+  clickThroughUrl: 'https://example.com/offer',
+  displayAt: 0,  // Ignored for manual triggers
+  closeable: true,
+  position: 'bottom',
+});
+
+// Hide a specific overlay ad
+adEventBus.emit('hideOverlayAd', { id: 'promo-1' });
+
+// Hide all overlay ads
+adEventBus.emit('hideAllOverlayAds');
+
+// Show an info card
+adEventBus.emit('showInfoCard', {
+  id: 'product-1',
+  type: 'product',
+  title: 'Featured Product',
+  description: 'Check out this deal!',
+  price: '$49.99',
+  url: 'https://example.com/product',
+  displayAt: 0,
+  position: 'top-right',
+});
+
+// Hide info cards
+adEventBus.emit('hideInfoCard', { id: 'product-1' });
+adEventBus.emit('hideAllInfoCards');
+
+// Reset all dismissed ads (allow them to show again)
+adEventBus.emit('resetDismissed');
+```
+
+#### Available Events
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `showOverlayAd` | `OverlayAd` | Show an overlay banner ad |
+| `hideOverlayAd` | `{ id: string }` | Hide a specific overlay ad |
+| `hideAllOverlayAds` | - | Hide all overlay ads |
+| `showInfoCard` | `InfoCard` | Show an info card |
+| `hideInfoCard` | `{ id: string }` | Hide a specific info card |
+| `hideAllInfoCards` | - | Hide all info cards |
+| `resetDismissed` | - | Reset dismissed states |
+
+#### Integration Examples
+
+```tsx
+// Analytics integration
+analytics.on('userMilestone', (milestone) => {
+  if (milestone === '50%_watched') {
+    adEventBus.emit('showOverlayAd', promoAd);
+  }
+});
+
+// E-commerce cart abandonment
+cart.on('abandoned', () => {
+  adEventBus.emit('showInfoCard', {
+    id: 'cart-reminder',
+    type: 'product',
+    title: 'Complete your purchase!',
+    price: '-20% with code SAVE20',
+    displayAt: 0,
+  });
+});
+
+// WebSocket real-time events
+socket.on('flash-sale', (saleData) => {
+  adEventBus.emit('showOverlayAd', {
+    id: 'flash-sale',
+    imageUrl: saleData.bannerUrl,
+    clickThroughUrl: saleData.url,
+    displayAt: 0,
+    closeable: true,
+  });
+});
+```
+
+#### Global Event Bus
+
+For app-wide access, you can use a singleton pattern:
+
+```tsx
+import { getGlobalAdEventBus, resetGlobalAdEventBus } from '@fairu/player';
+
+// Get the global instance (created on first access)
+const adEventBus = getGlobalAdEventBus();
+
+// Use it anywhere in your app
+adEventBus.emit('showOverlayAd', myAd);
+
+// Reset on unmount or cleanup
+resetGlobalAdEventBus();
+```
+
 ### VAST Tracking Events
 
 The player supports standard VAST tracking events:
@@ -897,11 +1022,11 @@ This starts Storybook at [http://localhost:6006](http://localhost:6006).
 | Category | Components |
 |----------|------------|
 | **Player** | `Player`, `NowPlayingView`, `CoverArtView` |
-| **VideoPlayer** | `VideoPlayer`, `VideoOverlay`, `VideoControls` |
+| **VideoPlayer** | `VideoPlayer`, `VideoOverlay`, `VideoControls`, `DynamicAdTriggering`, `EventPipeline` |
 | **Controls** | `PlayButton`, `ProgressBar`, `VolumeControl`, `TimeDisplay`, `PlaybackSpeed`, `SkipButtons`, `FullscreenButton`, `QualitySelector` |
 | **Playlist** | `PlaylistView`, `TrackItem`, `PlaylistControls` |
 | **Chapters** | `ChapterList`, `ChapterMarker` |
-| **Ads** | `AdOverlay`, `AdSkipButton` |
+| **Ads** | `AdOverlay`, `AdSkipButton`, `OverlayAd`, `InfoCard` |
 
 ### Story Features
 

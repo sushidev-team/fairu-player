@@ -11,6 +11,8 @@ export interface InfoCardProps {
   duration: number;
   /** Whether the card is expanded (shown) */
   expanded?: boolean;
+  /** Skip time-based visibility check (for manually triggered cards) */
+  forceShow?: boolean;
   /** Callback when the card is dismissed */
   onDismiss?: (card: InfoCardType) => void;
   /** Callback when the card is clicked/selected */
@@ -29,6 +31,7 @@ export function InfoCard({
   currentTime,
   duration,
   expanded = false,
+  forceShow = false,
   onDismiss,
   onSelect,
   onImpression,
@@ -41,14 +44,15 @@ export function InfoCard({
   const cardDuration = card.duration ?? (duration - card.displayAt);
   const position = card.position ?? 'top-right';
 
-  // Determine if the card should be visible based on time
+  // Determine if the card should be visible based on time (or forceShow)
   useEffect(() => {
     if (wasDismissed) {
       setIsVisible(false);
       return;
     }
 
-    const shouldShow = currentTime >= card.displayAt && currentTime < card.displayAt + cardDuration;
+    // If forceShow is true, skip time-based check
+    const shouldShow = forceShow || (currentTime >= card.displayAt && currentTime < card.displayAt + cardDuration);
     setIsVisible(shouldShow);
 
     // Fire impression when first shown
@@ -61,7 +65,7 @@ export function InfoCard({
         fetch(card.trackingUrls.impression, { method: 'GET', mode: 'no-cors' }).catch(() => {});
       }
     }
-  }, [currentTime, card, cardDuration, wasDismissed, impressionFired, onImpression]);
+  }, [currentTime, card, cardDuration, forceShow, wasDismissed, impressionFired, onImpression]);
 
   // Handle dismiss
   const handleDismiss = useCallback((e: React.MouseEvent) => {

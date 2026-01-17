@@ -44,7 +44,7 @@ const linkCard: InfoCardType = {
 };
 
 // Mock fetch for tracking
-global.fetch = vi.fn(() => Promise.resolve(new Response()));
+globalThis.fetch = vi.fn(() => Promise.resolve(new Response()));
 
 describe('InfoCard', () => {
   beforeEach(() => {

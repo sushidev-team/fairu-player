@@ -261,6 +261,17 @@ export type {
 // Utilities
 export { formatTime, formatDuration, parseTime, calculatePercentage, cn } from './utils';
 
+// Ad Event Bus (for external ad control)
+export {
+  createAdEventBus,
+  getGlobalAdEventBus,
+  resetGlobalAdEventBus,
+  type AdEventBus,
+  type AdEventType,
+  type AdEventPayloads,
+  type AdEventListener,
+} from './utils/AdEventBus';
+
 // Fairu.app hosting utilities
 export {
   // Constants

@@ -3,6 +3,7 @@ import { cn } from '@/utils/cn';
 import { VideoProvider, useVideoPlayer } from '@/context/VideoContext';
 import { VideoAdProvider, useVideoAds } from '@/context/VideoAdContext';
 import { OverlayAdProvider, useOverlayAds, type OverlayAdControls } from '@/context/OverlayAdContext';
+import type { AdEventBus } from '@/utils/AdEventBus';
 import { useLabels } from '@/context/LabelsContext';
 import { interpolateLabel } from '@/types/labels';
 import { VideoOverlay } from './VideoOverlay';
@@ -67,6 +68,18 @@ function VideoPlayerInner({
   // Get active overlay ads and info cards from context
   const activeOverlayAds = overlayState.activeOverlayAds;
   const activeInfoCards = overlayState.activeInfoCards;
+  const manualOverlayAds = overlayState.manualOverlayAds;
+  const manualInfoCards = overlayState.manualInfoCards;
+
+  // Helper to check if an ad was manually triggered
+  const isManualOverlayAd = useCallback(
+    (adId: string) => manualOverlayAds.some((ad) => ad.id === adId),
+    [manualOverlayAds]
+  );
+  const isManualInfoCard = useCallback(
+    (cardId: string) => manualInfoCards.some((card) => card.id === cardId),
+    [manualInfoCards]
+  );
 
   // Handle mouse movement to show controls
   const handleMouseMove = useCallback(() => {
@@ -248,19 +261,23 @@ function VideoPlayerInner({
       )}
 
       {/* Overlay Ads */}
-      {!isAdPlaying && activeOverlayAds.map((ad) => (
-        <OverlayAd
-          key={ad.id}
-          ad={ad}
-          currentTime={state.currentTime}
-          visible={state.isPlaying}
-          onClose={(closedAd) => {
-            overlayControls.hideOverlayAd(closedAd.id);
-            onOverlayAdClose?.(closedAd);
-          }}
-          onClick={onOverlayAdClick}
-        />
-      ))}
+      {!isAdPlaying && activeOverlayAds.map((ad) => {
+        const isManual = isManualOverlayAd(ad.id);
+        return (
+          <OverlayAd
+            key={ad.id}
+            ad={ad}
+            currentTime={state.currentTime}
+            visible={isManual || state.isPlaying}
+            forceShow={isManual}
+            onClose={(closedAd) => {
+              overlayControls.hideOverlayAd(closedAd.id);
+              onOverlayAdClose?.(closedAd);
+            }}
+            onClick={onOverlayAdClick}
+          />
+        );
+      })}
 
       {/* Info Card Icon */}
       {!isAdPlaying && activeInfoCards.length > 0 && (
@@ -273,20 +290,24 @@ function VideoPlayerInner({
       )}
 
       {/* Info Cards */}
-      {!isAdPlaying && activeInfoCards.map((card) => (
-        <InfoCard
-          key={card.id}
-          card={card}
-          currentTime={state.currentTime}
-          duration={state.duration}
-          expanded={infoCardsExpanded}
-          onDismiss={(dismissedCard) => {
-            overlayControls.hideInfoCard(dismissedCard.id);
-            onInfoCardDismiss?.(dismissedCard);
-          }}
-          onSelect={onInfoCardSelect}
-        />
-      ))}
+      {!isAdPlaying && activeInfoCards.map((card) => {
+        const isManual = isManualInfoCard(card.id);
+        return (
+          <InfoCard
+            key={card.id}
+            card={card}
+            currentTime={state.currentTime}
+            duration={state.duration}
+            expanded={infoCardsExpanded}
+            forceShow={isManual}
+            onDismiss={(dismissedCard) => {
+              overlayControls.hideInfoCard(dismissedCard.id);
+              onInfoCardDismiss?.(dismissedCard);
+            }}
+            onSelect={onInfoCardSelect}
+          />
+        );
+      })}
 
       {/* End Screen */}
       {!isAdPlaying && config.endScreen?.enabled && (
@@ -319,12 +340,22 @@ function VideoPlayerInner({
 
 export interface VideoPlayerWithProviderProps extends VideoPlayerProps {
   adConfig?: VideoAdConfig;
+  /** Event bus for external control of overlay ads and info cards */
+  adEventBus?: AdEventBus;
   /** Called when playback starts (first play) */
   onStart?: () => void;
   /** Called when video has been fully watched (all segments covered) */
   onFinished?: () => void;
   /** Called when watch progress updates */
   onWatchProgressUpdate?: (progress: WatchProgress) => void;
+}
+
+interface VideoPlayerWithOverlayProviderProps {
+  className?: string;
+  videoConfig: VideoConfig;
+  adConfig?: VideoAdConfig;
+  adEventBus?: AdEventBus;
+  playerRef: React.ForwardedRef<VideoPlayerRef>;
 }
 
 /**
@@ -336,6 +367,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerWithProviderPro
   playlist,
   className,
   adConfig,
+  adEventBus,
   onStart,
   onPlay,
   onPause,
@@ -371,6 +403,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerWithProviderPro
         className={className}
         videoConfig={videoConfig}
         adConfig={adConfig}
+        adEventBus={adEventBus}
         playerRef={ref}
       />
     </VideoProvider>
@@ -384,13 +417,9 @@ function VideoPlayerWithOverlayProvider({
   className,
   videoConfig,
   adConfig,
+  adEventBus,
   playerRef,
-}: {
-  className?: string;
-  videoConfig: VideoConfig;
-  adConfig?: VideoAdConfig;
-  playerRef: React.ForwardedRef<VideoPlayerRef>;
-}) {
+}: VideoPlayerWithOverlayProviderProps) {
   const { state } = useVideoPlayer();
 
   return (
@@ -399,6 +428,7 @@ function VideoPlayerWithOverlayProvider({
       infoCards={videoConfig.infoCards}
       currentTime={state.currentTime}
       duration={state.duration}
+      adEventBus={adEventBus}
     >
       <VideoPlayerRefHandler playerRef={playerRef} />
       {adConfig?.enabled ? (
@@ -545,6 +575,18 @@ function VideoPlayerInnerWithAds({
   // Get active overlay ads and info cards from context
   const activeOverlayAds = overlayState.activeOverlayAds;
   const activeInfoCards = overlayState.activeInfoCards;
+  const manualOverlayAds = overlayState.manualOverlayAds;
+  const manualInfoCards = overlayState.manualInfoCards;
+
+  // Helper to check if an ad was manually triggered
+  const isManualOverlayAd = useCallback(
+    (adId: string) => manualOverlayAds.some((ad) => ad.id === adId),
+    [manualOverlayAds]
+  );
+  const isManualInfoCard = useCallback(
+    (cardId: string) => manualInfoCards.some((card) => card.id === cardId),
+    [manualInfoCards]
+  );
 
   // Handle mouse movement to show controls
   const handleMouseMove = useCallback(() => {
@@ -743,19 +785,23 @@ function VideoPlayerInnerWithAds({
       )}
 
       {/* Overlay Ads */}
-      {!isAdPlaying && activeOverlayAds.map((ad) => (
-        <OverlayAd
-          key={ad.id}
-          ad={ad}
-          currentTime={state.currentTime}
-          visible={state.isPlaying}
-          onClose={(closedAd) => {
-            overlayControls.hideOverlayAd(closedAd.id);
-            onOverlayAdClose?.(closedAd);
-          }}
-          onClick={onOverlayAdClick}
-        />
-      ))}
+      {!isAdPlaying && activeOverlayAds.map((ad) => {
+        const isManual = isManualOverlayAd(ad.id);
+        return (
+          <OverlayAd
+            key={ad.id}
+            ad={ad}
+            currentTime={state.currentTime}
+            visible={isManual || state.isPlaying}
+            forceShow={isManual}
+            onClose={(closedAd) => {
+              overlayControls.hideOverlayAd(closedAd.id);
+              onOverlayAdClose?.(closedAd);
+            }}
+            onClick={onOverlayAdClick}
+          />
+        );
+      })}
 
       {/* Info Card Icon */}
       {!isAdPlaying && activeInfoCards.length > 0 && (
@@ -768,20 +814,24 @@ function VideoPlayerInnerWithAds({
       )}
 
       {/* Info Cards */}
-      {!isAdPlaying && activeInfoCards.map((card) => (
-        <InfoCard
-          key={card.id}
-          card={card}
-          currentTime={state.currentTime}
-          duration={state.duration}
-          expanded={infoCardsExpanded}
-          onDismiss={(dismissedCard) => {
-            overlayControls.hideInfoCard(dismissedCard.id);
-            onInfoCardDismiss?.(dismissedCard);
-          }}
-          onSelect={onInfoCardSelect}
-        />
-      ))}
+      {!isAdPlaying && activeInfoCards.map((card) => {
+        const isManual = isManualInfoCard(card.id);
+        return (
+          <InfoCard
+            key={card.id}
+            card={card}
+            currentTime={state.currentTime}
+            duration={state.duration}
+            expanded={infoCardsExpanded}
+            forceShow={isManual}
+            onDismiss={(dismissedCard) => {
+              overlayControls.hideInfoCard(dismissedCard.id);
+              onInfoCardDismiss?.(dismissedCard);
+            }}
+            onSelect={onInfoCardSelect}
+          />
+        );
+      })}
 
       {/* End Screen */}
       {!isAdPlaying && config.endScreen?.enabled && (
