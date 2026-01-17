@@ -46,10 +46,13 @@ export function AdProvider({ children, config: userConfig = {} }: AdProviderProp
     setState((prev) => ({ ...prev, ...updates }));
   }, []);
 
+  // Standard VAST event types (excludes 'progress' which has a different structure)
+  type StandardTrackingEvent = Exclude<keyof NonNullable<Ad['trackingUrls']>, 'progress'>;
+
   // Track ad impression
-  const trackAdEvent = useCallback(async (ad: Ad, eventType: keyof NonNullable<Ad['trackingUrls']>) => {
+  const trackAdEvent = useCallback(async (ad: Ad, eventType: StandardTrackingEvent) => {
     const url = ad.trackingUrls?.[eventType];
-    if (url) {
+    if (url && typeof url === 'string') {
       try {
         await fetch(url, { method: 'GET', mode: 'no-cors' });
       } catch (error) {
@@ -246,14 +249,32 @@ export function AdProvider({ children, config: userConfig = {} }: AdProviderProp
       updateState(initialState);
     };
 
+    const handlePause = () => {
+      if (state.currentAd && state.currentAdBreak) {
+        trackAdEvent(state.currentAd, 'pause');
+        config.onAdPause?.(state.currentAd, state.currentAdBreak);
+      }
+    };
+
+    const handleResume = () => {
+      if (state.currentAd && state.currentAdBreak) {
+        trackAdEvent(state.currentAd, 'resume');
+        config.onAdResume?.(state.currentAd, state.currentAdBreak);
+      }
+    };
+
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('play', handleResume);
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('play', handleResume);
     };
   }, [state.currentAd, state.currentAdBreak, config, trackAdEvent, playAd, updateState]);
 

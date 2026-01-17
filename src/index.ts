@@ -3,6 +3,14 @@
 // Components
 export { Player, type PlayerInnerProps, type PlayerProps } from './components/Player';
 export {
+  VideoPlayer,
+  VideoOverlay,
+  VideoControls,
+  type VideoPlayerWithProviderProps,
+  type VideoOverlayProps,
+  type VideoControlsProps,
+} from './components/VideoPlayer';
+export {
   PlayButton,
   ProgressBar,
   TimeDisplay,
@@ -10,6 +18,8 @@ export {
   PlaybackSpeed,
   SkipButton,
   SkipButtons,
+  FullscreenButton,
+  QualitySelector,
   type PlayButtonProps,
   type ProgressBarProps,
   type TimeDisplayProps,
@@ -17,6 +27,8 @@ export {
   type PlaybackSpeedProps,
   type SkipButtonProps,
   type SkipButtonsProps,
+  type FullscreenButtonProps,
+  type QualitySelectorProps,
 } from './components/controls';
 export {
   ChapterMarker,
@@ -57,16 +69,36 @@ export {
   useAds,
   type AdProviderProps,
 } from './context/AdContext';
+export {
+  VideoContext,
+  VideoProvider,
+  useVideoPlayer,
+  type VideoProviderProps,
+} from './context/VideoContext';
+export {
+  VideoAdContext,
+  VideoAdProvider,
+  useVideoAds,
+  type VideoAdProviderProps,
+  type VideoAdContextValue,
+} from './context/VideoAdContext';
 
 // Hooks
 export {
   useAudio,
+  useMedia,
+  useVideo,
+  useFullscreen,
   usePlayer,
   usePlaylist,
   useChapters,
   useKeyboardControls,
   type UseAudioOptions,
   type UseAudioReturn,
+  type UseVideoOptions,
+  type UseVideoReturn,
+  type UseFullscreenOptions,
+  type UseFullscreenReturn,
   type UsePlaylistOptions,
   type UsePlaylistReturn,
   type UseKeyboardControlsOptions,
@@ -111,6 +143,26 @@ export type {
   UseChaptersOptions,
   UseChaptersReturn,
 } from './types';
+
+// Video types
+export type {
+  VideoTrack,
+  VideoQuality,
+  VideoFeatures,
+  VideoState,
+  VideoControls as VideoControlsInterface,
+  VideoConfig,
+  VideoContextValue,
+  VideoAd,
+  VideoAdBreak,
+  VideoAdConfig,
+  VideoPlayerProps,
+  WatchProgress,
+  WatchedSegment,
+  Subtitle,
+  HLSConfig,
+  CustomAdComponentProps,
+} from './types/video';
 
 // Utilities
 export { formatTime, formatDuration, parseTime, calculatePercentage, cn } from './utils';

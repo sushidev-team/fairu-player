@@ -164,7 +164,7 @@ export function VolumeControl({
           {/* Track Background */}
           <div
             className={cn(
-              'absolute w-full rounded-full bg-[var(--fp-progress-bg)]',
+              'absolute w-full top-1/2 -translate-y-1/2 rounded-full bg-[var(--fp-progress-bg)]',
               'transition-all duration-150',
               'h-1 group-hover/slider:h-1.5 group-hover/volume:h-1.5',
               isDragging && 'h-1.5'
@@ -257,7 +257,7 @@ export function VolumeControl({
             {/* Track Background */}
             <div
               className={cn(
-                'absolute h-full rounded-full bg-[var(--fp-progress-bg)]',
+                'absolute h-full left-1/2 -translate-x-1/2 rounded-full bg-[var(--fp-progress-bg)]',
                 'transition-all duration-150',
                 'w-1 group-hover/slider:w-1.5'
               )}

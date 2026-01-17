@@ -48,10 +48,14 @@ export class AdService {
 
   /**
    * Track ad event
+   * @param eventType - Standard VAST event type (excludes 'progress' which has a different structure)
    */
-  async trackAdEvent(ad: Ad, eventType: keyof NonNullable<Ad['trackingUrls']>): Promise<void> {
+  async trackAdEvent(
+    ad: Ad,
+    eventType: Exclude<keyof NonNullable<Ad['trackingUrls']>, 'progress'>
+  ): Promise<void> {
     const url = ad.trackingUrls?.[eventType];
-    if (!url) return;
+    if (!url || typeof url !== 'string') return;
 
     try {
       await fetch(url, { method: 'GET', mode: 'no-cors' });

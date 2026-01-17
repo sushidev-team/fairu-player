@@ -1,6 +1,12 @@
 export { useAudio, type UseAudioOptions, type UseAudioReturn } from './useAudio';
+export { useMedia } from './useMedia';
+export { useVideo, type UseVideoOptions, type UseVideoReturn } from './useVideo';
+export { useHLS, isHLSSource, supportsNativeHLS, type UseHLSOptions, type UseHLSReturn } from './useHLS';
+export { useFullscreen, type UseFullscreenOptions, type UseFullscreenReturn } from './useFullscreen';
 export { usePlayer } from './usePlayer';
 export { usePlaylist, type UsePlaylistOptions, type UsePlaylistReturn } from './usePlaylist';
 export { useChapters } from './useChapters';
 export { useKeyboardControls, type UseKeyboardControlsOptions } from './useKeyboardControls';
 export { useAds } from '@/context/AdContext';
+export { useVideoPlayer } from '@/context/VideoContext';
+export { useVideoAds } from '@/context/VideoAdContext';

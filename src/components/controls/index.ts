@@ -5,3 +5,5 @@ export { VolumeControl, type VolumeControlProps } from './VolumeControl';
 export { PlaybackSpeed, type PlaybackSpeedProps } from './PlaybackSpeed';
 export { SkipButton, SkipButtons, type SkipButtonProps, type SkipButtonsProps } from './SkipButtons';
 export { NowPlayingIndicator, type NowPlayingIndicatorProps } from './NowPlayingIndicator';
+export { FullscreenButton, type FullscreenButtonProps } from './FullscreenButton';
+export { QualitySelector, type QualitySelectorProps } from './QualitySelector';

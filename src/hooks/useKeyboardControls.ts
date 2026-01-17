@@ -2,7 +2,7 @@ import { useEffect, useCallback } from 'react';
 import type { PlayerControls } from '@/types/player';
 
 export interface UseKeyboardControlsOptions {
-  controls: PlayerControls;
+  controls?: PlayerControls;
   enabled?: boolean;
   skipAmount?: number;
   volumeStep?: number;
@@ -18,7 +18,12 @@ export function useKeyboardControls(options: UseKeyboardControlsOptions): void {
     containerRef,
   } = options;
 
+  // Early return if no controls provided
+  const hasControls = !!controls;
+
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    if (!controls) return;
+
     // Check if the event target is an input element
     const target = event.target as HTMLElement;
     if (
@@ -107,11 +112,11 @@ export function useKeyboardControls(options: UseKeyboardControlsOptions): void {
   }, [controls, skipAmount, volumeStep, containerRef]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !hasControls) return;
 
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [enabled, handleKeyDown]);
+  }, [enabled, hasControls, handleKeyDown]);
 }
