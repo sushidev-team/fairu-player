@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/sushidev-team/fairu-player/compare/v1.0.0...v1.0.1) (2026-01-17)
+
+
+### Bug Fixes
+
+* gha issue for deployment ([8c7eb59](https://github.com/sushidev-team/fairu-player/commit/8c7eb59234b72be3694ee8702f08654b9e077cc7))
+
 ## 1.0.0 (2026-01-17)
 
 
