@@ -10,6 +10,16 @@ export default defineConfig(({ mode }) => {
   const isCdnLight = mode === 'cdn-light';
   const isCdn = isCdnStandalone || isCdnLight;
 
+  // Use classic JSX transform for CDN builds (React.createElement instead of jsx-runtime)
+  // This is required because React UMD globals don't expose jsx-runtime separately
+  const esbuildOptions = isCdn
+    ? {
+        jsx: 'transform' as const,
+        jsxFactory: 'React.createElement',
+        jsxFragment: 'React.Fragment',
+      }
+    : {};
+
   // Determine build configuration
   const getBuildConfig = () => {
     if (isLib) {
@@ -31,7 +41,6 @@ export default defineConfig(({ mode }) => {
             globals: {
               react: 'React',
               'react-dom': 'ReactDOM',
-              'react/jsx-runtime': 'jsxRuntime',
             },
           },
         },
@@ -61,6 +70,7 @@ export default defineConfig(({ mode }) => {
 
     if (isCdnLight) {
       // Lightweight: React as external globals
+      // Note: react/jsx-runtime is NOT externalized because we use classic JSX transform
       return {
         lib: {
           entry: resolve(__dirname, 'src/embed/embed.ts'),
@@ -69,12 +79,11 @@ export default defineConfig(({ mode }) => {
           fileName: () => 'fairu-player.light.iife.js',
         },
         rollupOptions: {
-          external: ['react', 'react-dom', 'react/jsx-runtime'],
+          external: ['react', 'react-dom'],
           output: {
             globals: {
               react: 'React',
               'react-dom': 'ReactDOM',
-              'react/jsx-runtime': 'React',
             },
             inlineDynamicImports: true,
           },
@@ -89,7 +98,8 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [
-      react(),
+      // Don't use React plugin for CDN builds - esbuild handles JSX with classic transform
+      !isCdn && react(),
       isLib && dts({
         include: ['src'],
         exclude: ['src/**/*.stories.tsx', 'src/**/*.test.tsx'],
@@ -100,6 +110,7 @@ export default defineConfig(({ mode }) => {
         '@': resolve(__dirname, './src'),
       },
     },
+    esbuild: esbuildOptions,
     test: {
       globals: true,
       environment: 'jsdom',
