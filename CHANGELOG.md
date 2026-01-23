@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.0](https://github.com/sushidev-team/fairu-player/compare/v1.0.1...v1.1.0) (2026-01-23)
+
+
+### Features
+
+* add cdn setup ([199903f](https://github.com/sushidev-team/fairu-player/commit/199903f839481c956ffce5552bd1a72243201bca))
+* add support for storybook on gh ([2d15b6a](https://github.com/sushidev-team/fairu-player/commit/2d15b6a12b5e94e09fc001270a71bb849150515c))
+
+
+### Bug Fixes
+
+* cdn issues ([dfcfb8e](https://github.com/sushidev-team/fairu-player/commit/dfcfb8e32bc99a4e58934075fa4b2f7e732db6a0))
+
 ## [1.0.1](https://github.com/sushidev-team/fairu-player/compare/v1.0.0...v1.0.1) (2026-01-17)
 
 
