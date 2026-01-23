@@ -936,6 +936,75 @@ interface WatchedSegment {
 ></iframe>
 ```
 
+## CDN Usage
+
+The player is available as a standalone script for direct inclusion via CDN. Two variants are provided:
+
+### Standalone (recommended for most users)
+
+Includes React bundled - no dependencies required (~540 KB):
+
+```html
+<link rel="stylesheet" href="https://unpkg.com/@fairu/player/dist/player.css">
+<script src="https://unpkg.com/@fairu/player/dist/fairu-player.iife.js"></script>
+
+<div data-fairu-player data-src="https://example.com/audio.mp3"></div>
+
+<script>
+  FairuPlayer.init();
+</script>
+```
+
+### Lightweight (for sites already using React)
+
+Requires external React 18+ (~66 KB):
+
+```html
+<link rel="stylesheet" href="https://unpkg.com/@fairu/player/dist/player.css">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@fairu/player/dist/fairu-player.light.iife.js"></script>
+
+<div data-fairu-player data-src="https://example.com/audio.mp3"></div>
+
+<script>
+  FairuPlayer.init();
+</script>
+```
+
+### CDN API
+
+```javascript
+// Initialize all elements with data-fairu-player attribute
+FairuPlayer.init();
+
+// Initialize with custom selector
+FairuPlayer.init('.my-player');
+
+// Mount programmatically
+FairuPlayer.create('#my-container', {
+  src: 'https://example.com/audio.mp3',
+  player: {
+    showWaveform: false,
+  }
+});
+
+// Unmount
+FairuPlayer.unmount(element);
+```
+
+### Data Attributes
+
+Configure the player using data attributes:
+
+| Attribute | Description |
+|-----------|-------------|
+| `data-src` | Media URL |
+| `data-title` | Track title |
+| `data-artist` | Artist name |
+| `data-artwork` | Artwork URL |
+| `data-theme` | Theme (`light` or `dark`) |
+
 ## Theming
 
 The player uses CSS custom properties for theming:
