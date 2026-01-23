@@ -6,6 +6,86 @@ import { resolve } from 'path';
 
 export default defineConfig(({ mode }) => {
   const isLib = mode === 'lib';
+  const isCdnStandalone = mode === 'cdn-standalone';
+  const isCdnLight = mode === 'cdn-light';
+  const isCdn = isCdnStandalone || isCdnLight;
+
+  // Determine build configuration
+  const getBuildConfig = () => {
+    if (isLib) {
+      return {
+        lib: {
+          entry: {
+            index: resolve(__dirname, 'src/index.ts'),
+            embed: resolve(__dirname, 'src/embed/embed.ts'),
+          },
+          formats: ['es', 'cjs'] as const,
+          fileName: (format: string, entryName: string) => {
+            const ext = format === 'es' ? 'js' : 'cjs';
+            return `${entryName}.${ext}`;
+          },
+        },
+        rollupOptions: {
+          external: ['react', 'react-dom', 'react/jsx-runtime'],
+          output: {
+            globals: {
+              react: 'React',
+              'react-dom': 'ReactDOM',
+              'react/jsx-runtime': 'jsxRuntime',
+            },
+          },
+        },
+        cssCodeSplit: false,
+      };
+    }
+
+    if (isCdnStandalone) {
+      // Standalone: React bundled
+      return {
+        lib: {
+          entry: resolve(__dirname, 'src/embed/embed.ts'),
+          formats: ['iife'] as const,
+          name: 'FairuPlayer',
+          fileName: () => 'fairu-player.iife.js',
+        },
+        rollupOptions: {
+          output: {
+            // Inline all dependencies including React
+            inlineDynamicImports: true,
+          },
+        },
+        cssCodeSplit: false,
+        emptyOutDir: false,
+      };
+    }
+
+    if (isCdnLight) {
+      // Lightweight: React as external globals
+      return {
+        lib: {
+          entry: resolve(__dirname, 'src/embed/embed.ts'),
+          formats: ['iife'] as const,
+          name: 'FairuPlayer',
+          fileName: () => 'fairu-player.light.iife.js',
+        },
+        rollupOptions: {
+          external: ['react', 'react-dom', 'react/jsx-runtime'],
+          output: {
+            globals: {
+              react: 'React',
+              'react-dom': 'ReactDOM',
+              'react/jsx-runtime': 'React',
+            },
+            inlineDynamicImports: true,
+          },
+        },
+        cssCodeSplit: false,
+        emptyOutDir: false,
+      };
+    }
+
+    return {};
+  };
 
   return {
     plugins: [
@@ -36,31 +116,6 @@ export default defineConfig(({ mode }) => {
         ],
       },
     },
-    build: isLib
-      ? {
-          lib: {
-            entry: {
-              index: resolve(__dirname, 'src/index.ts'),
-              embed: resolve(__dirname, 'src/embed/embed.ts'),
-            },
-            formats: ['es', 'cjs'],
-            fileName: (format, entryName) => {
-              const ext = format === 'es' ? 'js' : 'cjs';
-              return `${entryName}.${ext}`;
-            },
-          },
-          rollupOptions: {
-            external: ['react', 'react-dom', 'react/jsx-runtime'],
-            output: {
-              globals: {
-                react: 'React',
-                'react-dom': 'ReactDOM',
-                'react/jsx-runtime': 'jsxRuntime',
-              },
-            },
-          },
-          cssCodeSplit: false,
-        }
-      : {},
+    build: getBuildConfig(),
   };
 });

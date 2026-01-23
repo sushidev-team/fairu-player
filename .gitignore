@@ -36,3 +36,7 @@ yarn-error.log*
 
 # Misc
 *.local
+
+# CDN test files
+test-cdn.html
+test-cdn-light.html
