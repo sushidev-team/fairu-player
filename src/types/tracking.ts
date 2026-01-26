@@ -9,6 +9,11 @@ export type TrackingEventType =
   | 'ad_start'
   | 'ad_complete'
   | 'ad_skip'
+  | 'pip_enter'
+  | 'pip_exit'
+  | 'tab_hidden'
+  | 'tab_visible'
+  | 'return_ad_triggered'
   | 'error';
 
 export interface TrackingEventData {
@@ -44,6 +49,11 @@ export interface TrackingEventsConfig {
   adStart?: boolean;
   adComplete?: boolean;
   adSkip?: boolean;
+  pipEnter?: boolean;
+  pipExit?: boolean;
+  tabHidden?: boolean;
+  tabVisible?: boolean;
+  returnAdTriggered?: boolean;
   error?: boolean;
 }
 

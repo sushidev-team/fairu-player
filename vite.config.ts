@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => {
   const isLib = mode === 'lib';
   const isCdnStandalone = mode === 'cdn-standalone';
   const isCdnLight = mode === 'cdn-light';
+  const isCdnLoader = mode === 'cdn-loader';
   const isCdn = isCdnStandalone || isCdnLight;
 
   // Use classic JSX transform for CDN builds (React.createElement instead of jsx-runtime)
@@ -93,13 +94,33 @@ export default defineConfig(({ mode }) => {
       };
     }
 
+    if (isCdnLoader) {
+      // Minimal loader: Vanilla JS, no React, no external deps
+      return {
+        lib: {
+          entry: resolve(__dirname, 'src/embed/loader.ts'),
+          formats: ['iife'] as const,
+          name: 'FairuPlayerLoader',
+          fileName: () => 'fairu-player.loader.iife.js',
+        },
+        rollupOptions: {
+          output: {
+            inlineDynamicImports: true,
+          },
+        },
+        minify: 'esbuild' as const,
+        cssCodeSplit: false,
+        emptyOutDir: false,
+      };
+    }
+
     return {};
   };
 
   return {
     plugins: [
       // Don't use React plugin for CDN builds - esbuild handles JSX with classic transform
-      !isCdn && react(),
+      !isCdn && !isCdnLoader && react(),
       isLib && dts({
         include: ['src'],
         exclude: ['src/**/*.stories.tsx', 'src/**/*.test.tsx'],

@@ -7,8 +7,11 @@ import { VolumeControl } from '@/components/controls/VolumeControl';
 import { PlaybackSpeed } from '@/components/controls/PlaybackSpeed';
 import { SkipButton } from '@/components/controls/SkipButtons';
 import { SubtitleSelector } from '@/components/controls/SubtitleSelector';
+import { PictureInPictureButton } from '@/components/controls/PictureInPictureButton';
+import { CastButton } from '@/components/controls/CastButton';
 import type { VideoState, VideoControls as VideoControlsType, VideoFeatures, Subtitle } from '@/types/video';
 import type { PlaylistState, PlaylistControls } from '@/types/player';
+import type { TimelineMarker } from '@/types/markers';
 
 export interface VideoControlsProps {
   visible: boolean;
@@ -23,6 +26,8 @@ export interface VideoControlsProps {
   playlistControls?: PlaylistControls;
   /** Available subtitles */
   subtitles?: Subtitle[];
+  /** Timeline markers */
+  markers?: TimelineMarker[];
   onFullscreenClick?: () => void;
   onQualityChange?: (quality: string) => void;
 }
@@ -40,6 +45,7 @@ export function VideoControls({
   playlistState,
   playlistControls,
   subtitles = [],
+  markers,
   onFullscreenClick,
   onQualityChange,
 }: VideoControlsProps) {
@@ -64,6 +70,7 @@ export function VideoControls({
           currentTime={state.currentTime}
           duration={state.duration}
           buffered={state.buffered}
+          markers={markers}
           disabled={disabled || features.seekingDisabled}
           onSeek={features.seekingDisabled ? undefined : controls.seek}
           className="mb-3"
@@ -186,6 +193,22 @@ export function VideoControls({
               subtitles={subtitles}
               onSubtitleChange={controls.setSubtitle}
               disabled={disabled}
+            />
+          )}
+
+          {features.pictureInPicture && (
+            <PictureInPictureButton
+              isPictureInPicture={state.isPictureInPicture}
+              disabled={disabled}
+              onClick={controls.togglePictureInPicture}
+            />
+          )}
+
+          {features.cast && (
+            <CastButton
+              isCasting={state.isCasting}
+              disabled={disabled}
+              onClick={controls.toggleCast}
             />
           )}
 

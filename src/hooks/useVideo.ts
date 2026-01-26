@@ -1,21 +1,35 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
 import { useMedia } from './useMedia';
 import { useFullscreen } from './useFullscreen';
+import { usePictureInPicture } from './usePictureInPicture';
+import { useCast } from './useCast';
+import { useTabVisibility } from './useTabVisibility';
 import { useHLS, isHLSSource } from './useHLS';
-import type { VideoState, VideoControls, VideoQuality, WatchProgress, WatchedSegment, HLSConfig } from '@/types/video';
+import type { VideoState, VideoControls, VideoQuality, WatchProgress, WatchedSegment, HLSConfig, TabVisibilityConfig } from '@/types/video';
 import { initialWatchProgress } from '@/types/video';
 import type { UseMediaOptions } from '@/types/media';
+import type { AdEventBus } from '@/utils/AdEventBus';
+import type { PlayerEventBus } from '@/utils/PlayerEventBus';
 
 export interface UseVideoOptions extends UseMediaOptions {
   poster?: string;
   qualities?: VideoQuality[];
   controlsHideDelay?: number;
   onFullscreenChange?: (isFullscreen: boolean) => void;
+  onPictureInPictureChange?: (isPiP: boolean) => void;
+  onCastChange?: (isCasting: boolean) => void;
+  onTabVisibilityChange?: (isVisible: boolean) => void;
   onStart?: () => void;
   onFinished?: () => void;
   onWatchProgressUpdate?: (progress: WatchProgress) => void;
   /** HLS streaming configuration */
   hls?: HLSConfig;
+  /** Tab visibility behavior configuration */
+  tabVisibility?: TabVisibilityConfig;
+  /** Ad event bus for triggering return-ads */
+  adEventBus?: AdEventBus;
+  /** Player event bus for emitting tab/PiP events */
+  playerEventBus?: PlayerEventBus;
 }
 
 /**
@@ -59,6 +73,9 @@ export interface UseVideoReturn {
 
 const defaultVideoState: Omit<VideoState, keyof import('@/types/media').MediaState> = {
   isFullscreen: false,
+  isPictureInPicture: false,
+  isCasting: false,
+  isTabVisible: true,
   currentQuality: 'auto',
   availableQualities: [],
   aspectRatio: 16 / 9,
@@ -80,10 +97,16 @@ export function useVideo(options: UseVideoOptions = {}): UseVideoReturn {
     qualities = [],
     controlsHideDelay = 3000,
     onFullscreenChange,
+    onPictureInPictureChange,
+    onCastChange,
+    onTabVisibilityChange,
     onStart,
     onFinished,
     onWatchProgressUpdate,
     hls: hlsConfig,
+    tabVisibility: tabVisibilityConfig,
+    adEventBus,
+    playerEventBus,
     ...mediaOptions
   } = options;
 
@@ -93,6 +116,9 @@ export function useVideo(options: UseVideoOptions = {}): UseVideoReturn {
   const hasFinishedRef = useRef(false);
   const currentSegmentStartRef = useRef<number | null>(null);
   const watchProgressRef = useRef<WatchProgress>(initialWatchProgress);
+  const wasPlayingBeforeHiddenRef = useRef(false);
+  const wasMutedBeforeHiddenRef = useRef(false);
+  const tabHiddenTimestampRef = useRef<number>(0);
 
   // Use shared media hook - but don't set src for HLS sources (useHLS will handle it)
   const isHLSStream = isHLSSource(mediaOptions.src);
@@ -102,9 +128,96 @@ export function useVideo(options: UseVideoOptions = {}): UseVideoReturn {
     src: mediaSrc,
   });
 
+  // Store reactive values in refs so tab-visibility callbacks always read fresh state.
+  // This avoids stale closures: the visibilitychange handler (registered once)
+  // always reads the latest media state, controls, and callbacks from these refs.
+  const mediaStateRef = useRef(mediaState);
+  const mediaControlsRef = useRef(mediaControls);
+  const onTabVisibilityChangeRef = useRef(onTabVisibilityChange);
+  const tabVisibilityConfigRef = useRef(tabVisibilityConfig);
+  const adEventBusRef = useRef(adEventBus);
+  const playerEventBusRef = useRef(playerEventBus);
+  mediaStateRef.current = mediaState;
+  mediaControlsRef.current = mediaControls;
+  onTabVisibilityChangeRef.current = onTabVisibilityChange;
+  tabVisibilityConfigRef.current = tabVisibilityConfig;
+  adEventBusRef.current = adEventBus;
+  playerEventBusRef.current = playerEventBus;
+
   // Use fullscreen hook
   const { isFullscreen, enterFullscreen, exitFullscreen, toggleFullscreen } = useFullscreen(containerRef, {
     onChange: onFullscreenChange,
+  });
+
+  // Use picture-in-picture hook
+  const {
+    isPictureInPicture,
+    enterPictureInPicture,
+    exitPictureInPicture,
+    togglePictureInPicture,
+  } = usePictureInPicture(videoRef, {
+    onChange: onPictureInPictureChange,
+  });
+
+  // Use cast hook
+  const {
+    isCasting,
+    toggleCast,
+  } = useCast(videoRef, {
+    onChange: onCastChange,
+  });
+
+  // Tab visibility callbacks — all logic lives here (pause/resume, mute/unmute,
+  // event bus emissions, return-ad triggering). Every reactive value is read
+  // from refs so these callbacks are completely stable and never stale.
+  const handleTabHidden = useCallback(() => {
+    if (tabVisibilityConfigRef.current?.pauseOnHidden && mediaStateRef.current.isPlaying) {
+      wasPlayingBeforeHiddenRef.current = true;
+      mediaControlsRef.current.pause();
+    }
+    if (tabVisibilityConfigRef.current?.muteOnHidden && !mediaStateRef.current.isMuted) {
+      wasMutedBeforeHiddenRef.current = true;
+      mediaControlsRef.current.toggleMute();
+    }
+    tabHiddenTimestampRef.current = Date.now();
+    onTabVisibilityChangeRef.current?.(false);
+    playerEventBusRef.current?.emit('tabHidden', { timestamp: Date.now() });
+  }, []);
+
+  const handleTabVisible = useCallback(() => {
+    if (tabVisibilityConfigRef.current?.resumeOnVisible && wasPlayingBeforeHiddenRef.current) {
+      wasPlayingBeforeHiddenRef.current = false;
+      mediaControlsRef.current.play();
+    }
+    if (tabVisibilityConfigRef.current?.muteOnHidden && wasMutedBeforeHiddenRef.current) {
+      wasMutedBeforeHiddenRef.current = false;
+      mediaControlsRef.current.toggleMute();
+    }
+    const hiddenDuration = tabHiddenTimestampRef.current
+      ? (Date.now() - tabHiddenTimestampRef.current) / 1000
+      : 0;
+    onTabVisibilityChangeRef.current?.(true);
+    playerEventBusRef.current?.emit('tabVisible', { timestamp: Date.now(), hiddenDuration });
+
+    // Return-ad: trigger overlay ad on every tab return
+    // (respects returnAdMinHiddenDuration if set, otherwise triggers immediately)
+    const tabConfig = tabVisibilityConfigRef.current;
+    const minDuration = tabConfig?.returnAdMinHiddenDuration ?? 0;
+    if (
+      tabConfig?.showReturnAd &&
+      tabConfig.returnAd &&
+      hiddenDuration >= minDuration &&
+      adEventBusRef.current
+    ) {
+      playerEventBusRef.current?.emit('triggerReturnAd', { hiddenDuration });
+      adEventBusRef.current.emit('showOverlayAd', tabConfig.returnAd);
+    }
+  }, []);
+
+  // Use tab visibility hook
+  const { isTabVisible } = useTabVisibility({
+    onHidden: handleTabHidden,
+    onVisible: handleTabVisible,
   });
 
   // HLS quality levels state (managed separately since it comes from HLS hook)
@@ -366,6 +479,9 @@ export function useVideo(options: UseVideoOptions = {}): UseVideoReturn {
     ...mediaState,
     ...videoState,
     isFullscreen,
+    isPictureInPicture,
+    isCasting,
+    isTabVisible,
     isHLS,
     isAutoQuality: isUsingHlsJs ? hlsIsAutoQuality : false,
     availableQualities,
@@ -377,6 +493,10 @@ export function useVideo(options: UseVideoOptions = {}): UseVideoReturn {
     enterFullscreen: () => enterFullscreen(),
     exitFullscreen,
     toggleFullscreen: () => toggleFullscreen(),
+    enterPictureInPicture,
+    exitPictureInPicture,
+    togglePictureInPicture,
+    toggleCast,
     setQuality,
     setSubtitle,
     showControls,

@@ -2,6 +2,7 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { cn, formatTime } from '@/utils';
 import { useLabels } from '@/context/LabelsContext';
 import type { Chapter } from '@/types/player';
+import type { TimelineMarker } from '@/types/markers';
 import type { PlayerLabels } from '@/types/labels';
 
 export interface ProgressBarProps {
@@ -9,6 +10,7 @@ export interface ProgressBarProps {
   duration: number;
   buffered?: number;
   chapters?: Chapter[];
+  markers?: TimelineMarker[];
   showTooltip?: boolean;
   disabled?: boolean;
   onSeek?: (time: number) => void;
@@ -23,6 +25,7 @@ export function ProgressBar({
   duration,
   buffered = 0,
   chapters = [],
+  markers = [],
   showTooltip = true,
   disabled = false,
   onSeek,
@@ -171,6 +174,20 @@ export function ProgressBar({
 
   const hoverChapter = hoverTime > 0 ? getChapterAtTime(hoverTime) : undefined;
 
+  // Find nearest marker within 3s threshold
+  const getMarkerAtTime = (time: number): TimelineMarker | undefined => {
+    let closest: { marker: TimelineMarker; distance: number } | undefined;
+    for (const marker of markers) {
+      const distance = Math.abs(time - marker.time);
+      if (distance <= 3 && (!closest || distance < closest.distance)) {
+        closest = { marker, distance };
+      }
+    }
+    return closest?.marker;
+  };
+
+  const hoverMarker = hoverTime > 0 ? getMarkerAtTime(hoverTime) : undefined;
+
   return (
     <div
       ref={progressRef}
@@ -239,6 +256,26 @@ export function ProgressBar({
           );
         })}
 
+        {/* Marker dots */}
+        {markers.map((marker) => {
+          const position = duration > 0 ? (marker.time / duration) * 100 : 0;
+          return (
+            <div
+              key={marker.id}
+              className={cn(
+                'absolute top-1/2 -translate-y-1/2 -translate-x-1/2',
+                'rounded-full',
+                'transition-all duration-150',
+                isActive ? 'w-2.5 h-2.5' : 'w-2 h-2'
+              )}
+              style={{
+                left: `${position}%`,
+                backgroundColor: marker.color || 'var(--fp-color-accent)',
+              }}
+            />
+          );
+        })}
+
         {/* Drag handle - hidden by default, shown on hover */}
         <div
           className={cn(
@@ -259,22 +296,39 @@ export function ProgressBar({
         <div
           className={cn(
             'absolute bottom-full mb-3 -translate-x-1/2',
-            'rounded-md bg-[var(--fp-color-surface)] px-2.5 py-1.5',
+            'rounded-md bg-[var(--fp-color-surface)]',
             'text-xs text-[var(--fp-color-text)] shadow-lg',
             'pointer-events-none whitespace-nowrap',
-            'border border-[var(--fp-glass-border)]'
+            'border border-[var(--fp-glass-border)]',
+            'overflow-hidden',
+            hoverMarker?.previewImage ? 'p-0' : 'px-2.5 py-1.5'
           )}
           style={{
             left: `${hoverPosition}%`,
             animation: 'fp-tooltip-in 150ms ease-out',
           }}
         >
-          <div className="font-medium">{formatTime(hoverTime)}</div>
-          {hoverChapter && (
-            <div className="text-[var(--fp-color-text-secondary)] text-[10px] mt-0.5">
-              {hoverChapter.title}
-            </div>
+          {hoverMarker?.previewImage && (
+            <img
+              src={hoverMarker.previewImage}
+              alt=""
+              className="block"
+              style={{ width: 160, height: 90, objectFit: 'cover' }}
+            />
           )}
+          <div className={hoverMarker?.previewImage ? 'px-2.5 py-1.5' : ''}>
+            <div className="font-medium">{formatTime(hoverTime)}</div>
+            {hoverMarker?.title && (
+              <div className="text-[var(--fp-color-accent)] text-[10px] mt-0.5">
+                {hoverMarker.title}
+              </div>
+            )}
+            {!hoverMarker && hoverChapter && (
+              <div className="text-[var(--fp-color-text-secondary)] text-[10px] mt-0.5">
+                {hoverChapter.title}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

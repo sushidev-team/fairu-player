@@ -4,6 +4,8 @@ import { usePlaylist } from '@/hooks/usePlaylist';
 import { LabelsProvider } from './LabelsContext';
 import type { VideoConfig, VideoContextValue, VideoTrack, WatchProgress } from '@/types/video';
 import type { Track } from '@/types/player';
+import type { AdEventBus } from '@/utils/AdEventBus';
+import type { PlayerEventBus } from '@/utils/PlayerEventBus';
 
 export const VideoContext = createContext<VideoContextValue | null>(null);
 
@@ -37,6 +39,10 @@ const DEFAULT_CONFIG: VideoConfig = {
 export interface VideoProviderProps {
   children: React.ReactNode;
   config?: VideoConfig;
+  /** Ad event bus for triggering return-ads */
+  adEventBus?: AdEventBus;
+  /** Player event bus for emitting tab/PiP events */
+  playerEventBus?: PlayerEventBus;
   /** Called when playback starts (first play) */
   onStart?: () => void;
   onPlay?: () => void;
@@ -50,11 +56,15 @@ export interface VideoProviderProps {
   onTrackChange?: (track: VideoTrack, index: number) => void;
   onError?: (error: Error) => void;
   onFullscreenChange?: (isFullscreen: boolean) => void;
+  onPictureInPictureChange?: (isPiP: boolean) => void;
+  onTabVisibilityChange?: (isVisible: boolean) => void;
 }
 
 export function VideoProvider({
   children,
   config: userConfig = {},
+  adEventBus,
+  playerEventBus,
   onStart,
   onPlay,
   onPause,
@@ -65,6 +75,8 @@ export function VideoProvider({
   onTrackChange,
   onError,
   onFullscreenChange,
+  onPictureInPictureChange,
+  onTabVisibilityChange,
 }: VideoProviderProps) {
   const config = useMemo(() => ({
     ...DEFAULT_CONFIG,
@@ -124,6 +136,9 @@ export function VideoProvider({
     qualities: currentTrack?.qualities,
     controlsHideDelay: config.controlsHideDelay,
     hls: config.hls,
+    tabVisibility: config.tabVisibility,
+    adEventBus,
+    playerEventBus,
     onStart,
     onPlay,
     onPause,
@@ -133,6 +148,8 @@ export function VideoProvider({
     onWatchProgressUpdate,
     onError,
     onFullscreenChange,
+    onPictureInPictureChange,
+    onTabVisibilityChange,
   });
 
   const contextValue = useMemo<VideoContextValue>(() => ({

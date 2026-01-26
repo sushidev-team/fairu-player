@@ -43,6 +43,12 @@ export interface PlayerLabels {
   // Playlist
   previousTrack: string;
   nextTrack: string;
+  // PictureInPicture
+  enterPictureInPicture: string;
+  exitPictureInPicture: string;
+  // Cast
+  startCast: string;
+  stopCast: string;
   // Rating
   rateUp: string;
   rateDown: string;
@@ -81,6 +87,10 @@ export const defaultLabels: PlayerLabels = {
   learnMore: 'Learn more about this ad',
   previousTrack: 'Previous track',
   nextTrack: 'Next track',
+  enterPictureInPicture: 'Enter picture-in-picture',
+  exitPictureInPicture: 'Exit picture-in-picture',
+  startCast: 'Cast',
+  stopCast: 'Stop casting',
   rateUp: 'Like',
   rateDown: 'Dislike',
   removeRating: 'Remove rating',

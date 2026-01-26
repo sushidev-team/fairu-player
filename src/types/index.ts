@@ -8,3 +8,4 @@ export * from './labels';
 export * from './stats';
 export * from './logo';
 export * from './podcast';
+export * from './markers';
