@@ -2708,3 +2708,110 @@ function TabVisibilityWithReturnAdDemo() {
 export const TabVisibilityWithReturnAd: Story = {
   render: () => <TabVisibilityWithReturnAdDemo />,
 };
+
+// ============= Cast Stories =============
+
+/**
+ * Video player with Cast enabled (Chromecast / AirPlay)
+ * Chrome/Edge: Opens native Chromecast picker via Remote Playback API
+ * Safari: Opens native AirPlay picker
+ * Firefox: Cast button is not shown (unsupported)
+ */
+export const Cast: Story = {
+  args: {
+    track: sampleVideo,
+    config: {
+      features: {
+        cast: true,
+      },
+    },
+  },
+};
+
+/**
+ * Interactive Cast demo with event logging and status display
+ */
+function CastInteractiveDemo() {
+  const playerEventBus = useMemo(() => createPlayerEventBus(), []);
+  const [events, setEvents] = useState<string[]>([]);
+  const [isCasting, setIsCasting] = useState(false);
+
+  const addEvent = useCallback((event: string) => {
+    setEvents((prev) => [...prev.slice(-14), `${new Date().toLocaleTimeString()}: ${event}`]);
+  }, []);
+
+  useEffect(() => {
+    const unsubs = [
+      playerEventBus.on('castStart', () => {
+        addEvent('Cast started');
+        setIsCasting(true);
+      }),
+      playerEventBus.on('castStop', () => {
+        addEvent('Cast stopped');
+        setIsCasting(false);
+      }),
+    ];
+    return () => unsubs.forEach((unsub) => unsub());
+  }, [playerEventBus, addEvent]);
+
+  return (
+    <div className="space-y-4">
+      {/* Info Banner */}
+      <div className="bg-gradient-to-r from-purple-900 to-indigo-900 border border-purple-500 rounded-lg p-4 text-white text-sm">
+        <h3 className="font-semibold mb-2">Cast Interactive Demo</h3>
+        <p className="text-purple-200 text-xs">
+          Click the Cast button in the controls bar to open the device picker.
+          Chrome/Edge will show Chromecast devices, Safari will show AirPlay devices.
+          Firefox does not support casting — the button will not appear.
+        </p>
+      </div>
+
+      {/* Status Indicator */}
+      <div className="flex gap-4">
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${isCasting ? 'bg-green-900 text-green-300' : 'bg-gray-800 text-gray-400'}`}>
+          <span className={`w-2 h-2 rounded-full ${isCasting ? 'bg-green-400' : 'bg-gray-600'}`} />
+          Cast: {isCasting ? 'Active' : 'Inactive'}
+        </div>
+      </div>
+
+      {/* Video Player */}
+      <VideoPlayer
+        track={sampleVideo}
+        config={{
+          features: { cast: true },
+        }}
+        playerEventBus={playerEventBus}
+      />
+
+      {/* Event Log */}
+      <div className="bg-gray-900 rounded-lg p-4 text-white">
+        <h3 className="text-sm font-semibold mb-2 text-gray-400">Event Log</h3>
+        <div className="space-y-1 text-xs font-mono max-h-40 overflow-y-auto">
+          {events.length === 0 ? (
+            <span className="text-gray-500">Click the Cast button to see events...</span>
+          ) : (
+            events.map((event, i) => <div key={i} className="text-purple-300">{event}</div>)
+          )}
+        </div>
+      </div>
+
+      {/* Code Example */}
+      <div className="bg-gray-900 rounded-lg p-4">
+        <h4 className="text-sm font-semibold mb-2 text-gray-400">Configuration</h4>
+        <pre className="text-xs overflow-x-auto text-green-300">
+{`<VideoPlayer
+  track={track}
+  playerEventBus={playerEventBus}
+  config={{
+    features: { cast: true },
+  }}
+/>`}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+export const CastInteractive: Story = {
+  render: () => <CastInteractiveDemo />,
+};

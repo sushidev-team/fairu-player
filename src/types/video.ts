@@ -50,6 +50,7 @@ export interface VideoFeatures extends PlayerFeatures {
   qualitySelector?: boolean;
   subtitles?: boolean;
   pictureInPicture?: boolean;
+  cast?: boolean;
   autoHideControls?: boolean;
   /** Disable seeking/scrubbing on the progress bar */
   seekingDisabled?: boolean;
@@ -85,6 +86,7 @@ export interface WatchProgress {
 export interface VideoState extends MediaState {
   isFullscreen: boolean;
   isPictureInPicture: boolean;
+  isCasting: boolean;
   isTabVisible: boolean;
   currentQuality: string;
   availableQualities: VideoQuality[];
@@ -110,6 +112,7 @@ export interface VideoControls extends MediaControls {
   enterPictureInPicture: () => Promise<void>;
   exitPictureInPicture: () => Promise<void>;
   togglePictureInPicture: () => Promise<void>;
+  toggleCast: () => Promise<void>;
   setQuality: (quality: string) => void;
   setSubtitle: (subtitleId: string | null) => void;
   showControls: () => void;
@@ -456,6 +459,7 @@ export const initialVideoState: VideoState = {
   error: null,
   isFullscreen: false,
   isPictureInPicture: false,
+  isCasting: false,
   isTabVisible: true,
   currentQuality: 'auto',
   availableQualities: [],

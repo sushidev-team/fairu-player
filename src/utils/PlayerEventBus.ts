@@ -4,6 +4,8 @@
 export type PlayerEventType =
   | 'enterPictureInPicture'
   | 'exitPictureInPicture'
+  | 'castStart'
+  | 'castStop'
   | 'tabHidden'
   | 'tabVisible'
   | 'triggerReturnAd';
@@ -14,6 +16,8 @@ export type PlayerEventType =
 export interface PlayerEventPayloads {
   enterPictureInPicture: void;
   exitPictureInPicture: void;
+  castStart: void;
+  castStop: void;
   tabHidden: { timestamp: number };
   tabVisible: { timestamp: number; hiddenDuration: number };
   triggerReturnAd: { hiddenDuration: number };

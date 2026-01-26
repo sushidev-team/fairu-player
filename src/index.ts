@@ -31,6 +31,7 @@ export {
   QualitySelector,
   SubtitleSelector,
   PictureInPictureButton,
+  CastButton,
   type PlayButtonProps,
   type ProgressBarProps,
   type TimeDisplayProps,
@@ -42,6 +43,7 @@ export {
   type QualitySelectorProps,
   type SubtitleSelectorProps,
   type PictureInPictureButtonProps,
+  type CastButtonProps,
 } from './components/controls';
 export {
   ChapterMarker,
@@ -155,6 +157,7 @@ export {
   useVideo,
   useFullscreen,
   usePictureInPicture,
+  useCast,
   useTabVisibility,
   usePlayer,
   usePlaylist,
@@ -169,6 +172,8 @@ export {
   type UseFullscreenReturn,
   type UsePictureInPictureOptions,
   type UsePictureInPictureReturn,
+  type UseCastOptions,
+  type UseCastReturn,
   type UseTabVisibilityOptions,
   type UseTabVisibilityReturn,
   type UsePlaylistOptions,

@@ -8,6 +8,7 @@ import { PlaybackSpeed } from '@/components/controls/PlaybackSpeed';
 import { SkipButton } from '@/components/controls/SkipButtons';
 import { SubtitleSelector } from '@/components/controls/SubtitleSelector';
 import { PictureInPictureButton } from '@/components/controls/PictureInPictureButton';
+import { CastButton } from '@/components/controls/CastButton';
 import type { VideoState, VideoControls as VideoControlsType, VideoFeatures, Subtitle } from '@/types/video';
 import type { PlaylistState, PlaylistControls } from '@/types/player';
 import type { TimelineMarker } from '@/types/markers';
@@ -200,6 +201,14 @@ export function VideoControls({
               isPictureInPicture={state.isPictureInPicture}
               disabled={disabled}
               onClick={controls.togglePictureInPicture}
+            />
+          )}
+
+          {features.cast && (
+            <CastButton
+              isCasting={state.isCasting}
+              disabled={disabled}
+              onClick={controls.toggleCast}
             />
           )}
 

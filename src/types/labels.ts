@@ -46,6 +46,9 @@ export interface PlayerLabels {
   // PictureInPicture
   enterPictureInPicture: string;
   exitPictureInPicture: string;
+  // Cast
+  startCast: string;
+  stopCast: string;
   // Rating
   rateUp: string;
   rateDown: string;
@@ -86,6 +89,8 @@ export const defaultLabels: PlayerLabels = {
   nextTrack: 'Next track',
   enterPictureInPicture: 'Enter picture-in-picture',
   exitPictureInPicture: 'Exit picture-in-picture',
+  startCast: 'Cast',
+  stopCast: 'Stop casting',
   rateUp: 'Like',
   rateDown: 'Dislike',
   removeRating: 'Remove rating',

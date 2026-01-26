@@ -2,6 +2,7 @@ import { useCallback, useRef, useState, useEffect } from 'react';
 import { useMedia } from './useMedia';
 import { useFullscreen } from './useFullscreen';
 import { usePictureInPicture } from './usePictureInPicture';
+import { useCast } from './useCast';
 import { useTabVisibility } from './useTabVisibility';
 import { useHLS, isHLSSource } from './useHLS';
 import type { VideoState, VideoControls, VideoQuality, WatchProgress, WatchedSegment, HLSConfig, TabVisibilityConfig } from '@/types/video';
@@ -16,6 +17,7 @@ export interface UseVideoOptions extends UseMediaOptions {
   controlsHideDelay?: number;
   onFullscreenChange?: (isFullscreen: boolean) => void;
   onPictureInPictureChange?: (isPiP: boolean) => void;
+  onCastChange?: (isCasting: boolean) => void;
   onTabVisibilityChange?: (isVisible: boolean) => void;
   onStart?: () => void;
   onFinished?: () => void;
@@ -72,6 +74,7 @@ export interface UseVideoReturn {
 const defaultVideoState: Omit<VideoState, keyof import('@/types/media').MediaState> = {
   isFullscreen: false,
   isPictureInPicture: false,
+  isCasting: false,
   isTabVisible: true,
   currentQuality: 'auto',
   availableQualities: [],
@@ -95,6 +98,7 @@ export function useVideo(options: UseVideoOptions = {}): UseVideoReturn {
     controlsHideDelay = 3000,
     onFullscreenChange,
     onPictureInPictureChange,
+    onCastChange,
     onTabVisibilityChange,
     onStart,
     onFinished,
@@ -153,6 +157,14 @@ export function useVideo(options: UseVideoOptions = {}): UseVideoReturn {
     togglePictureInPicture,
   } = usePictureInPicture(videoRef, {
     onChange: onPictureInPictureChange,
+  });
+
+  // Use cast hook
+  const {
+    isCasting,
+    toggleCast,
+  } = useCast(videoRef, {
+    onChange: onCastChange,
   });
 
   // Tab visibility callbacks — all logic lives here (pause/resume, mute/unmute,
@@ -468,6 +480,7 @@ export function useVideo(options: UseVideoOptions = {}): UseVideoReturn {
     ...videoState,
     isFullscreen,
     isPictureInPicture,
+    isCasting,
     isTabVisible,
     isHLS,
     isAutoQuality: isUsingHlsJs ? hlsIsAutoQuality : false,
@@ -483,6 +496,7 @@ export function useVideo(options: UseVideoOptions = {}): UseVideoReturn {
     enterPictureInPicture,
     exitPictureInPicture,
     togglePictureInPicture,
+    toggleCast,
     setQuality,
     setSubtitle,
     showControls,
