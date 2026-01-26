@@ -10,6 +10,15 @@ export {
   type AdEventListener,
 } from './AdEventBus';
 export {
+  createPlayerEventBus,
+  getGlobalPlayerEventBus,
+  resetGlobalPlayerEventBus,
+  type PlayerEventBus,
+  type PlayerEventType,
+  type PlayerEventPayloads,
+  type PlayerEventListener,
+} from './PlayerEventBus';
+export {
   // Constants
   FAIRU_FILES_BASE_URL,
   FAIRU_DEFAULT_COVER_WIDTH,
@@ -25,6 +34,9 @@ export {
   createVideoTrackFromFairu,
   createPlaylistFromFairu,
   createVideoPlaylistFromFairu,
+  // Marker helpers
+  secondsToFairuTimestamp,
+  createFairuMarkers,
   // Types
   type FairuUrlOptions,
   type FairuCoverOptions,

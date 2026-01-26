@@ -4,6 +4,8 @@ import { VideoPlayer, type VideoPlayerRef } from './VideoPlayer';
 import { VideoProvider, useVideoPlayer } from '@/context/VideoContext';
 import { VideoAdProvider, useVideoAds } from '@/context/VideoAdContext';
 import { createAdEventBus } from '@/utils/AdEventBus';
+import { createPlayerEventBus } from '@/utils/PlayerEventBus';
+import type { OverlayAd as OverlayAdTypeForPiP } from '@/types/video';
 import type {
   VideoTrack,
   VideoAdBreak,
@@ -2486,4 +2488,223 @@ adEventBus.emit('resetDismissed');`}
 
 export const EventPipeline: Story = {
   render: () => <EventPipelineDemo />,
+};
+
+// ============= Picture-in-Picture Stories =============
+
+/**
+ * Video player with Picture-in-Picture enabled
+ * Click the PiP button in the controls to enter PiP mode
+ */
+export const PictureInPicture: Story = {
+  args: {
+    track: sampleVideo,
+    config: {
+      features: {
+        pictureInPicture: true,
+      },
+    },
+  },
+};
+
+/**
+ * Interactive PiP demo with event logging, status display, and tab visibility
+ */
+function PictureInPictureInteractiveDemo() {
+  const playerEventBus = useMemo(() => createPlayerEventBus(), []);
+  const [events, setEvents] = useState<string[]>([]);
+  const [isPiP, setIsPiP] = useState(false);
+  const [isTabVisible, setIsTabVisible] = useState(true);
+
+  const addEvent = useCallback((event: string) => {
+    setEvents((prev) => [...prev.slice(-14), `${new Date().toLocaleTimeString()}: ${event}`]);
+  }, []);
+
+  useEffect(() => {
+    const unsubs = [
+      playerEventBus.on('enterPictureInPicture', () => {
+        addEvent('PiP entered');
+        setIsPiP(true);
+      }),
+      playerEventBus.on('exitPictureInPicture', () => {
+        addEvent('PiP exited');
+        setIsPiP(false);
+      }),
+      playerEventBus.on('tabHidden', ({ timestamp }) => {
+        addEvent(`Tab hidden at ${new Date(timestamp).toLocaleTimeString()}`);
+        setIsTabVisible(false);
+      }),
+      playerEventBus.on('tabVisible', ({ hiddenDuration }) => {
+        addEvent(`Tab visible (hidden for ${hiddenDuration.toFixed(1)}s)`);
+        setIsTabVisible(true);
+      }),
+    ];
+    return () => unsubs.forEach((unsub) => unsub());
+  }, [playerEventBus, addEvent]);
+
+  return (
+    <div className="space-y-4">
+      {/* Info Banner */}
+      <div className="bg-gradient-to-r from-cyan-900 to-teal-900 border border-cyan-500 rounded-lg p-4 text-white text-sm">
+        <h3 className="font-semibold mb-2">Picture-in-Picture Interactive Demo</h3>
+        <p className="text-cyan-200 text-xs">
+          Click the PiP button in the controls bar to enter Picture-in-Picture mode.
+          Switch tabs to see tab visibility events. All events are logged below.
+        </p>
+      </div>
+
+      {/* Status Indicators */}
+      <div className="flex gap-4">
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${isPiP ? 'bg-green-900 text-green-300' : 'bg-gray-800 text-gray-400'}`}>
+          <span className={`w-2 h-2 rounded-full ${isPiP ? 'bg-green-400' : 'bg-gray-600'}`} />
+          PiP: {isPiP ? 'Active' : 'Inactive'}
+        </div>
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${isTabVisible ? 'bg-blue-900 text-blue-300' : 'bg-orange-900 text-orange-300'}`}>
+          <span className={`w-2 h-2 rounded-full ${isTabVisible ? 'bg-blue-400' : 'bg-orange-400'}`} />
+          Tab: {isTabVisible ? 'Visible' : 'Hidden'}
+        </div>
+      </div>
+
+      {/* Video Player */}
+      <VideoPlayer
+        track={sampleVideo}
+        config={{
+          features: { pictureInPicture: true },
+        }}
+        playerEventBus={playerEventBus}
+        onPictureInPictureChange={(pip) => addEvent(`onPictureInPictureChange: ${pip}`)}
+        onTabVisibilityChange={(visible) => addEvent(`onTabVisibilityChange: ${visible}`)}
+      />
+
+      {/* Event Log */}
+      <div className="bg-gray-900 rounded-lg p-4 text-white">
+        <h3 className="text-sm font-semibold mb-2 text-gray-400">Event Log</h3>
+        <div className="space-y-1 text-xs font-mono max-h-40 overflow-y-auto">
+          {events.length === 0 ? (
+            <span className="text-gray-500">Click the PiP button or switch tabs to see events...</span>
+          ) : (
+            events.map((event, i) => <div key={i} className="text-cyan-300">{event}</div>)
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export const PictureInPictureInteractive: Story = {
+  render: () => <PictureInPictureInteractiveDemo />,
+};
+
+/**
+ * Tab Visibility with Return Ad demo
+ * Pause on hidden, resume on visible, show return ad after 3 seconds away
+ */
+function TabVisibilityWithReturnAdDemo() {
+  const adEventBus = useMemo(() => createAdEventBus(), []);
+  const playerEventBus = useMemo(() => createPlayerEventBus(), []);
+  const [events, setEvents] = useState<string[]>([]);
+
+  const addEvent = useCallback((event: string) => {
+    setEvents((prev) => [...prev.slice(-14), `${new Date().toLocaleTimeString()}: ${event}`]);
+  }, []);
+
+  const returnAd: OverlayAdTypeForPiP = {
+    id: 'return-ad',
+    imageUrl: 'https://placehold.co/600x80/dc2626/ffffff?text=Welcome+Back!+Special+Offer+Inside',
+    clickThroughUrl: 'https://example.com/welcome-back',
+    displayAt: 0,
+    duration: 15,
+    position: 'bottom',
+    closeable: true,
+    altText: 'Welcome back offer',
+  };
+
+  useEffect(() => {
+    const unsubs = [
+      playerEventBus.on('tabHidden', () => {
+        addEvent('Tab hidden - video paused');
+      }),
+      playerEventBus.on('tabVisible', ({ hiddenDuration }) => {
+        addEvent(`Tab visible - hidden for ${hiddenDuration.toFixed(1)}s`);
+      }),
+      playerEventBus.on('triggerReturnAd', ({ hiddenDuration }) => {
+        addEvent(`Return ad triggered (hidden ${hiddenDuration.toFixed(1)}s)`);
+      }),
+    ];
+    return () => unsubs.forEach((unsub) => unsub());
+  }, [playerEventBus, addEvent]);
+
+  return (
+    <div className="space-y-4">
+      {/* Info Banner */}
+      <div className="bg-gradient-to-r from-red-900 to-orange-900 border border-red-500 rounded-lg p-4 text-white text-sm">
+        <h3 className="font-semibold mb-2">Tab Visibility with Return Ad</h3>
+        <ul className="text-red-200 space-y-1 text-xs">
+          <li>1. Start playing the video</li>
+          <li>2. Switch to another tab</li>
+          <li>3. Come back - video resumes and a return ad appears every time</li>
+        </ul>
+      </div>
+
+      {/* Video Player */}
+      <VideoPlayer
+        track={sampleVideo}
+        config={{
+          features: { pictureInPicture: true },
+          tabVisibility: {
+            pauseOnHidden: true,
+            resumeOnVisible: true,
+            showReturnAd: true,
+            returnAdMinHiddenDuration: 0,
+            returnAd: returnAd,
+          },
+        }}
+        adEventBus={adEventBus}
+        playerEventBus={playerEventBus}
+      />
+
+      {/* Event Log */}
+      <div className="bg-gray-900 rounded-lg p-4 text-white">
+        <h3 className="text-sm font-semibold mb-2 text-gray-400">Event Log</h3>
+        <div className="space-y-1 text-xs font-mono max-h-40 overflow-y-auto">
+          {events.length === 0 ? (
+            <span className="text-gray-500">Play the video, then switch tabs to see events...</span>
+          ) : (
+            events.map((event, i) => <div key={i} className="text-orange-300">{event}</div>)
+          )}
+        </div>
+      </div>
+
+      {/* Code Example */}
+      <div className="bg-gray-900 rounded-lg p-4">
+        <h4 className="text-sm font-semibold mb-2 text-gray-400">Configuration</h4>
+        <pre className="text-xs overflow-x-auto text-green-300">
+{`<VideoPlayer
+  track={track}
+  adEventBus={adEventBus}
+  playerEventBus={playerEventBus}
+  config={{
+    features: { pictureInPicture: true },
+    tabVisibility: {
+      pauseOnHidden: true,
+      resumeOnVisible: true,
+      showReturnAd: true,
+      returnAdMinHiddenDuration: 0,
+      returnAd: {
+        id: 'return-ad',
+        imageUrl: '/welcome-back.png',
+        displayAt: 0,
+        closeable: true,
+      },
+    },
+  }}
+/>`}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+export const TabVisibilityWithReturnAd: Story = {
+  render: () => <TabVisibilityWithReturnAdDemo />,
 };

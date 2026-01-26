@@ -30,6 +30,7 @@ export {
   FullscreenButton,
   QualitySelector,
   SubtitleSelector,
+  PictureInPictureButton,
   type PlayButtonProps,
   type ProgressBarProps,
   type TimeDisplayProps,
@@ -40,6 +41,7 @@ export {
   type FullscreenButtonProps,
   type QualitySelectorProps,
   type SubtitleSelectorProps,
+  type PictureInPictureButtonProps,
 } from './components/controls';
 export {
   ChapterMarker,
@@ -47,6 +49,10 @@ export {
   type ChapterMarkerProps,
   type ChapterListProps,
 } from './components/chapters';
+export {
+  MarkerList,
+  type MarkerListProps,
+} from './components/markers';
 export {
   PlaylistView,
   TrackItem,
@@ -148,9 +154,12 @@ export {
   useMedia,
   useVideo,
   useFullscreen,
+  usePictureInPicture,
+  useTabVisibility,
   usePlayer,
   usePlaylist,
   useChapters,
+  useMarkers,
   useKeyboardControls,
   type UseAudioOptions,
   type UseAudioReturn,
@@ -158,6 +167,10 @@ export {
   type UseVideoReturn,
   type UseFullscreenOptions,
   type UseFullscreenReturn,
+  type UsePictureInPictureOptions,
+  type UsePictureInPictureReturn,
+  type UseTabVisibilityOptions,
+  type UseTabVisibilityReturn,
   type UsePlaylistOptions,
   type UsePlaylistReturn,
   type UseKeyboardControlsOptions,
@@ -201,6 +214,12 @@ export type {
   ChapterControls as ChapterControlsInterface,
   UseChaptersOptions,
   UseChaptersReturn,
+  // Marker types
+  TimelineMarker,
+  MarkerState,
+  MarkerControls as MarkerControlsInterface,
+  UseMarkersOptions,
+  UseMarkersReturn,
   // Labels types
   PlayerLabels,
   PartialLabels,
@@ -239,6 +258,8 @@ export type {
   Subtitle,
   HLSConfig,
   CustomAdComponentProps,
+  // Tab visibility
+  TabVisibilityConfig,
   // New ad/feature types
   VideoAdType,
   OverlayAd as OverlayAdType,
@@ -272,6 +293,17 @@ export {
   type AdEventListener,
 } from './utils/AdEventBus';
 
+// Player Event Bus (for PiP and tab visibility events)
+export {
+  createPlayerEventBus,
+  getGlobalPlayerEventBus,
+  resetGlobalPlayerEventBus,
+  type PlayerEventBus,
+  type PlayerEventType,
+  type PlayerEventPayloads,
+  type PlayerEventListener,
+} from './utils/PlayerEventBus';
+
 // Fairu.app hosting utilities
 export {
   // Constants
@@ -289,6 +321,9 @@ export {
   createVideoTrackFromFairu,
   createPlaylistFromFairu,
   createVideoPlaylistFromFairu,
+  // Marker helpers
+  secondsToFairuTimestamp,
+  createFairuMarkers,
   // Types
   type FairuUrlOptions,
   type FairuCoverOptions,

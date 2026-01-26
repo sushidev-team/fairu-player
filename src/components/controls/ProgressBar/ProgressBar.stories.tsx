@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { useState } from 'react';
 import { ProgressBar } from './ProgressBar';
 import type { Chapter } from '@/types/player';
+import type { TimelineMarker } from '@/types/markers';
 
 const meta: Meta<typeof ProgressBar> = {
   title: 'Controls/ProgressBar',
@@ -78,5 +79,36 @@ export const Interactive: Story = {
         </div>
       </div>
     );
+  },
+};
+
+const sampleMarkers: TimelineMarker[] = [
+  { id: 'm1', time: 30, title: 'Key Moment 1', color: '#ff4444' },
+  { id: 'm2', time: 90, title: 'Key Moment 2' },
+  { id: 'm3', time: 150, title: 'Key Moment 3', color: '#44ff44' },
+  { id: 'm4', time: 240, title: 'Key Moment 4' },
+];
+
+export const WithMarkers: Story = {
+  args: {
+    currentTime: 60,
+    duration: 300,
+    buffered: 150,
+    markers: sampleMarkers,
+  },
+};
+
+export const WithMarkersAndChapters: Story = {
+  args: {
+    currentTime: 90,
+    duration: 300,
+    buffered: 150,
+    chapters: [
+      { id: '1', title: 'Intro', startTime: 0 },
+      { id: '2', title: 'Main Topic', startTime: 60 },
+      { id: '3', title: 'Discussion', startTime: 180 },
+      { id: '4', title: 'Outro', startTime: 270 },
+    ] as Chapter[],
+    markers: sampleMarkers,
   },
 };

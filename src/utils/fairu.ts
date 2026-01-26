@@ -333,3 +333,71 @@ export function createVideoPlaylistFromFairu(
 ): ReturnType<typeof createVideoTrackFromFairu>[] {
   return fairuTracks.map((track) => createVideoTrackFromFairu(track, options));
 }
+
+/**
+ * Convert seconds to Fairu timestamp format "HH:MM:SS.mmm"
+ *
+ * @param seconds - Time in seconds
+ * @returns Formatted timestamp string
+ *
+ * @example
+ * ```ts
+ * secondsToFairuTimestamp(90.5);
+ * // Returns: "00:01:30.500"
+ * ```
+ */
+export function secondsToFairuTimestamp(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const ms = Math.round((seconds % 1) * 1000);
+
+  return [
+    String(h).padStart(2, '0'),
+    String(m).padStart(2, '0'),
+    String(s).padStart(2, '0'),
+  ].join(':') + '.' + String(ms).padStart(3, '0');
+}
+
+/**
+ * Populate markers with auto-generated Fairu thumbnail URLs
+ *
+ * For markers that don't already have a `previewImage`, this function
+ * generates a thumbnail URL using the video UUID and the marker's timestamp.
+ *
+ * @param uuid - The fairu.app video file UUID
+ * @param markers - Array of timeline markers
+ * @param options - Cover/thumbnail image options
+ * @returns New array of markers with previewImage filled in
+ *
+ * @example
+ * ```ts
+ * const markers = createFairuMarkers('my-uuid', [
+ *   { id: '1', time: 30, title: 'Intro' },
+ *   { id: '2', time: 90, title: 'Main' },
+ * ]);
+ * // Each marker now has a previewImage URL pointing to a Fairu thumbnail
+ * ```
+ */
+export function createFairuMarkers(
+  uuid: string,
+  markers: { id: string; time: number; title?: string; previewImage?: string; color?: string }[],
+  options: FairuCoverOptions = {}
+): typeof markers {
+  const defaultOptions: FairuCoverOptions = {
+    width: 160,
+    height: 90,
+    format: 'webp',
+    quality: 80,
+    ...options,
+  };
+
+  return markers.map((marker) => {
+    if (marker.previewImage) return marker;
+
+    return {
+      ...marker,
+      previewImage: getFairuThumbnailUrl(uuid, secondsToFairuTimestamp(marker.time), defaultOptions),
+    };
+  });
+}

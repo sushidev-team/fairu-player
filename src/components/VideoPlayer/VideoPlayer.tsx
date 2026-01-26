@@ -4,6 +4,7 @@ import { VideoProvider, useVideoPlayer } from '@/context/VideoContext';
 import { VideoAdProvider, useVideoAds } from '@/context/VideoAdContext';
 import { OverlayAdProvider, useOverlayAds, type OverlayAdControls } from '@/context/OverlayAdContext';
 import type { AdEventBus } from '@/utils/AdEventBus';
+import type { PlayerEventBus } from '@/utils/PlayerEventBus';
 import { useLabels } from '@/context/LabelsContext';
 import { interpolateLabel } from '@/types/labels';
 import { VideoOverlay } from './VideoOverlay';
@@ -332,6 +333,7 @@ function VideoPlayerInner({
           playlistState={playlistState}
           playlistControls={playlistControls}
           subtitles={currentTrack?.subtitles}
+          markers={currentTrack?.markers || config.markers}
         />
       )}
     </div>
@@ -342,6 +344,8 @@ export interface VideoPlayerWithProviderProps extends VideoPlayerProps {
   adConfig?: VideoAdConfig;
   /** Event bus for external control of overlay ads and info cards */
   adEventBus?: AdEventBus;
+  /** Event bus for PiP and tab visibility events */
+  playerEventBus?: PlayerEventBus;
   /** Called when playback starts (first play) */
   onStart?: () => void;
   /** Called when video has been fully watched (all segments covered) */
@@ -355,6 +359,7 @@ interface VideoPlayerWithOverlayProviderProps {
   videoConfig: VideoConfig;
   adConfig?: VideoAdConfig;
   adEventBus?: AdEventBus;
+  playerEventBus?: PlayerEventBus;
   playerRef: React.ForwardedRef<VideoPlayerRef>;
 }
 
@@ -368,6 +373,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerWithProviderPro
   className,
   adConfig,
   adEventBus,
+  playerEventBus,
   onStart,
   onPlay,
   onPause,
@@ -378,6 +384,8 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerWithProviderPro
   onTrackChange,
   onError,
   onFullscreenChange,
+  onPictureInPictureChange,
+  onTabVisibilityChange,
 }, ref) {
   const videoConfig: VideoConfig = {
     ...config,
@@ -385,9 +393,19 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerWithProviderPro
     playlist,
   };
 
+  // Wrap PiP change to emit on playerEventBus
+  const handlePictureInPictureChange = useCallback((isPiP: boolean) => {
+    onPictureInPictureChange?.(isPiP);
+    if (playerEventBus) {
+      playerEventBus.emit(isPiP ? 'enterPictureInPicture' : 'exitPictureInPicture');
+    }
+  }, [onPictureInPictureChange, playerEventBus]);
+
   return (
     <VideoProvider
       config={videoConfig}
+      adEventBus={adEventBus}
+      playerEventBus={playerEventBus}
       onStart={onStart}
       onPlay={onPlay}
       onPause={onPause}
@@ -398,12 +416,15 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerWithProviderPro
       onTrackChange={onTrackChange}
       onError={onError}
       onFullscreenChange={onFullscreenChange}
+      onPictureInPictureChange={handlePictureInPictureChange}
+      onTabVisibilityChange={onTabVisibilityChange}
     >
       <VideoPlayerWithOverlayProvider
         className={className}
         videoConfig={videoConfig}
         adConfig={adConfig}
         adEventBus={adEventBus}
+        playerEventBus={playerEventBus}
         playerRef={ref}
       />
     </VideoProvider>
@@ -418,6 +439,7 @@ function VideoPlayerWithOverlayProvider({
   videoConfig,
   adConfig,
   adEventBus,
+  playerEventBus: _playerEventBus,
   playerRef,
 }: VideoPlayerWithOverlayProviderProps) {
   const { state } = useVideoPlayer();
@@ -856,6 +878,7 @@ function VideoPlayerInnerWithAds({
           playlistState={playlistState}
           playlistControls={playlistControls}
           subtitles={currentTrack?.subtitles}
+          markers={currentTrack?.markers || config.markers}
         />
       )}
     </div>

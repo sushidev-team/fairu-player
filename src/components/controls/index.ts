@@ -8,3 +8,4 @@ export { NowPlayingIndicator, type NowPlayingIndicatorProps } from './NowPlaying
 export { FullscreenButton, type FullscreenButtonProps } from './FullscreenButton';
 export { QualitySelector, type QualitySelectorProps } from './QualitySelector';
 export { SubtitleSelector, type SubtitleSelectorProps } from './SubtitleSelector';
+export { PictureInPictureButton, type PictureInPictureButtonProps } from './PictureInPictureButton';

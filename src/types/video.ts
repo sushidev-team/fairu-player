@@ -7,6 +7,7 @@ import type { MediaState, MediaControls } from './media';
 import type { AdConfig, AdState } from './ads';
 import type { PartialLabels } from './labels';
 import type { LogoConfig } from './logo';
+import type { TimelineMarker } from './markers';
 
 /**
  * Video quality option
@@ -38,6 +39,7 @@ export interface VideoTrack extends Track {
   poster?: string;
   qualities?: VideoQuality[];
   subtitles?: Subtitle[];
+  markers?: TimelineMarker[];
 }
 
 /**
@@ -82,6 +84,8 @@ export interface WatchProgress {
  */
 export interface VideoState extends MediaState {
   isFullscreen: boolean;
+  isPictureInPicture: boolean;
+  isTabVisible: boolean;
   currentQuality: string;
   availableQualities: VideoQuality[];
   aspectRatio: number;
@@ -103,6 +107,9 @@ export interface VideoControls extends MediaControls {
   enterFullscreen: () => Promise<void>;
   exitFullscreen: () => Promise<void>;
   toggleFullscreen: () => Promise<void>;
+  enterPictureInPicture: () => Promise<void>;
+  exitPictureInPicture: () => Promise<void>;
+  togglePictureInPicture: () => Promise<void>;
   setQuality: (quality: string) => void;
   setSubtitle: (subtitleId: string | null) => void;
   showControls: () => void;
@@ -125,6 +132,24 @@ export interface HLSConfig {
   maxBufferLength?: number;
   /** Enable low latency mode for live streams */
   lowLatencyMode?: boolean;
+}
+
+/**
+ * Tab visibility configuration for pause/resume and return ad behavior
+ */
+export interface TabVisibilityConfig {
+  /** Pause video when tab is hidden (default: false) */
+  pauseOnHidden?: boolean;
+  /** Mute video when tab is hidden and unmute on return (default: false) */
+  muteOnHidden?: boolean;
+  /** Resume video when tab becomes visible again (default: false) */
+  resumeOnVisible?: boolean;
+  /** Show a return ad when user comes back (default: false) */
+  showReturnAd?: boolean;
+  /** Minimum hidden duration in seconds before showing return ad (default: 0) */
+  returnAdMinHiddenDuration?: number;
+  /** The overlay ad to show on return */
+  returnAd?: OverlayAd;
 }
 
 /**
@@ -157,6 +182,10 @@ export interface VideoConfig {
   infoCards?: InfoCard[];
   /** End screen with recommended videos */
   endScreen?: EndScreenConfig;
+  /** Tab visibility behavior configuration */
+  tabVisibility?: TabVisibilityConfig;
+  /** Timeline markers */
+  markers?: TimelineMarker[];
 }
 
 /**
@@ -395,6 +424,8 @@ export interface VideoPlayerProps {
   onTrackChange?: (track: VideoTrack, index: number) => void;
   onError?: (error: Error) => void;
   onFullscreenChange?: (isFullscreen: boolean) => void;
+  onPictureInPictureChange?: (isPiP: boolean) => void;
+  onTabVisibilityChange?: (isVisible: boolean) => void;
 }
 
 /**
@@ -424,6 +455,8 @@ export const initialVideoState: VideoState = {
   playbackRate: 1,
   error: null,
   isFullscreen: false,
+  isPictureInPicture: false,
+  isTabVisible: true,
   currentQuality: 'auto',
   availableQualities: [],
   aspectRatio: 16 / 9,

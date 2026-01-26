@@ -19,7 +19,8 @@
       "require": "./dist/embed.cjs"
     },
     "./cdn": "./dist/fairu-player.iife.js",
-    "./cdn-light": "./dist/fairu-player.light.iife.js"
+    "./cdn-light": "./dist/fairu-player.light.iife.js",
+    "./cdn-loader": "./dist/fairu-player.loader.iife.js"
   },
   "files": [
     "dist"
@@ -31,9 +32,10 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:lib": "vite build --mode lib",
-    "build:cdn": "npm run build:lib && npm run build:cdn-standalone && npm run build:cdn-light",
+    "build:cdn": "npm run build:lib && npm run build:cdn-standalone && npm run build:cdn-light && npm run build:cdn-loader",
     "build:cdn-standalone": "vite build --mode cdn-standalone",
     "build:cdn-light": "vite build --mode cdn-light",
+    "build:cdn-loader": "vite build --mode cdn-loader",
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
