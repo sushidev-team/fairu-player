@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/sushidev-team/fairu-player/compare/v1.1.0...v1.2.0) (2026-01-26)
+
+
+### Features
+
+* add pip / tracker ([b079f3c](https://github.com/sushidev-team/fairu-player/commit/b079f3c524a47fd82855de7dcd293da661123e0a))
+
 ## [1.1.0](https://github.com/sushidev-team/fairu-player/compare/v1.0.1...v1.1.0) (2026-01-23)
 
 
