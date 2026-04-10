@@ -69,8 +69,9 @@ describe('TrackingService', () => {
       service = new TrackingService(createMockTrackingConfig());
       service.track('play', defaultEventData());
 
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
-      const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
+      // session_start + play = 2 fetch calls
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      const body = JSON.parse(fetchSpy.mock.calls[1][1]!.body as string);
       expect(body.events).toHaveLength(1);
       expect(body.events[0].type).toBe('play');
     });
@@ -105,7 +106,7 @@ describe('TrackingService', () => {
       service = new TrackingService(createMockTrackingConfig());
       service.track('play', defaultEventData({ currentTime: 42, duration: 200 }));
 
-      const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
+      const body = JSON.parse(fetchSpy.mock.calls[1][1]!.body as string);
       expect(body.events[0].data.currentTime).toBe(42);
       expect(body.events[0].data.duration).toBe(200);
     });
@@ -157,18 +158,20 @@ describe('TrackingService', () => {
     });
 
     it('logs an error when fetch fails', async () => {
-      fetchSpy.mockRejectedValueOnce(new Error('Network error'));
+      fetchSpy.mockRejectedValue(new Error('Network error'));
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       service = new TrackingService(createMockTrackingConfig());
 
       service.track('play', defaultEventData());
       await vi.runAllTimersAsync();
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        'Failed to send tracking events:',
+        'Failed to send tracking events after retries:',
         expect.any(Error),
       );
       consoleSpy.mockRestore();
+      warnSpy.mockRestore();
     });
   });
 
@@ -182,11 +185,14 @@ describe('TrackingService', () => {
         }),
       );
 
+      // session_start was sent at construction = 1 fetch call
+      const callsAfterConstruct = fetchSpy.mock.calls.length;
+
       service.track('pause', defaultEventData());
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(fetchSpy).toHaveBeenCalledTimes(callsAfterConstruct); // no new call
 
       service.track('play', defaultEventData());
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledTimes(callsAfterConstruct + 1);
     });
 
     it('sends events when events config is not provided (no filtering)', () => {
@@ -194,8 +200,9 @@ describe('TrackingService', () => {
         createMockTrackingConfig({ events: undefined }),
       );
 
+      // session_start + play = 2
       service.track('play', defaultEventData());
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
 
     it('converts snake_case event types to camelCase for config lookup', () => {
@@ -206,8 +213,11 @@ describe('TrackingService', () => {
         }),
       );
 
+      const callsAfterConstruct = fetchSpy.mock.calls.length;
+
       service.track('chapter_change', defaultEventData());
-      expect(fetchSpy).not.toHaveBeenCalled();
+      // chapter_change is disabled, so no new fetch call
+      expect(fetchSpy).toHaveBeenCalledTimes(callsAfterConstruct);
     });
 
     it('allows track_change events when trackChange is enabled', () => {
@@ -217,8 +227,9 @@ describe('TrackingService', () => {
         }),
       );
 
+      // session_start + track_change = 2
       service.track('track_change', defaultEventData());
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
 
     it('blocks ad_start when adStart is disabled', () => {
@@ -228,8 +239,11 @@ describe('TrackingService', () => {
         }),
       );
 
+      const callsAfterConstruct = fetchSpy.mock.calls.length;
+
       service.track('ad_start', defaultEventData());
-      expect(fetchSpy).not.toHaveBeenCalled();
+      // ad_start is disabled, so no new fetch call
+      expect(fetchSpy).toHaveBeenCalledTimes(callsAfterConstruct);
     });
   });
 
@@ -245,10 +259,14 @@ describe('TrackingService', () => {
 
     it('stops tracking after setEnabled(false)', () => {
       service = new TrackingService(createMockTrackingConfig());
+      // session_start was already sent at construction
+      const callsAfterConstruct = fetchSpy.mock.calls.length;
+
       service.setEnabled(false);
       service.track('play', defaultEventData());
 
-      expect(fetchSpy).not.toHaveBeenCalled();
+      // No new fetch calls after disabling
+      expect(fetchSpy).toHaveBeenCalledTimes(callsAfterConstruct);
     });
 
     it('resumes tracking after setEnabled(true)', () => {
@@ -277,19 +295,22 @@ describe('TrackingService', () => {
     });
 
     it('flushes the queue when batchSize is reached', () => {
+      // batchSize=4 to account for session_start being queued at construction
       service = new TrackingService(
-        createMockTrackingConfig({ batchEvents: true, batchInterval: 60000, batchSize: 3 }),
+        createMockTrackingConfig({ batchEvents: true, batchInterval: 60000, batchSize: 4 }),
       );
 
+      // Queue: [session_start, play, pause] = 3, not yet at batchSize 4
       service.track('play', defaultEventData());
       service.track('pause', defaultEventData());
       expect(fetchSpy).not.toHaveBeenCalled();
 
+      // Queue: [session_start, play, pause, seek] = 4, reaches batchSize -> flush
       service.track('seek', defaultEventData());
       expect(fetchSpy).toHaveBeenCalledTimes(1);
 
       const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
-      expect(body.events).toHaveLength(3);
+      expect(body.events).toHaveLength(4);
 
       service.destroy();
     });
@@ -299,11 +320,13 @@ describe('TrackingService', () => {
         createMockTrackingConfig({ batchEvents: true, batchInterval: 60000 }),
       );
 
-      for (let i = 0; i < 9; i++) {
+      // session_start is already queued (1 event), so 8 more to reach 9
+      for (let i = 0; i < 8; i++) {
         service.track('play', defaultEventData());
       }
       expect(fetchSpy).not.toHaveBeenCalled();
 
+      // 10th event triggers flush
       service.track('play', defaultEventData());
       expect(fetchSpy).toHaveBeenCalledTimes(1);
 
@@ -322,7 +345,8 @@ describe('TrackingService', () => {
 
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
-      expect(body.events).toHaveLength(2);
+      // session_start + play + pause = 3 events
+      expect(body.events).toHaveLength(3);
 
       service.destroy();
     });
@@ -332,8 +356,13 @@ describe('TrackingService', () => {
         createMockTrackingConfig({ batchEvents: true, batchInterval: 5000 }),
       );
 
+      // First timer flush sends the queued session_start
       vi.advanceTimersByTime(5000);
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+      // Second timer flush: queue is now truly empty
+      vi.advanceTimersByTime(5000);
+      expect(fetchSpy).toHaveBeenCalledTimes(1); // no additional call
 
       service.destroy();
     });
@@ -354,9 +383,11 @@ describe('TrackingService', () => {
 
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
-      expect(body.events).toHaveLength(2);
-      expect(body.events[0].type).toBe('play');
-      expect(body.events[1].type).toBe('pause');
+      // session_start + play + pause = 3 events
+      expect(body.events).toHaveLength(3);
+      expect(body.events[0].type).toBe('session_start');
+      expect(body.events[1].type).toBe('play');
+      expect(body.events[2].type).toBe('pause');
 
       service.destroy();
     });
@@ -383,8 +414,13 @@ describe('TrackingService', () => {
         createMockTrackingConfig({ batchEvents: true, batchInterval: 60000 }),
       );
 
+      // First flush sends the queued session_start
       await service.flush();
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+      // Second flush: queue is now truly empty
+      await service.flush();
+      expect(fetchSpy).toHaveBeenCalledTimes(1); // no additional call
 
       service.destroy();
     });
@@ -398,8 +434,9 @@ describe('TrackingService', () => {
 
       service.trackProgress(25, 100);
 
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
-      const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
+      // session_start + progress = 2
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      const body = JSON.parse(fetchSpy.mock.calls[1][1]!.body as string);
       expect(body.events[0].type).toBe('progress');
       expect(body.events[0].data.percentage).toBe(25);
     });
@@ -410,8 +447,8 @@ describe('TrackingService', () => {
       service.trackProgress(50, 100);
 
       const calls = fetchSpy.mock.calls;
-      // Should fire 25% and 50% milestones
-      expect(calls.length).toBe(2);
+      // session_start + 25% + 50% milestones = 3
+      expect(calls.length).toBe(3);
     });
 
     it('fires milestone at 75%', () => {
@@ -419,38 +456,45 @@ describe('TrackingService', () => {
 
       service.trackProgress(75, 100);
 
-      // Should fire 25%, 50%, and 75%
-      expect(fetchSpy).toHaveBeenCalledTimes(3);
+      // session_start + 25% + 50% + 75% = 4
+      expect(fetchSpy).toHaveBeenCalledTimes(4);
     });
 
     it('fires each milestone only once', () => {
       service = new TrackingService(createMockTrackingConfig());
 
+      // session_start + 25% progress = 2
       service.trackProgress(25, 100);
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
 
       service.trackProgress(26, 100);
-      expect(fetchSpy).toHaveBeenCalledTimes(1); // No new call
+      expect(fetchSpy).toHaveBeenCalledTimes(2); // No new call
 
       service.trackProgress(30, 100);
-      expect(fetchSpy).toHaveBeenCalledTimes(1); // Still no new call
+      expect(fetchSpy).toHaveBeenCalledTimes(2); // Still no new call
     });
 
     it('fires next milestone when progress advances', () => {
       service = new TrackingService(createMockTrackingConfig());
 
+      // session_start + 25% = 2
       service.trackProgress(25, 100);
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
-
-      service.trackProgress(50, 100);
       expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+      // + 50% = 3
+      service.trackProgress(50, 100);
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
     });
 
     it('does not fire when percentage is below the first interval', () => {
       service = new TrackingService(createMockTrackingConfig());
 
+      // session_start was sent at construction
+      const callsAfterConstruct = fetchSpy.mock.calls.length;
+
       service.trackProgress(10, 100);
-      expect(fetchSpy).not.toHaveBeenCalled();
+      // No progress milestone fired
+      expect(fetchSpy).toHaveBeenCalledTimes(callsAfterConstruct);
     });
 
     it('uses custom progressIntervals from config', () => {
@@ -458,14 +502,16 @@ describe('TrackingService', () => {
         createMockTrackingConfig({ progressIntervals: [10, 50, 90] }),
       );
 
+      // session_start + 10% = 2
       service.trackProgress(10, 100);
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
 
       service.trackProgress(25, 100);
-      expect(fetchSpy).toHaveBeenCalledTimes(1); // 25 is not a milestone
+      expect(fetchSpy).toHaveBeenCalledTimes(2); // 25 is not a milestone
 
+      // + 50% = 3
       service.trackProgress(50, 100);
-      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
     });
 
     it('does not track progress when disabled', () => {
@@ -478,8 +524,12 @@ describe('TrackingService', () => {
     it('does not track progress when duration is 0', () => {
       service = new TrackingService(createMockTrackingConfig());
 
+      // session_start was sent at construction
+      const callsAfterConstruct = fetchSpy.mock.calls.length;
+
       service.trackProgress(10, 0);
-      expect(fetchSpy).not.toHaveBeenCalled();
+      // No progress event tracked
+      expect(fetchSpy).toHaveBeenCalledTimes(callsAfterConstruct);
     });
 
     it('includes currentTime and duration in progress event data', () => {
@@ -487,7 +537,8 @@ describe('TrackingService', () => {
 
       service.trackProgress(75, 300);
 
-      const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
+      // Index 1 is the first progress event (index 0 is session_start)
+      const body = JSON.parse(fetchSpy.mock.calls[1][1]!.body as string);
       expect(body.events[0].data.currentTime).toBe(75);
       expect(body.events[0].data.duration).toBe(300);
     });
@@ -495,13 +546,15 @@ describe('TrackingService', () => {
     it('resets milestones so they can fire again', () => {
       service = new TrackingService(createMockTrackingConfig());
 
+      // session_start + 25% = 2
       service.trackProgress(25, 100);
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
 
       service.resetProgress();
 
+      // + 25% again = 3
       service.trackProgress(25, 100);
-      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -514,7 +567,8 @@ describe('TrackingService', () => {
 
       service.track('play', defaultEventData());
 
-      const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
+      // Index 1 is the play event (index 0 is session_start with the old ID)
+      const body = JSON.parse(fetchSpy.mock.calls[1][1]!.body as string);
       expect(body.events[0].data.sessionId).toBe('custom-session-123');
       expect(body.sessionId).toBe('custom-session-123');
     });
@@ -541,8 +595,9 @@ describe('TrackingService', () => {
       service = new TrackingService(createMockTrackingConfig({ transformEvent }));
       service.track('play', defaultEventData());
 
-      expect(transformEvent).toHaveBeenCalledTimes(1);
-      const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
+      // Called for session_start + play = 2
+      expect(transformEvent).toHaveBeenCalledTimes(2);
+      const body = JSON.parse(fetchSpy.mock.calls[1][1]!.body as string);
       expect(body.events[0].data.metadata).toEqual({ custom: true });
     });
 
@@ -552,7 +607,8 @@ describe('TrackingService', () => {
       service = new TrackingService(createMockTrackingConfig({ transformEvent }));
       service.track('play', defaultEventData());
 
-      expect(transformEvent).toHaveBeenCalledTimes(1);
+      // Called for session_start + play = 2 (both dropped)
+      expect(transformEvent).toHaveBeenCalledTimes(2);
       expect(fetchSpy).not.toHaveBeenCalled();
     });
 
@@ -562,7 +618,8 @@ describe('TrackingService', () => {
       service = new TrackingService(createMockTrackingConfig({ transformEvent }));
       service.track('play', defaultEventData());
 
-      const receivedEvent = transformEvent.mock.calls[0][0];
+      // calls[0] is session_start, calls[1] is play
+      const receivedEvent = transformEvent.mock.calls[1][0];
       expect(receivedEvent.type).toBe('play');
       expect(receivedEvent.timestamp).toBeDefined();
       expect(receivedEvent.data.sessionId).toBeDefined();
@@ -578,7 +635,8 @@ describe('TrackingService', () => {
 
       service.track('play', defaultEventData());
 
-      expect(onTrack).toHaveBeenCalledTimes(1);
+      // session_start + play = 2
+      expect(onTrack).toHaveBeenCalledTimes(2);
       expect(onTrack).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'play' }),
       );
@@ -601,8 +659,12 @@ describe('TrackingService', () => {
         }),
       );
 
+      // session_start triggers onTrack once at construction
+      const callsAfterConstruct = onTrack.mock.calls.length;
+
       service.track('play', defaultEventData());
-      expect(onTrack).not.toHaveBeenCalled();
+      // play is filtered out, so no additional call
+      expect(onTrack).toHaveBeenCalledTimes(callsAfterConstruct);
     });
 
     it('calls onTrack even when transformEvent modifies the event', () => {
@@ -615,7 +677,8 @@ describe('TrackingService', () => {
       service = new TrackingService(createMockTrackingConfig({ onTrack, transformEvent }));
       service.track('play', defaultEventData());
 
-      expect(onTrack).toHaveBeenCalledTimes(1);
+      // session_start + play = 2
+      expect(onTrack).toHaveBeenCalledTimes(2);
     });
 
     it('does not call onTrack when transformEvent returns null', () => {
@@ -654,9 +717,11 @@ describe('TrackingService', () => {
 
       service.destroy();
 
+      // destroy sends session_end via sendBeacon or flush
+      // Queue contains: session_start + play + pause + session_end = 4
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
-      expect(body.events).toHaveLength(2);
+      expect(body.events).toHaveLength(4);
     });
 
     it('does not error when destroying a service without batch timer', () => {
@@ -664,13 +729,18 @@ describe('TrackingService', () => {
       expect(() => service.destroy()).not.toThrow();
     });
 
-    it('does not send when queue is empty on destroy', () => {
+    it('sends session events on destroy even without explicit tracking', () => {
       service = new TrackingService(
         createMockTrackingConfig({ batchEvents: true, batchInterval: 5000 }),
       );
 
+      // destroy flushes session_start (queued at construction) + session_end
       service.destroy();
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
+      expect(body.events).toHaveLength(2);
+      expect(body.events[0].type).toBe('session_start');
+      expect(body.events[1].type).toBe('session_end');
     });
   });
 });

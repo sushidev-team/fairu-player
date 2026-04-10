@@ -44,3 +44,4 @@ export {
   type FairuTrack,
   type FairuVideoTrack,
 } from './fairu';
+export { parseVTT, findCueAtTime, generateSpriteCues, type ThumbnailConfig, type ThumbnailCue } from './thumbnails';

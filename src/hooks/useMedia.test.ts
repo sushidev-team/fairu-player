@@ -298,6 +298,7 @@ describe('useMedia', () => {
     });
 
     it('updates error state on error event and calls onError', () => {
+      vi.useFakeTimers();
       const onError = vi.fn();
       const { result, video } = renderMediaHook({ onError });
 
@@ -306,17 +307,23 @@ describe('useMedia', () => {
         value: { message: 'Decode error' },
       });
 
-      act(() => {
-        fireMediaEvent(video, 'error');
-      });
+      // The error handler now retries up to 3 times before setting error state.
+      // We need to fire enough error events to exhaust all retries (4 errors total).
+      for (let i = 0; i < 4; i++) {
+        act(() => {
+          fireMediaEvent(video, 'error');
+        });
+      }
 
       expect(result.current.state.error).toBeInstanceOf(Error);
       expect(result.current.state.error?.message).toBe('Decode error');
       expect(result.current.state.isLoading).toBe(false);
       expect(onError).toHaveBeenCalledTimes(1);
+      vi.useRealTimers();
     });
 
     it('handles error event with no error message', () => {
+      vi.useFakeTimers();
       const { result, video } = renderMediaHook();
 
       Object.defineProperty(video, 'error', {
@@ -324,11 +331,15 @@ describe('useMedia', () => {
         value: {},
       });
 
-      act(() => {
-        fireMediaEvent(video, 'error');
-      });
+      // Fire enough errors to exhaust retries
+      for (let i = 0; i < 4; i++) {
+        act(() => {
+          fireMediaEvent(video, 'error');
+        });
+      }
 
       expect(result.current.state.error?.message).toBe('Media error');
+      vi.useRealTimers();
     });
   });
 

@@ -276,7 +276,7 @@ describe('ProgressBar', () => {
     const chapters = createMockChapters();
     const { container } = renderProgressBar({ chapters, duration: 180 });
     // Chapter markers at startTime 0, 30, 120 => 3 markers
-    const markers = container.querySelectorAll('.w-0\\.5');
+    const markers = container.querySelectorAll('button[aria-label^="Go to chapter"]');
     expect(markers.length).toBe(3);
   });
 
@@ -286,7 +286,7 @@ describe('ProgressBar', () => {
       { id: 'ch-2', title: 'Middle', startTime: 60, endTime: 120 },
     ];
     const { container } = renderProgressBar({ chapters, duration: 120 });
-    const markerElements = container.querySelectorAll('.w-0\\.5');
+    const markerElements = container.querySelectorAll('button[aria-label^="Go to chapter"]');
     expect((markerElements[0] as HTMLElement).style.left).toBe('0%');
     expect((markerElements[1] as HTMLElement).style.left).toBe('50%');
   });

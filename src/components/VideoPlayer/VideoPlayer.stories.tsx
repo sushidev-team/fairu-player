@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { VideoPlayer, type VideoPlayerRef } from './VideoPlayer';
+import { SubtitleDisplay } from './SubtitleDisplay';
 import { VideoProvider, useVideoPlayer } from '@/context/VideoContext';
 import { VideoAdProvider, useVideoAds } from '@/context/VideoAdContext';
 import { createAdEventBus } from '@/utils/AdEventBus';
@@ -23,6 +24,8 @@ import {
   getFairuHlsUrl,
   type FairuVideoTrack,
 } from '@/utils/fairu';
+import { DEFAULT_SUBTITLE_STYLE, SUBTITLE_PRESETS } from '@/types/subtitleStyling';
+import type { SubtitleStyle } from '@/types/subtitleStyling';
 
 const meta: Meta<typeof VideoPlayer> = {
   title: 'Components/VideoPlayer',
@@ -48,10 +51,10 @@ type Story = StoryObj<typeof VideoPlayer>;
 // Sample video tracks - using free test videos
 const sampleVideo: VideoTrack = {
   id: '1',
-  src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+  src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
   title: 'Big Buck Bunny',
   artist: 'Blender Foundation',
-  poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
+  poster: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
   duration: 596,
 };
 
@@ -69,18 +72,18 @@ const videoPlaylist: VideoTrack[] = [
   sampleVideo,
   {
     id: '2',
-    src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
     title: 'Elephants Dream',
     artist: 'Blender Foundation',
-    poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ElephantsDream.jpg',
+    poster: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
     duration: 653,
   },
   {
     id: '3',
-    src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+    src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
     title: 'Sintel',
     artist: 'Blender Foundation',
-    poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/Sintel.jpg',
+    poster: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
     duration: 888,
   },
 ];
@@ -92,7 +95,7 @@ const samplePreRollAd: VideoAdBreak = {
   ads: [
     {
       id: 'ad-1',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
       duration: 15,
       skipAfterSeconds: 5,
       title: 'ForBiggerBlazes - Sample Ad',
@@ -117,7 +120,7 @@ const sampleMidRollAd: VideoAdBreak = {
   ads: [
     {
       id: 'mid-ad-1',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+      src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
       duration: 15,
       skipAfterSeconds: 3,
       title: 'Mid-Roll Ad',
@@ -450,7 +453,7 @@ const nonSkippablePreRollAd: VideoAdBreak = {
   ads: [
     {
       id: 'ad-non-skip-1',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
       duration: 15,
       skipAfterSeconds: null, // null means non-skippable
       title: 'Non-Skippable Ad',
@@ -573,12 +576,55 @@ export const WatchProgressTracking: Story = {
 };
 
 /**
- * Complete example: Non-skippable ad + Seeking disabled + Watch tracking
+ * Complete example: Non-skippable ad + Seeking disabled + Watch tracking + Subtitles
  * This is typical for educational content or compliance videos
  */
 function ComplianceVideoDemo() {
   const [progress, setProgress] = useState<WatchProgress | null>(null);
   const [completed, setCompleted] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+
+  // Subtitle state
+  const [subtitleMode, setSubtitleMode] = useState<'overlay' | 'below' | 'off'>('overlay');
+  const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(DEFAULT_SUBTITLE_STYLE);
+
+  // Simulated subtitle cues for compliance video
+  const subtitleCues = useMemo(() => [
+    { start: 0, end: 5, text: 'Welcome to the Compliance Training.' },
+    { start: 5, end: 10, text: 'This video covers workplace safety procedures.' },
+    { start: 10, end: 16, text: 'Please watch the entire video to complete the training.' },
+    { start: 18, end: 23, text: 'Chapter 1: Emergency Exits' },
+    { start: 25, end: 30, text: 'Always be aware of the nearest emergency exit.' },
+    { start: 32, end: 37, text: 'Follow the green signs to find your way out.' },
+    { start: 40, end: 45, text: 'Chapter 2: Fire Safety' },
+    { start: 47, end: 52, text: 'In case of fire, do not use elevators.' },
+    { start: 55, end: 60, text: 'Use the stairs and meet at the assembly point.' },
+  ], []);
+
+  const activeCue = useMemo(() => {
+    if (subtitleMode === 'off') return null;
+    return subtitleCues.find(c => currentTime >= c.start && currentTime < c.end)?.text ?? null;
+  }, [currentTime, subtitleMode, subtitleCues]);
+
+  // Convert subtitle style to CSS
+  const subtitleCss = useMemo((): React.CSSProperties => {
+    const hexToRgba = (hex: string, opacity: number) => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    };
+    return {
+      fontSize: `${subtitleStyle.fontSize}px`,
+      fontFamily: subtitleStyle.fontFamily,
+      color: subtitleStyle.textColor,
+      backgroundColor: hexToRgba(subtitleStyle.backgroundColor, subtitleStyle.backgroundOpacity),
+      textShadow: subtitleStyle.textShadow,
+      ...(subtitleStyle.position === 'top' ? { top: '10%', bottom: 'auto' } : { bottom: '10%', top: 'auto' }),
+      padding: '4px 8px',
+      borderRadius: '4px',
+    };
+  }, [subtitleStyle]);
 
   return (
     <div className="space-y-4">
@@ -586,9 +632,11 @@ function ComplianceVideoDemo() {
         <h3 className="font-semibold">⚠️ Compliance Training Video</h3>
         <p className="text-sm mt-1">
           You must watch this video completely. Seeking is disabled and the ad cannot be skipped.
+          Subtitles are available in overlay or below-video mode.
         </p>
       </div>
 
+      {/* Video Player */}
       <VideoPlayer
         track={{
           ...sampleVideo,
@@ -606,7 +654,61 @@ function ComplianceVideoDemo() {
         }}
         onFinished={() => setCompleted(true)}
         onWatchProgressUpdate={setProgress}
+        onTimeUpdate={setCurrentTime}
       />
+
+      {/* Subtitles (always below the video player) */}
+      {subtitleMode !== 'off' && (
+        <SubtitleDisplay text={activeCue} mode="below" style={subtitleCss} />
+      )}
+
+      {/* Subtitle Controls */}
+      <div className="bg-gray-800 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-white text-sm font-semibold">Subtitles</h4>
+          <div className="flex gap-1">
+            {([['below', 'On'], ['off', 'Off']] as const).map(([mode, label]) => (
+              <button
+                key={mode}
+                onClick={() => setSubtitleMode(mode)}
+                className={`px-3 py-1 rounded text-xs border transition-colors ${
+                  subtitleMode === mode
+                    ? 'border-[var(--fp-color-accent)] text-[var(--fp-color-accent)]'
+                    : 'border-gray-600 text-gray-400 hover:border-gray-400'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Style presets */}
+        <div className="flex flex-wrap gap-1 mb-3">
+          {SUBTITLE_PRESETS.map(preset => (
+            <button
+              key={preset.name}
+              onClick={() => setSubtitleStyle(preset.style)}
+              className="px-2 py-1 rounded text-xs border border-gray-600 text-gray-400 hover:border-[var(--fp-color-accent)] hover:text-[var(--fp-color-accent)] transition-colors"
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Font size */}
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-500">Size: {subtitleStyle.fontSize}px</span>
+          <input
+            type="range"
+            min={12}
+            max={32}
+            value={subtitleStyle.fontSize}
+            onChange={e => setSubtitleStyle(prev => ({ ...prev, fontSize: Number(e.target.value) }))}
+            className="flex-1 h-1 rounded-full appearance-none bg-gray-700 accent-[var(--fp-color-accent)]"
+          />
+        </div>
+      </div>
 
       {/* Completion Status */}
       <div className={`rounded-lg p-4 ${completed ? 'bg-green-900/50 border-green-500' : 'bg-gray-800'} border`}>
@@ -630,6 +732,187 @@ function ComplianceVideoDemo() {
 
 export const ComplianceVideoExample: Story = {
   render: () => <ComplianceVideoDemo />,
+};
+
+// ============= Subtitle Demo =============
+
+/**
+ * Interactive subtitle demo with live switching between modes and styles
+ */
+function SubtitleDemo() {
+  const [currentTime, setCurrentTime] = useState(0);
+  const [subtitleMode, setSubtitleMode] = useState<'overlay' | 'below' | 'off'>('below');
+  const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(DEFAULT_SUBTITLE_STYLE);
+
+  // Subtitle cues that cycle through frequently so you always see something
+  const subtitleCues = useMemo(() => [
+    { start: 0, end: 3, text: 'Welcome! This is a subtitle demo.' },
+    { start: 3, end: 6, text: 'Subtitles change automatically every few seconds.' },
+    { start: 6, end: 9, text: 'You can switch between Overlay, Below and Off modes.' },
+    { start: 9, end: 12, text: 'Try out the different style presets!' },
+    { start: 12, end: 15, text: 'High Contrast makes text easier to read.' },
+    { start: 15, end: 18, text: 'Yellow on Black is a classic subtitle style.' },
+    { start: 18, end: 21, text: 'Transparent removes the background completely.' },
+    { start: 21, end: 24, text: 'Font size can be adjusted with the slider.' },
+    { start: 24, end: 27, text: 'In Below mode, subtitles appear beneath the video.' },
+    { start: 27, end: 30, text: 'In Overlay mode, they are displayed on top of the video.' },
+  ], []);
+
+  // Loop cues every 30 seconds
+  const loopedTime = currentTime % 30;
+  const activeCue = useMemo(() => {
+    if (subtitleMode === 'off') return null;
+    return subtitleCues.find(c => loopedTime >= c.start && loopedTime < c.end)?.text ?? null;
+  }, [loopedTime, subtitleMode, subtitleCues]);
+
+  const subtitleCss = useMemo((): React.CSSProperties => {
+    const hexToRgba = (hex: string, opacity: number) => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    };
+    return {
+      fontSize: `${subtitleStyle.fontSize}px`,
+      fontFamily: subtitleStyle.fontFamily,
+      color: subtitleStyle.textColor,
+      backgroundColor: hexToRgba(subtitleStyle.backgroundColor, subtitleStyle.backgroundOpacity),
+      textShadow: subtitleStyle.textShadow,
+      ...(subtitleStyle.position === 'top' ? { top: '10%', bottom: 'auto' } : { bottom: '10%', top: 'auto' }),
+      padding: '4px 8px',
+      borderRadius: '4px',
+    };
+  }, [subtitleStyle]);
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-gray-800 rounded-lg p-4 text-white">
+        <h3 className="font-semibold text-lg mb-1">Subtitle Demo</h3>
+        <p className="text-sm text-gray-400">
+          Play the video and switch between subtitle modes and styles.
+          Subtitles appear automatically and loop every 30 seconds.
+        </p>
+      </div>
+
+      {/* Video Player with optional overlay subtitles */}
+      <div className="relative">
+        <VideoPlayer
+          track={sampleVideo}
+          onTimeUpdate={setCurrentTime}
+        />
+        {subtitleMode === 'overlay' && (
+          <div className="absolute inset-0 pointer-events-none z-30 flex items-end justify-center pb-[15%]">
+            {activeCue && (
+              <span
+                className="text-center max-w-[80%] leading-relaxed"
+                style={{
+                  fontSize: subtitleCss.fontSize,
+                  fontFamily: subtitleCss.fontFamily,
+                  color: subtitleCss.color,
+                  backgroundColor: subtitleCss.backgroundColor,
+                  textShadow: subtitleCss.textShadow,
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                }}
+              >
+                {activeCue}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Below-mode subtitles */}
+      {subtitleMode === 'below' && (
+        <SubtitleDisplay text={activeCue} mode="below" style={subtitleCss} />
+      )}
+
+      {/* Controls */}
+      <div className="bg-gray-800 rounded-lg p-4 space-y-4">
+        {/* Mode switcher */}
+        <div>
+          <div className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wider">Display Mode</div>
+          <div className="flex gap-2">
+            {([
+              { key: 'overlay' as const, label: 'Overlay', desc: 'On top of the video' },
+              { key: 'below' as const, label: 'Below', desc: 'Beneath the video' },
+              { key: 'off' as const, label: 'Off', desc: 'Hidden' },
+            ]).map(({ key, label, desc }) => (
+              <button
+                key={key}
+                onClick={() => setSubtitleMode(key)}
+                className={`flex-1 p-2 rounded-lg text-left border transition-all ${
+                  subtitleMode === key
+                    ? 'border-[var(--fp-color-accent)] bg-[var(--fp-color-accent)]/10'
+                    : 'border-gray-600 hover:border-gray-400'
+                }`}
+              >
+                <div className={`text-sm font-medium ${subtitleMode === key ? 'text-[var(--fp-color-accent)]' : 'text-white'}`}>
+                  {label}
+                </div>
+                <div className="text-xs text-gray-500">{desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Style presets */}
+        <div>
+          <div className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wider">Style Preset</div>
+          <div className="grid grid-cols-4 gap-2">
+            {SUBTITLE_PRESETS.map(preset => (
+              <button
+                key={preset.name}
+                onClick={() => setSubtitleStyle(preset.style)}
+                className="p-2 rounded-lg border border-gray-600 hover:border-[var(--fp-color-accent)] transition-all text-center"
+              >
+                <div className="text-xs text-white font-medium">{preset.label}</div>
+                <div
+                  className="mt-1 mx-auto text-[10px] px-1 rounded"
+                  style={{
+                    color: preset.style.textColor,
+                    backgroundColor: `rgba(0,0,0,${preset.style.backgroundOpacity})`,
+                    textShadow: preset.style.textShadow,
+                  }}
+                >
+                  Aa
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Font size slider */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-gray-500 font-medium uppercase tracking-wider">Font Size</span>
+            <span className="text-sm text-white font-mono">{subtitleStyle.fontSize}px</span>
+          </div>
+          <input
+            type="range"
+            min={12}
+            max={32}
+            value={subtitleStyle.fontSize}
+            onChange={e => setSubtitleStyle(prev => ({ ...prev, fontSize: Number(e.target.value) }))}
+            className="w-full h-1.5 rounded-full appearance-none bg-gray-700 accent-[var(--fp-color-accent)]"
+          />
+        </div>
+
+        {/* Current state info */}
+        <div className="pt-2 border-t border-gray-700">
+          <div className="flex items-center gap-4 text-xs text-gray-500">
+            <span>Mode: <span className="text-white">{subtitleMode}</span></span>
+            <span>Time: <span className="text-white font-mono">{Math.floor(currentTime)}s</span></span>
+            <span>Cue: <span className="text-white">{activeCue ? 'Active' : 'None'}</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export const SubtitleDemoExample: Story = {
+  render: () => <SubtitleDemo />,
 };
 
 // ============= HLS Streaming Stories =============
@@ -927,7 +1210,7 @@ const mixedAdBreak: VideoAdBreak = {
   ads: [
     {
       id: 'video-ad-1',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
       duration: 15,
       skipAfterSeconds: 5,
       title: 'Video Ad',
@@ -974,9 +1257,9 @@ function FairuVideoDemo() {
   // For demo, use real video
   const demoTrack: VideoTrack = {
     id: exampleUuid,
-    src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
     title: 'Big Buck Bunny (Demo)',
-    poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
+    poster: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
   };
 
   return (
@@ -988,7 +1271,7 @@ function FairuVideoDemo() {
           <h3 className="text-lg font-semibold">Video Hosting</h3>
         </div>
         <p className="text-purple-200 mb-4">
-          Video-Hosting mit fairu.app - nur UUID benötigt, unterstützt verschiedene Qualitätsstufen.
+          Video hosting with fairu.app - only UUID needed, supports different quality levels.
         </p>
         <div className="space-y-2 font-mono text-xs bg-black/30 rounded p-3">
           <div>
@@ -1041,7 +1324,7 @@ export const FairuVideoHosting: Story = {
  */
 function FairuVideoPlaylistDemo() {
   const fairuTracks: FairuVideoTrack[] = [
-    { uuid: 'video-uuid-1', title: 'Kapitel 1: Einführung', version: 'high' },
+    { uuid: 'video-uuid-1', title: 'Chapter 1: Introduction', version: 'high' },
     { uuid: 'video-uuid-2', title: 'Kapitel 2: Grundlagen', version: 'high' },
     { uuid: 'video-uuid-3', title: 'Kapitel 3: Fortgeschritten', version: 'high' },
   ];
@@ -1053,21 +1336,21 @@ function FairuVideoPlaylistDemo() {
   const demoPlaylist: VideoTrack[] = [
     {
       id: 'video-uuid-1',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-      title: 'Kapitel 1: Einführung',
-      poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
+      src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
+      title: 'Chapter 1: Introduction',
+      poster: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
     },
     {
       id: 'video-uuid-2',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+      src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
       title: 'Kapitel 2: Grundlagen',
-      poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ElephantsDream.jpg',
+      poster: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
     },
     {
       id: 'video-uuid-3',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+      src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
       title: 'Kapitel 3: Fortgeschritten',
-      poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/Sintel.jpg',
+      poster: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
     },
   ];
 
@@ -1126,7 +1409,7 @@ function FairuHlsDemo() {
           <h3 className="text-lg font-semibold">Adaptive Streaming</h3>
         </div>
         <p className="text-purple-200 mb-4">
-          HLS-Streaming mit automatischer Qualitätsanpassung basierend auf Bandbreite.
+          HLS streaming with automatic quality adjustment based on bandwidth.
         </p>
         <div className="font-mono text-xs bg-black/30 rounded p-3">
           <div className="mb-2">
@@ -1387,7 +1670,7 @@ function LogoInteractiveDemo() {
       <div className="bg-blue-900/50 border border-blue-500 rounded-lg p-4 text-white text-sm">
         <p>
           <strong>Tipp:</strong> Aktiviere &quot;Hide with controls&quot; und starte das Video, um die Animationen zu sehen.
-          Das Logo wird ein-/ausgeblendet wenn die Controls erscheinen/verschwinden.
+          The logo fades in/out when the controls appear/disappear.
         </p>
       </div>
 
@@ -1540,37 +1823,37 @@ const recommendedVideos: RecommendedVideo[] = [
   {
     id: 'rec-1',
     title: 'Introduction to TypeScript - Complete Guide 2024',
-    thumbnail: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
+    thumbnail: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
     duration: 1245,
     views: '1.2M views',
     channel: 'Code Academy',
     channelAvatar: 'https://placehold.co/32x32/2d5a27/ffffff?text=CA',
-    src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
   },
   {
     id: 'rec-2',
     title: 'React Best Practices You Need to Know',
-    thumbnail: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ElephantsDream.jpg',
+    thumbnail: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
     duration: 845,
     views: '856K views',
     channel: 'Frontend Masters',
     channelAvatar: 'https://placehold.co/32x32/5a272d/ffffff?text=FM',
-    src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
   },
   {
     id: 'rec-3',
     title: 'Building a Video Player from Scratch',
-    thumbnail: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/Sintel.jpg',
+    thumbnail: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
     duration: 2100,
     views: '432K views',
     channel: 'Dev Tutorials',
     channelAvatar: 'https://placehold.co/32x32/1a1a2e/ffffff?text=DT',
-    src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+    src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
   },
   {
     id: 'rec-4',
     title: 'CSS Grid Layout - Master Guide',
-    thumbnail: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+    thumbnail: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
     duration: 1560,
     views: '678K views',
     channel: 'CSS Wizards',
@@ -1578,7 +1861,7 @@ const recommendedVideos: RecommendedVideo[] = [
   {
     id: 'rec-5',
     title: 'Node.js Performance Optimization',
-    thumbnail: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerEscapes.jpg',
+    thumbnail: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
     duration: 1890,
     views: '234K views',
     channel: 'Backend Pro',
@@ -1586,7 +1869,7 @@ const recommendedVideos: RecommendedVideo[] = [
   {
     id: 'rec-6',
     title: 'Database Design Fundamentals',
-    thumbnail: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerFun.jpg',
+    thumbnail: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
     duration: 2400,
     views: '567K views',
     channel: 'Data School',
@@ -1601,9 +1884,9 @@ export const WithEndScreen: Story = {
   args: {
     track: {
       id: 'short-video',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
       title: 'Short Demo Video',
-      poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+      poster: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
       duration: 15,
     },
     config: {
@@ -1629,9 +1912,9 @@ export const EndScreenWithAutoPlay: Story = {
   args: {
     track: {
       id: 'short-video-autoplay',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
       title: 'Short Demo Video',
-      poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+      poster: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
       duration: 15,
     },
     config: {
@@ -1657,9 +1940,9 @@ export const EndScreenCarousel: Story = {
   args: {
     track: {
       id: 'short-video-carousel',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
       title: 'Short Demo Video',
-      poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+      poster: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
       duration: 15,
     },
     config: {
@@ -1684,9 +1967,9 @@ function EndScreenInteractiveDemo() {
   const [events, setEvents] = useState<string[]>([]);
   const [currentVideo, setCurrentVideo] = useState<VideoTrack>({
     id: 'demo-video',
-    src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
     title: 'Demo Video',
-    poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+    poster: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
   });
 
   const addEvent = useCallback((event: string) => {
@@ -1725,8 +2008,8 @@ function EndScreenInteractiveDemo() {
       <div className="bg-blue-900/50 border border-blue-500 rounded-lg p-4 text-white text-sm">
         <h3 className="font-semibold mb-2">End Screen Demo</h3>
         <p className="text-blue-200">
-          Spiele das Video ab und warte bis zum Ende (oder skippe vorwärts). Der End Screen erscheint 5 Sekunden vor Ende.
-          Klicke auf ein Video um es abzuspielen, oder nutze den Replay-Button.
+          Play the video and wait until the end (or skip forward). The end screen appears 5 seconds before the end.
+          Click on a video to play it, or use the replay button.
         </p>
       </div>
 
@@ -1902,9 +2185,9 @@ function AllAdFeaturesDemo() {
       <VideoPlayer
         track={{
           id: 'demo-all-features',
-          src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+          src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
           title: 'Demo Video mit allen Features',
-          poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+          poster: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
         }}
         config={{
           overlayAds,
@@ -1946,7 +2229,7 @@ const bumperAdBreak: VideoAdBreak = {
   ads: [
     {
       id: 'bumper-1',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
       duration: 6,
       type: 'bumper', // Bumper ads are always 6s and non-skippable
       title: 'Bumper Ad',
@@ -2086,9 +2369,9 @@ function DynamicAdTriggeringDemo() {
         ref={playerRef}
         track={{
           id: 'demo-dynamic',
-          src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+          src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
           title: 'Dynamic Ad Triggering Demo',
-          poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
+          poster: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
         }}
       />
 
@@ -2204,7 +2487,7 @@ function MyPlayer() {
   const showAd = () => {
     playerRef.current?.overlayAdControls.showOverlayAd({
       id: 'my-ad',
-      imageUrl: 'https://example.com/ad.png',
+      imageUrl: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
       displayAt: 0,
       clickThroughUrl: 'https://example.com',
     });
@@ -2367,9 +2650,9 @@ function EventPipelineDemo() {
       <VideoPlayer
         track={{
           id: 'demo-event-pipeline',
-          src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+          src: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/file.mp4',
           title: 'Event Pipeline Demo',
-          poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
+          poster: 'https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp',
         }}
         adEventBus={adEventBus}
       />

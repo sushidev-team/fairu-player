@@ -4,7 +4,7 @@ import { PlayerProvider } from '@/context/PlayerContext';
 
 const sampleTrack = {
   id: '1',
-  src: 'https://example.com/audio.mp3',
+  src: 'https://files.fairu.app/a182ad73-8ecd-46d2-80f0-126cdf933b27/Sushi-jpop-04.mp3',
   title: 'Awesome Track Title',
   artist: 'Amazing Artist',
   album: 'Greatest Hits',

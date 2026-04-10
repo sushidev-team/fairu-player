@@ -7,17 +7,24 @@ export {
   VideoOverlay,
   VideoControls,
   LogoOverlay,
+  GestureOverlay,
   EndScreen,
   RecommendedCard,
   AutoPlayCountdown,
+  SubtitleDisplay,
   type VideoPlayerWithProviderProps,
   type VideoPlayerRef,
   type VideoOverlayProps,
   type VideoControlsProps,
   type LogoOverlayProps,
+  type GestureOverlayProps,
+  type GestureFeedback,
+  type GestureFeedbackType,
   type EndScreenProps,
   type RecommendedCardProps,
   type AutoPlayCountdownProps,
+  type SubtitleDisplayProps,
+  type SubtitleDisplayMode,
 } from './components/VideoPlayer';
 export {
   PlayButton,
@@ -32,6 +39,10 @@ export {
   SubtitleSelector,
   PictureInPictureButton,
   CastButton,
+  SleepTimer,
+  ShareButton,
+  SubtitleSettings,
+  Equalizer,
   type PlayButtonProps,
   type ProgressBarProps,
   type TimeDisplayProps,
@@ -44,6 +55,10 @@ export {
   type SubtitleSelectorProps,
   type PictureInPictureButtonProps,
   type CastButtonProps,
+  type SleepTimerProps,
+  type ShareButtonProps,
+  type SubtitleSettingsProps,
+  type EqualizerProps,
 } from './components/controls';
 export {
   ChapterMarker,
@@ -69,11 +84,15 @@ export {
   OverlayAd,
   InfoCard,
   InfoCardIcon,
+  PauseAd,
+  RewardedAdOverlay,
   type AdOverlayProps,
   type AdSkipButtonProps,
   type OverlayAdProps,
   type InfoCardProps,
   type InfoCardIconProps,
+  type PauseAdComponentProps,
+  type RewardedAdOverlayProps,
 } from './components/ads';
 export {
   Rating,
@@ -82,6 +101,14 @@ export {
   type RatingProps,
   type StatsProps,
 } from './components/stats';
+export {
+  PlayerErrorBoundary,
+  type PlayerErrorBoundaryProps,
+} from './components/ErrorBoundary';
+export {
+  ScreenReaderAnnouncer,
+  type ScreenReaderAnnouncerProps,
+} from './components/a11y';
 export {
   PodcastPage,
   PodcastPageContent,
@@ -103,6 +130,10 @@ export {
 } from './components/podcast';
 
 // Context providers
+export {
+  FairuProvider,
+  type FairuProviderProps,
+} from './context/FairuProvider';
 export {
   PlayerContext,
   PlayerProvider,
@@ -164,6 +195,24 @@ export {
   useChapters,
   useMarkers,
   useKeyboardControls,
+  useSleepTimer,
+  useGestures,
+  useResumePosition,
+  usePlaylistPersistence,
+  usePlaybackHistory,
+  useSubtitleStyling,
+  useSubtitleParser,
+  parseVTTCues,
+  useEqualizer,
+  useFocusTrap,
+  useAutoplayDetection,
+  useABLoop,
+  useShareableTimestamp,
+  usePauseAd,
+  useRewardedAd,
+  useSyncPlayback,
+  formatTimestamp,
+  parseTimestamp,
   type UseAudioOptions,
   type UseAudioReturn,
   type UseVideoOptions,
@@ -179,10 +228,50 @@ export {
   type UsePlaylistOptions,
   type UsePlaylistReturn,
   type UseKeyboardControlsOptions,
+  type UseGesturesOptions,
+  type UseAutoplayDetectionOptions,
+  type AutoplayPolicy,
+  type ABLoopState,
+  type ABLoopControls,
+  type UseABLoopOptions,
+  type UseABLoopReturn,
+  type UseShareableTimestampOptions,
+  type UseShareableTimestampReturn,
+  type UseFocusTrapOptions,
+  type UseFocusTrapReturn,
+  type UseSyncPlaybackOptions,
+  type UseSyncPlaybackReturn,
+  type UseSubtitleParserOptions,
+  type UseSubtitleParserReturn,
+  type SubtitleCue,
 } from './hooks';
 
+// Equalizer
+export {
+  DEFAULT_BANDS,
+  EQUALIZER_PRESETS,
+} from './types/equalizer';
+export type {
+  EqualizerBand,
+  EqualizerPreset,
+  UseEqualizerOptions,
+  UseEqualizerReturn,
+} from './types/equalizer';
+
+// Subtitle styling
+export {
+  DEFAULT_SUBTITLE_STYLE,
+  SUBTITLE_PRESETS,
+} from './types/subtitleStyling';
+export type {
+  SubtitleStyle,
+  SubtitleStylePreset,
+  UseSubtitleStylingOptions,
+  UseSubtitleStylingReturn,
+} from './types/subtitleStyling';
+
 // Services
-export { TrackingService, AdService } from './services';
+export { TrackingService, AdService, WebSocketSyncTransport } from './services';
 
 // Types
 export type {
@@ -240,6 +329,54 @@ export type {
   createStatItem,
   formatStatNumber,
   formatStatDate,
+  // Sleep timer types
+  SleepTimerPreset,
+  SleepTimerConfig,
+  SleepTimerState,
+  SleepTimerControls,
+  UseSleepTimerOptions,
+  UseSleepTimerReturn,
+  DEFAULT_SLEEP_TIMER_PRESETS,
+  // Resume types
+  ResumeConfig,
+  ResumeData,
+  UseResumePositionReturn,
+  // Playlist persistence types
+  PlaylistPersistenceConfig,
+  PlaylistPersistenceData,
+  UsePlaylistPersistenceReturn,
+  // Media types
+  MediaState,
+  MediaControls as MediaControlsInterface,
+  UseMediaOptions,
+  UseMediaReturn,
+  // A-B loop types
+  ABLoopState,
+  ABLoopControls,
+  UseABLoopOptions,
+  UseABLoopReturn,
+  // Playback history types
+  PlaybackHistoryEntry,
+  PlaybackHistoryConfig,
+  UsePlaybackHistoryReturn,
+  // Sync types
+  SyncEventType,
+  SyncEvent,
+  SyncEventData,
+  SyncPeer,
+  SyncConnectionState,
+  SyncRoomInfo,
+  SyncTransport,
+  // Pause ad types
+  PauseAd as PauseAdType,
+  PauseAdState,
+  UsePauseAdOptions,
+  UsePauseAdReturn,
+  // Rewarded ad types
+  RewardedAd as RewardedAdType,
+  RewardedAdState,
+  UseRewardedAdOptions,
+  UseRewardedAdReturn,
 } from './types';
 
 // Labels utilities
@@ -286,6 +423,8 @@ export type {
 
 // Utilities
 export { formatTime, formatDuration, parseTime, calculatePercentage, cn } from './utils';
+export { parseVTT, findCueAtTime, generateSpriteCues, type ThumbnailConfig, type ThumbnailCue } from './utils/thumbnails';
+export { ThumbnailPreview, type ThumbnailPreviewProps } from './components/controls/ProgressBar/ThumbnailPreview';
 
 // Ad Event Bus (for external ad control)
 export {

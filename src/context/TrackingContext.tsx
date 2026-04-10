@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useCallback, useMemo, useRef, useState } from 'react';
+import React, { createContext, useContext, useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import type { TrackingConfig, TrackingContextValue, TrackingEvent } from '@/types/tracking';
+import { TrackingService } from '@/services/TrackingService';
 
 const DEFAULT_CONFIG: TrackingConfig = {
   enabled: false, // GDPR: default OFF
@@ -39,86 +40,38 @@ export function TrackingProvider({ children, config: userConfig = {} }: Tracking
     },
   }), [userConfig]);
 
-  const [enabled, setEnabled] = useState(config.enabled);
-  const [sessionId, setSessionId] = useState<string | undefined>(undefined);
-  const eventQueue = useRef<TrackingEvent[]>([]);
-  const batchTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [enabled, setEnabledState] = useState(config.enabled);
+  const serviceRef = useRef<TrackingService | null>(null);
 
-  // Send events to endpoint
-  const sendEvents = useCallback(async (events: TrackingEvent[]) => {
-    if (!config.endpoint || events.length === 0) return;
+  // Initialize / recreate the tracking service when config changes
+  useEffect(() => {
+    const service = new TrackingService({ ...config, enabled });
+    serviceRef.current = service;
 
-    try {
-      await fetch(config.endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...config.headers,
-        },
-        body: JSON.stringify({ events, sessionId }),
-      });
-    } catch (error) {
-      console.error('Failed to send tracking events:', error);
-    }
-  }, [config.endpoint, config.headers, sessionId]);
+    return () => {
+      service.destroy();
+      serviceRef.current = null;
+    };
+  }, [config, enabled]);
+
+  const setEnabled = useCallback((value: boolean) => {
+    setEnabledState(value);
+    serviceRef.current?.setEnabled(value);
+  }, []);
+
+  const setSessionId = useCallback((sessionId: string) => {
+    serviceRef.current?.setSessionId(sessionId);
+  }, []);
+
+  // Track an event by delegating to the service
+  const track = useCallback((event: TrackingEvent) => {
+    serviceRef.current?.track(event.type, event.data);
+  }, []);
 
   // Flush event queue
   const flush = useCallback(async () => {
-    if (eventQueue.current.length === 0) return;
-    const events = [...eventQueue.current];
-    eventQueue.current = [];
-    await sendEvents(events);
-  }, [sendEvents]);
-
-  // Track an event
-  const track = useCallback((event: TrackingEvent) => {
-    if (!enabled) return;
-
-    // Check if this event type is enabled
-    const eventTypeKey = event.type.replace(/_([a-z])/g, (_, letter) =>
-      letter.toUpperCase()
-    ) as keyof typeof config.events;
-
-    if (config.events && !config.events[eventTypeKey]) return;
-
-    // Transform event if transformer provided
-    let processedEvent = event;
-    if (config.transformEvent) {
-      const transformed = config.transformEvent(event);
-      if (!transformed) return; // Event was filtered out
-      processedEvent = transformed;
-    }
-
-    // Call onTrack callback if provided
-    config.onTrack?.(processedEvent);
-
-    // Handle batching
-    if (config.batchEvents) {
-      eventQueue.current.push(processedEvent);
-
-      if (eventQueue.current.length >= (config.batchSize || 10)) {
-        flush();
-      }
-    } else {
-      // Send immediately
-      sendEvents([processedEvent]);
-    }
-  }, [enabled, config, flush, sendEvents]);
-
-  // Set up batch interval
-  useMemo(() => {
-    if (config.batchEvents && config.batchInterval) {
-      batchTimer.current = setInterval(() => {
-        flush();
-      }, config.batchInterval);
-
-      return () => {
-        if (batchTimer.current) {
-          clearInterval(batchTimer.current);
-        }
-      };
-    }
-  }, [config.batchEvents, config.batchInterval, flush]);
+    await serviceRef.current?.flush();
+  }, []);
 
   const contextValue = useMemo<TrackingContextValue>(() => ({
     config: { ...config, enabled },
@@ -126,7 +79,7 @@ export function TrackingProvider({ children, config: userConfig = {} }: Tracking
     setEnabled,
     setSessionId,
     flush,
-  }), [config, enabled, track, flush]);
+  }), [config, enabled, track, setEnabled, setSessionId, flush]);
 
   return (
     <TrackingContext.Provider value={contextValue}>

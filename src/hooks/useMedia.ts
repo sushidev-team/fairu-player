@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MediaState, MediaControls, UseMediaOptions, UseMediaReturn } from '@/types/media';
 
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 2000;
+const RETRY_WINDOW_MS = 5000;
+
 const initialState: MediaState = {
   isPlaying: false,
   isPaused: true,
@@ -14,6 +18,8 @@ const initialState: MediaState = {
   volume: 1,
   playbackRate: 1,
   error: null,
+  retryCount: 0,
+  isRetrying: false,
 };
 
 /**
@@ -53,6 +59,38 @@ export function useMedia<T extends HTMLMediaElement>(
   const updateState = useCallback((updates: Partial<MediaState>) => {
     setState((prev) => ({ ...prev, ...updates }));
   }, []);
+
+  // Retry state refs (kept outside React state to avoid stale closures in event handlers)
+  const retryCountRef = useRef(0);
+  const lastRetryTimestampRef = useRef(0);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Retry: reload media source and resume from stored position
+  const retry = useCallback(async () => {
+    const media = mediaRef.current;
+    if (!media) return;
+
+    const savedTime = media.currentTime;
+    updateState({ isRetrying: true, error: null });
+
+    media.load();
+
+    // Wait for media to be ready before seeking and playing
+    const onCanPlay = async () => {
+      media.removeEventListener('canplay', onCanPlay);
+      media.currentTime = savedTime;
+      try {
+        await media.play();
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error('Failed to play after retry');
+        updateState({ error: err, isRetrying: false });
+        onError?.(err);
+      }
+      updateState({ isRetrying: false });
+    };
+
+    media.addEventListener('canplay', onCanPlay);
+  }, [onError, updateState]);
 
   // Play
   const play = useCallback(async () => {
@@ -189,11 +227,15 @@ export function useMedia<T extends HTMLMediaElement>(
     };
 
     const handlePlaying = () => {
+      // Reset retry count on successful playback
+      retryCountRef.current = 0;
       updateState({
         isPlaying: true,
         isPaused: false,
         isBuffering: false,
         isEnded: false,
+        retryCount: 0,
+        isRetrying: false,
       });
     };
 
@@ -238,8 +280,31 @@ export function useMedia<T extends HTMLMediaElement>(
     const handleError = () => {
       const error = media.error;
       const err = new Error(error?.message || 'Media error');
-      updateState({ error: err, isLoading: false });
-      onError?.(err);
+
+      const now = Date.now();
+      const timeSinceLastRetry = now - lastRetryTimestampRef.current;
+
+      // If error occurs within the retry window of a previous retry, increment count
+      if (timeSinceLastRetry < RETRY_WINDOW_MS) {
+        retryCountRef.current += 1;
+      } else {
+        // First error or error after a long time — start fresh retry sequence
+        retryCountRef.current = retryCountRef.current === 0 ? 1 : retryCountRef.current + 1;
+      }
+
+      if (retryCountRef.current <= MAX_RETRIES) {
+        // Auto-retry: wait then attempt recovery
+        updateState({ isRetrying: true, retryCount: retryCountRef.current, error: null, isLoading: false });
+        lastRetryTimestampRef.current = now;
+
+        retryTimerRef.current = setTimeout(() => {
+          retry();
+        }, RETRY_DELAY_MS);
+      } else {
+        // Max retries exceeded — give up and show error (existing behavior)
+        updateState({ error: err, isLoading: false, isRetrying: false, retryCount: retryCountRef.current });
+        onError?.(err);
+      }
     };
 
     // Add event listeners
@@ -265,6 +330,10 @@ export function useMedia<T extends HTMLMediaElement>(
     media.playbackRate = state.playbackRate;
 
     return () => {
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
       media.removeEventListener('loadstart', handleLoadStart);
       media.removeEventListener('loadedmetadata', handleLoadedMetadata);
       media.removeEventListener('loadeddata', handleLoadedData);
@@ -294,6 +363,7 @@ export function useMedia<T extends HTMLMediaElement>(
     onLoadedData,
     onCanPlayThrough,
     updateState,
+    retry,
   ]);
 
   // Handle source changes
@@ -321,6 +391,7 @@ export function useMedia<T extends HTMLMediaElement>(
     setVolume,
     toggleMute,
     setPlaybackRate,
+    retry,
   };
 
   return {

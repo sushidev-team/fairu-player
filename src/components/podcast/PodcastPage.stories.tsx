@@ -29,7 +29,7 @@ const generateEpisodes = (count: number): Episode[] => {
 
     episodes.push({
       id: `episode-${i + 1}`,
-      src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+      src: 'https://files.fairu.app/a182ad73-8ecd-46d2-80f0-126cdf933b27/Sushi-jpop-04.mp3',
       title: `Episode ${count - i}: ${getRandomTitle()}`,
       artist: samplePodcast.author,
       artwork: `https://picsum.photos/seed/ep${i}/200/200`,

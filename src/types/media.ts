@@ -20,6 +20,8 @@ export interface MediaState {
   volume: number;
   playbackRate: number;
   error: Error | null;
+  retryCount: number;
+  isRetrying: boolean;
 }
 
 /**
@@ -37,6 +39,7 @@ export interface MediaControls {
   setVolume: (volume: number) => void;
   toggleMute: () => void;
   setPlaybackRate: (rate: number) => void;
+  retry: () => Promise<void>;
 }
 
 /**
@@ -85,4 +88,6 @@ export const initialMediaState: MediaState = {
   volume: 1,
   playbackRate: 1,
   error: null,
+  retryCount: 0,
+  isRetrying: false,
 };

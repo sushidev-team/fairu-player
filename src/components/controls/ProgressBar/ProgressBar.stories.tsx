@@ -112,3 +112,108 @@ export const WithMarkersAndChapters: Story = {
     markers: sampleMarkers,
   },
 };
+
+export const WithABLoop: Story = {
+  args: {
+    currentTime: 90,
+    duration: 300,
+    buffered: 200,
+    loopStart: 60,
+    loopEnd: 180,
+  },
+};
+
+export const ABLoopInteractive: Story = {
+  render: () => {
+    const [time, setTime] = useState(90);
+    const [loopStart, setLoopStart] = useState<number | null>(null);
+    const [loopEnd, setLoopEnd] = useState<number | null>(null);
+    const duration = 300;
+
+    const formatSeconds = (s: number | null) =>
+      s !== null ? `${Math.floor(s)}s` : '—';
+
+    return (
+      <div>
+        <ProgressBar
+          currentTime={time}
+          duration={duration}
+          buffered={Math.min(duration, time + 60)}
+          loopStart={loopStart}
+          loopEnd={loopEnd}
+          onSeek={setTime}
+        />
+        <div
+          style={{
+            marginTop: '12px',
+            display: 'flex',
+            gap: '8px',
+            alignItems: 'center',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setLoopStart(time)}
+            style={{
+              padding: '4px 12px',
+              borderRadius: '4px',
+              border: '1px solid #666',
+              background: loopStart !== null ? '#2563eb' : '#333',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: '13px',
+            }}
+          >
+            Set A
+          </button>
+          <button
+            type="button"
+            onClick={() => setLoopEnd(time)}
+            style={{
+              padding: '4px 12px',
+              borderRadius: '4px',
+              border: '1px solid #666',
+              background: loopEnd !== null ? '#2563eb' : '#333',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: '13px',
+            }}
+          >
+            Set B
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setLoopStart(null);
+              setLoopEnd(null);
+            }}
+            style={{
+              padding: '4px 12px',
+              borderRadius: '4px',
+              border: '1px solid #666',
+              background: '#333',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: '13px',
+            }}
+          >
+            Clear Loop
+          </button>
+        </div>
+        <div
+          style={{
+            marginTop: '12px',
+            fontSize: '14px',
+            color: 'var(--fp-color-text-muted)',
+            display: 'flex',
+            gap: '16px',
+          }}
+        >
+          <span>Current: {Math.floor(time)}s / {duration}s</span>
+          <span>Loop A: {formatSeconds(loopStart)}</span>
+          <span>Loop B: {formatSeconds(loopEnd)}</span>
+        </div>
+      </div>
+    );
+  },
+};

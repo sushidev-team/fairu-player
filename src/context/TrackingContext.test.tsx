@@ -146,11 +146,14 @@ describe('TrackingContext', () => {
         result.current.setEnabled(true);
       });
 
+      // Enabling creates a new TrackingService which sends session_start via onTrack
+      const callsAfterEnable = onTrack.mock.calls.length;
+
       act(() => {
         result.current.track(createEvent());
       });
 
-      expect(onTrack).toHaveBeenCalledTimes(1);
+      expect(onTrack).toHaveBeenCalledTimes(callsAfterEnable + 1);
     });
   });
 
@@ -166,7 +169,10 @@ describe('TrackingContext', () => {
         result.current.track(event);
       });
 
-      expect(onTrack).toHaveBeenCalledWith(event);
+      // onTrack is called for session_start and then for the play event
+      expect(onTrack).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'play' }),
+      );
     });
 
     it('sends event to endpoint immediately when batchEvents is false', () => {
@@ -252,11 +258,15 @@ describe('TrackingContext', () => {
         }),
       });
 
+      // session_start fires onTrack at construction
+      const callsAfterConstruct = onTrack.mock.calls.length;
+
       act(() => {
         result.current.track(createEvent({ type: 'play' }));
       });
 
-      expect(onTrack).not.toHaveBeenCalled();
+      // play is filtered out, so no additional call
+      expect(onTrack).toHaveBeenCalledTimes(callsAfterConstruct);
     });
 
     it('allows enabled event types', () => {
@@ -269,11 +279,13 @@ describe('TrackingContext', () => {
         }),
       });
 
+      const callsAfterConstruct = onTrack.mock.calls.length;
+
       act(() => {
         result.current.track(createEvent({ type: 'play' }));
       });
 
-      expect(onTrack).toHaveBeenCalledTimes(1);
+      expect(onTrack).toHaveBeenCalledTimes(callsAfterConstruct + 1);
     });
 
     it('filters pause events when pause is disabled', () => {
@@ -286,17 +298,21 @@ describe('TrackingContext', () => {
         }),
       });
 
+      // session_start fires onTrack at construction
+      const callsAfterConstruct = onTrack.mock.calls.length;
+
       act(() => {
         result.current.track(createEvent({ type: 'pause' }));
       });
 
-      expect(onTrack).not.toHaveBeenCalled();
+      // pause is filtered, no additional call
+      expect(onTrack).toHaveBeenCalledTimes(callsAfterConstruct);
 
       act(() => {
         result.current.track(createEvent({ type: 'play' }));
       });
 
-      expect(onTrack).toHaveBeenCalledTimes(1);
+      expect(onTrack).toHaveBeenCalledTimes(callsAfterConstruct + 1);
     });
 
     it('allows seek events when seek is enabled', () => {
@@ -309,11 +325,13 @@ describe('TrackingContext', () => {
         }),
       });
 
+      const callsAfterConstruct = onTrack.mock.calls.length;
+
       act(() => {
         result.current.track(createEvent({ type: 'seek' }));
       });
 
-      expect(onTrack).toHaveBeenCalledTimes(1);
+      expect(onTrack).toHaveBeenCalledTimes(callsAfterConstruct + 1);
     });
 
     it('filters error events when error is disabled', () => {
@@ -326,11 +344,15 @@ describe('TrackingContext', () => {
         }),
       });
 
+      // session_start fires onTrack at construction
+      const callsAfterConstruct = onTrack.mock.calls.length;
+
       act(() => {
         result.current.track(createEvent({ type: 'error' }));
       });
 
-      expect(onTrack).not.toHaveBeenCalled();
+      // error is filtered, no additional call
+      expect(onTrack).toHaveBeenCalledTimes(callsAfterConstruct);
     });
   });
 
@@ -355,7 +377,10 @@ describe('TrackingContext', () => {
         result.current.track(event);
       });
 
-      expect(transformEvent).toHaveBeenCalledWith(event);
+      // transformEvent is called for both session_start and play
+      expect(transformEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'play' }),
+      );
       expect(onTrack).toHaveBeenCalledWith(expect.objectContaining({
         data: expect.objectContaining({
           metadata: { transformed: true },
@@ -397,7 +422,10 @@ describe('TrackingContext', () => {
         result.current.track(event);
       });
 
-      expect(transformEvent).toHaveBeenCalledWith(event);
+      // transformEvent is called for session_start and then for the pause event
+      expect(transformEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'pause' }),
+      );
     });
   });
 
@@ -416,12 +444,15 @@ describe('TrackingContext', () => {
         }),
       });
 
+      // session_start fires onTrack at construction
+      const callsAfterConstruct = onTrack.mock.calls.length;
+
       act(() => {
         result.current.track(createEvent());
       });
 
       // onTrack is still called immediately per event
-      expect(onTrack).toHaveBeenCalledTimes(1);
+      expect(onTrack).toHaveBeenCalledTimes(callsAfterConstruct + 1);
 
       // But fetch is not called yet (batched)
       expect(mockFetch).not.toHaveBeenCalled();
@@ -483,6 +514,14 @@ describe('TrackingContext', () => {
         }),
       });
 
+      // First flush sends the queued session_start
+      await act(async () => {
+        await result.current.flush();
+      });
+
+      mockFetch.mockClear();
+
+      // Second flush: queue is now truly empty
       await act(async () => {
         await result.current.flush();
       });
@@ -517,7 +556,8 @@ describe('TrackingContext', () => {
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
       const body = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
-      expect(body.events).toHaveLength(2);
+      // session_start + play + pause = 3
+      expect(body.events).toHaveLength(3);
     });
 
     it('clears the queue after flush', async () => {
@@ -569,7 +609,9 @@ describe('TrackingContext', () => {
         result.current.track(createEvent());
       });
 
-      const body = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
+      // session_start is at index 0 (with old ID), play event is at index 1
+      const lastCallIndex = mockFetch.mock.calls.length - 1;
+      const body = JSON.parse(mockFetch.mock.calls[lastCallIndex][1]?.body as string);
       expect(body.sessionId).toBe('session-123');
     });
 
@@ -585,6 +627,9 @@ describe('TrackingContext', () => {
       act(() => {
         result.current.setSessionId('session-abc');
       });
+
+      // Clear after session_start to track only explicit events
+      mockFetch.mockClear();
 
       act(() => {
         result.current.track(createEvent());

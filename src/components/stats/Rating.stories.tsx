@@ -192,7 +192,7 @@ function InteractiveDemo() {
           />
 
           <div className="text-gray-400 text-sm">
-            Deine Bewertung: <span className="text-white font-medium">{state.userRating ?? 'Keine'}</span>
+            Your rating: <span className="text-white font-medium">{state.userRating ?? 'None'}</span>
           </div>
         </div>
       </div>
@@ -202,7 +202,7 @@ function InteractiveDemo() {
         <h4 className="text-sm font-semibold mb-2 text-gray-400">Event Log:</h4>
         <div className="space-y-1 text-xs font-mono text-gray-300">
           {events.length === 0 ? (
-            <span className="text-gray-500">Klicke auf die Bewertungen...</span>
+            <span className="text-gray-500">Click on the ratings...</span>
           ) : (
             events.map((event, i) => <div key={i}>{event}</div>)
           )}
