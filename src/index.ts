@@ -350,11 +350,6 @@ export type {
   MediaControls as MediaControlsInterface,
   UseMediaOptions,
   UseMediaReturn,
-  // A-B loop types
-  ABLoopState,
-  ABLoopControls,
-  UseABLoopOptions,
-  UseABLoopReturn,
   // Playback history types
   PlaybackHistoryEntry,
   PlaybackHistoryConfig,

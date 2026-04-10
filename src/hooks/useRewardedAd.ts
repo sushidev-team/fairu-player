@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import type { RewardedAd, RewardedAdState, UseRewardedAdOptions, UseRewardedAdReturn } from '@/types/rewardedAd';
+import type { RewardedAdState, UseRewardedAdOptions, UseRewardedAdReturn } from '@/types/rewardedAd';
 
 const initialState: RewardedAdState = {
   isShowing: false,

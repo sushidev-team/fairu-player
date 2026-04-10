@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import type { PauseAd, PauseAdState, UsePauseAdOptions, UsePauseAdReturn } from '@/types/pauseAd';
+import type { PauseAdState, UsePauseAdOptions, UsePauseAdReturn } from '@/types/pauseAd';
 
 export function usePauseAd(options: UsePauseAdOptions): UsePauseAdReturn {
   const {

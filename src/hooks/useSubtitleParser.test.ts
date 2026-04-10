@@ -4,7 +4,7 @@ import { useSubtitleParser, parseVTTCues } from './useSubtitleParser';
 
 // Mock fetch
 const mockFetch = vi.fn();
-global.fetch = mockFetch;
+(globalThis as Record<string, unknown>).fetch = mockFetch;
 
 const SAMPLE_VTT = `WEBVTT
 
