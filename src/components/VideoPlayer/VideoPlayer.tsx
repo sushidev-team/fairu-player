@@ -15,6 +15,7 @@ import { OverlayAd } from '@/components/ads/OverlayAd';
 import { InfoCard, InfoCardIcon } from '@/components/ads/InfoCard';
 import { useKeyboardControls } from '@/hooks/useKeyboardControls';
 import type { VideoConfig, VideoPlayerProps, VideoAdConfig, WatchProgress, VideoAdBreak, CustomAdComponentProps, VideoAd, OverlayAd as OverlayAdType, InfoCard as InfoCardType, RecommendedVideo } from '@/types/video';
+import type { TimelineMarker } from '@/types/markers';
 
 /**
  * Ref handle for controlling the video player externally
@@ -22,6 +23,12 @@ import type { VideoConfig, VideoPlayerProps, VideoAdConfig, WatchProgress, Video
 export interface VideoPlayerRef {
   /** Controls for dynamically showing/hiding overlay ads and info cards */
   overlayAdControls: OverlayAdControls;
+  /** Jump the player head to a specific time (in seconds) */
+  seekTo: (seconds: number) => void;
+  /** Read the current playback position (in seconds) */
+  getCurrentTime: () => number;
+  /** Read the current total duration (in seconds) */
+  getDuration: () => number;
 }
 
 interface VideoPlayerInnerProps {
@@ -30,6 +37,8 @@ interface VideoPlayerInnerProps {
   adControls?: ReturnType<typeof useVideoAds>['controls'];
   adVideoRef?: React.RefObject<HTMLVideoElement | null>;
   componentAdProps?: CustomAdComponentProps | null;
+  /** Called when a marker on the timeline is clicked */
+  onMarkerClick?: (marker: TimelineMarker, index: number) => void;
   /** Callback when overlay ad is closed */
   onOverlayAdClose?: (ad: OverlayAdType) => void;
   /** Callback when overlay ad is clicked */
@@ -51,6 +60,7 @@ function VideoPlayerInner({
   adControls,
   adVideoRef,
   componentAdProps,
+  onMarkerClick,
   onOverlayAdClose,
   onOverlayAdClick,
   onInfoCardDismiss,
@@ -334,6 +344,7 @@ function VideoPlayerInner({
           playlistControls={playlistControls}
           subtitles={currentTrack?.subtitles}
           markers={currentTrack?.markers || config.markers}
+          onMarkerClick={onMarkerClick}
         />
       )}
     </div>
@@ -361,6 +372,7 @@ interface VideoPlayerWithOverlayProviderProps {
   adEventBus?: AdEventBus;
   playerEventBus?: PlayerEventBus;
   playerRef: React.ForwardedRef<VideoPlayerRef>;
+  onMarkerClick?: (marker: TimelineMarker, index: number) => void;
 }
 
 /**
@@ -386,6 +398,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerWithProviderPro
   onFullscreenChange,
   onPictureInPictureChange,
   onTabVisibilityChange,
+  onMarkerClick,
 }, ref) {
   const videoConfig: VideoConfig = {
     ...config,
@@ -426,6 +439,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerWithProviderPro
         adEventBus={adEventBus}
         playerEventBus={playerEventBus}
         playerRef={ref}
+        onMarkerClick={onMarkerClick}
       />
     </VideoProvider>
   );
@@ -441,6 +455,7 @@ function VideoPlayerWithOverlayProvider({
   adEventBus,
   playerEventBus: _playerEventBus,
   playerRef,
+  onMarkerClick,
 }: VideoPlayerWithOverlayProviderProps) {
   const { state } = useVideoPlayer();
 
@@ -455,24 +470,38 @@ function VideoPlayerWithOverlayProvider({
       <VideoPlayerRefHandler playerRef={playerRef} />
       {adConfig?.enabled ? (
         <VideoAdProvider config={adConfig}>
-          <VideoPlayerWithAds className={className} />
+          <VideoPlayerWithAds className={className} onMarkerClick={onMarkerClick} />
         </VideoAdProvider>
       ) : (
-        <VideoPlayerInner className={className} />
+        <VideoPlayerInner className={className} onMarkerClick={onMarkerClick} />
       )}
     </OverlayAdProvider>
   );
 }
 
 /**
- * Component that exposes overlay ad controls via ref
+ * Component that exposes the imperative ref API:
+ * - overlay ad controls
+ * - seekTo(seconds) / getCurrentTime() / getDuration()
+ *
+ * Lives inside both OverlayAdProvider and VideoProvider so it has access
+ * to both contexts.
  */
 function VideoPlayerRefHandler({ playerRef }: { playerRef: React.ForwardedRef<VideoPlayerRef> }) {
-  const { controls } = useOverlayAds();
+  const { controls: overlayAdControls } = useOverlayAds();
+  const { controls: videoControls, state: videoState } = useVideoPlayer();
+
+  const videoStateRef = useRef(videoState);
+  videoStateRef.current = videoState;
 
   useImperativeHandle(playerRef, () => ({
-    overlayAdControls: controls,
-  }), [controls]);
+    overlayAdControls,
+    seekTo: (seconds: number) => {
+      videoControls.seek(Math.max(0, seconds));
+    },
+    getCurrentTime: () => videoStateRef.current.currentTime,
+    getDuration: () => videoStateRef.current.duration,
+  }), [overlayAdControls, videoControls]);
 
   return null;
 }
@@ -480,7 +509,7 @@ function VideoPlayerRefHandler({ playerRef }: { playerRef: React.ForwardedRef<Vi
 /**
  * Video player with ad context and automatic ad triggering
  */
-function VideoPlayerWithAds({ className }: { className?: string }) {
+function VideoPlayerWithAds({ className, onMarkerClick }: { className?: string; onMarkerClick?: (marker: TimelineMarker, index: number) => void }) {
   const { state: videoState, controls: videoControls } = useVideoPlayer();
   const { state: adState, controls: adControls, adVideoRef, config: adConfig, componentAdProps } = useVideoAds();
 
@@ -560,6 +589,7 @@ function VideoPlayerWithAds({ className }: { className?: string }) {
       adVideoRef={adVideoRef}
       onPlayWithAds={handlePlayWithAds}
       componentAdProps={componentAdProps}
+      onMarkerClick={onMarkerClick}
     />
   );
 }
@@ -579,6 +609,7 @@ function VideoPlayerInnerWithAds({
   adVideoRef,
   onPlayWithAds,
   componentAdProps,
+  onMarkerClick,
   onOverlayAdClose,
   onOverlayAdClick,
   onInfoCardDismiss,
@@ -879,6 +910,7 @@ function VideoPlayerInnerWithAds({
           playlistControls={playlistControls}
           subtitles={currentTrack?.subtitles}
           markers={currentTrack?.markers || config.markers}
+          onMarkerClick={onMarkerClick}
         />
       )}
     </div>

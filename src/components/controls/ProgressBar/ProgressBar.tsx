@@ -11,6 +11,8 @@ export interface ProgressBarProps {
   buffered?: number;
   chapters?: Chapter[];
   markers?: TimelineMarker[];
+  /** Called when a marker dot on the timeline is clicked. When provided, dots become interactive buttons. */
+  onMarkerClick?: (marker: TimelineMarker, index: number) => void;
   showTooltip?: boolean;
   disabled?: boolean;
   onSeek?: (time: number) => void;
@@ -26,6 +28,7 @@ export function ProgressBar({
   buffered = 0,
   chapters = [],
   markers = [],
+  onMarkerClick,
   showTooltip = true,
   disabled = false,
   onSeek,
@@ -257,14 +260,59 @@ export function ProgressBar({
         })}
 
         {/* Marker dots */}
-        {markers.map((marker) => {
+        {markers.map((marker, index) => {
           const position = duration > 0 ? (marker.time / duration) * 100 : 0;
+          const isInteractive = typeof onMarkerClick === 'function';
+
+          if (isInteractive) {
+            return (
+              <button
+                key={marker.id}
+                type="button"
+                aria-label={marker.title ? `${marker.title} (${formatTime(marker.time)})` : `Marker at ${formatTime(marker.time)}`}
+                title={marker.title}
+                disabled={disabled}
+                className={cn(
+                  'absolute top-1/2 -translate-y-1/2 -translate-x-1/2',
+                  'rounded-full border-0 p-0 cursor-pointer',
+                  'transition-all duration-150 z-20',
+                  'hover:scale-150 focus:outline-none focus:ring-2 focus:ring-offset-1',
+                  'focus:ring-[var(--fp-color-accent)]',
+                  isActive ? 'w-2.5 h-2.5' : 'w-2 h-2',
+                  disabled && 'cursor-not-allowed opacity-50'
+                )}
+                style={{
+                  left: `${position}%`,
+                  backgroundColor: marker.color || 'var(--fp-color-accent)',
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  if (!disabled) {
+                    onMarkerClick(marker, index);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (!disabled) {
+                      onMarkerClick(marker, index);
+                    }
+                  }
+                }}
+              />
+            );
+          }
+
           return (
             <div
               key={marker.id}
               className={cn(
                 'absolute top-1/2 -translate-y-1/2 -translate-x-1/2',
-                'rounded-full',
+                'rounded-full pointer-events-none',
                 'transition-all duration-150',
                 isActive ? 'w-2.5 h-2.5' : 'w-2 h-2'
               )}
