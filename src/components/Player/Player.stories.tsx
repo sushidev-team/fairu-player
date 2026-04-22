@@ -13,7 +13,7 @@ import {
 // Sample tracks for stories
 const sampleTrack: Track = {
   id: '1',
-  src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+  src: 'https://files.fairu.app/a182ad73-8ecd-46d2-80f0-126cdf933b27/Sushi-jpop-04.mp3',
   title: 'Sample Podcast Episode',
   artist: 'Podcast Host',
   artwork: 'https://picsum.photos/200',
@@ -29,7 +29,7 @@ const sampleTrack: Track = {
 const samplePlaylist: Track[] = [
   {
     id: '1',
-    src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    src: 'https://files.fairu.app/a182ad73-8ecd-46d2-80f0-126cdf933b27/Sushi-jpop-04.mp3',
     title: 'Episode 1: Getting Started',
     artist: 'Tech Podcast',
     artwork: 'https://picsum.photos/200?random=1',
@@ -37,7 +37,7 @@ const samplePlaylist: Track[] = [
   },
   {
     id: '2',
-    src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+    src: 'https://files.fairu.app/a182ad73-8ecd-46d2-80f0-126cdf933b27/Sushi-jpop-04.mp3',
     title: 'Episode 2: Advanced Topics',
     artist: 'Tech Podcast',
     artwork: 'https://picsum.photos/200?random=2',
@@ -45,7 +45,7 @@ const samplePlaylist: Track[] = [
   },
   {
     id: '3',
-    src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+    src: 'https://files.fairu.app/a182ad73-8ecd-46d2-80f0-126cdf933b27/Sushi-jpop-04.mp3',
     title: 'Episode 3: Best Practices',
     artist: 'Tech Podcast',
     artwork: 'https://picsum.photos/200?random=3',
@@ -200,7 +200,7 @@ function FairuHostingDemo() {
   // For the demo, use a real audio file but show the Fairu pattern
   const demoTrack = {
     id: exampleUuid,
-    src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    src: 'https://files.fairu.app/a182ad73-8ecd-46d2-80f0-126cdf933b27/Sushi-jpop-04.mp3',
     title: 'Podcast Episode (Demo)',
     artist: 'Fairu Podcast',
     artwork: 'https://picsum.photos/200',
@@ -215,7 +215,7 @@ function FairuHostingDemo() {
           <h3 className="text-lg font-semibold">Hosting Mode</h3>
         </div>
         <p className="text-purple-200 mb-4">
-          Mit fairu.app benötigst du nur die UUID. URLs werden automatisch generiert.
+          With fairu.app you only need the UUID. URLs are generated automatically.
         </p>
         <div className="space-y-2 font-mono text-xs bg-black/30 rounded p-3">
           <div className="flex flex-wrap">
@@ -276,9 +276,9 @@ export const FairuHosting: Story = {
  */
 function FairuPlaylistDemo() {
   const fairuTracks: FairuTrack[] = [
-    { uuid: 'uuid-episode-1', title: 'Episode 1: Einführung', artist: 'Podcast Host' },
+    { uuid: 'uuid-episode-1', title: 'Episode 1: Introduction', artist: 'Podcast Host' },
     { uuid: 'uuid-episode-2', title: 'Episode 2: Deep Dive', artist: 'Podcast Host' },
-    { uuid: 'uuid-episode-3', title: 'Episode 3: Fazit', artist: 'Podcast Host' },
+    { uuid: 'uuid-episode-3', title: 'Episode 3: Summary', artist: 'Podcast Host' },
   ];
 
   // Show generated playlist structure
@@ -286,9 +286,9 @@ function FairuPlaylistDemo() {
 
   // For demo, use real audio files
   const demoPlaylist = [
-    { id: 'uuid-episode-1', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', title: 'Episode 1: Einführung', artist: 'Podcast Host', artwork: 'https://picsum.photos/200?random=1' },
-    { id: 'uuid-episode-2', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', title: 'Episode 2: Deep Dive', artist: 'Podcast Host', artwork: 'https://picsum.photos/200?random=2' },
-    { id: 'uuid-episode-3', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3', title: 'Episode 3: Fazit', artist: 'Podcast Host', artwork: 'https://picsum.photos/200?random=3' },
+    { id: 'uuid-episode-1', src: 'https://files.fairu.app/a182ad73-8ecd-46d2-80f0-126cdf933b27/Sushi-jpop-04.mp3', title: 'Episode 1: Introduction', artist: 'Podcast Host', artwork: 'https://picsum.photos/200?random=1' },
+    { id: 'uuid-episode-2', src: 'https://files.fairu.app/a182ad73-8ecd-46d2-80f0-126cdf933b27/Sushi-jpop-04.mp3', title: 'Episode 2: Deep Dive', artist: 'Podcast Host', artwork: 'https://picsum.photos/200?random=2' },
+    { id: 'uuid-episode-3', src: 'https://files.fairu.app/a182ad73-8ecd-46d2-80f0-126cdf933b27/Sushi-jpop-04.mp3', title: 'Episode 3: Summary', artist: 'Podcast Host', artwork: 'https://picsum.photos/200?random=3' },
   ];
 
   return (
@@ -380,7 +380,7 @@ function FairuUrlUtilitiesDemo() {
 
       {/* Available functions */}
       <div className="bg-gray-800 rounded-lg p-4 text-white text-sm">
-        <h4 className="font-semibold mb-3">Verfügbare Funktionen:</h4>
+        <h4 className="font-semibold mb-3">Available Features:</h4>
         <ul className="space-y-2 text-xs">
           <li className="flex gap-2">
             <code className="text-blue-400">getFairuAudioUrl(uuid)</code>

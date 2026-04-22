@@ -247,7 +247,7 @@ function CombinedDemo() {
       <div className="bg-gray-800 rounded-lg overflow-hidden">
         <div className="aspect-video bg-gray-700 relative">
           <img
-            src="https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg"
+            src="https://files.fairu.app/41b8d7ef-3698-5c75-83e1-9325953a72a4/cover.jpg?width=1920&format=webp"
             alt="Video thumbnail"
             className="w-full h-full object-cover"
           />

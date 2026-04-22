@@ -30,7 +30,7 @@ type Story = StoryObj<typeof AdOverlay>;
 
 const sampleAd: Ad = {
   id: 'ad-1',
-  src: 'https://example.com/ad.mp3',
+  src: 'https://files.fairu.app/a182ad73-8ecd-46d2-80f0-126cdf933b27/Sushi-jpop-04.mp3',
   duration: 15,
   skipAfterSeconds: 5,
   title: 'Sponsor: Fairu Premium',
@@ -146,7 +146,7 @@ export const Interactive: Story = {
       ads: [
         {
           id: 'ad-1',
-          src: 'https://example.com/ad1.mp3',
+          src: 'https://files.fairu.app/a182ad73-8ecd-46d2-80f0-126cdf933b27/Sushi-jpop-04.mp3',
           duration: 10,
           skipAfterSeconds: 5,
           title: 'Sponsor: Fairu Premium',
@@ -154,7 +154,7 @@ export const Interactive: Story = {
         },
         {
           id: 'ad-2',
-          src: 'https://example.com/ad2.mp3',
+          src: 'https://files.fairu.app/a182ad73-8ecd-46d2-80f0-126cdf933b27/Sushi-jpop-04.mp3',
           duration: 8,
           skipAfterSeconds: 3,
           title: 'Sponsor: Podcast Hosting',

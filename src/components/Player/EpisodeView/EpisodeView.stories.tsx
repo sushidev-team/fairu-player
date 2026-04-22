@@ -128,7 +128,7 @@ export const WithAds: Story = {
       ads: [
         {
           id: 'ad-1',
-          src: 'https://example.com/ad.mp3',
+          src: 'https://files.fairu.app/a182ad73-8ecd-46d2-80f0-126cdf933b27/Sushi-jpop-04.mp3',
           duration: 10,
           skipAfterSeconds: 5,
           title: 'Sponsor: Fairu Premium',

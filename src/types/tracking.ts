@@ -14,7 +14,10 @@ export type TrackingEventType =
   | 'tab_hidden'
   | 'tab_visible'
   | 'return_ad_triggered'
-  | 'error';
+  | 'error'
+  | 'heartbeat'
+  | 'session_start'
+  | 'session_end';
 
 export interface TrackingEventData {
   currentTime: number;
@@ -55,6 +58,9 @@ export interface TrackingEventsConfig {
   tabVisible?: boolean;
   returnAdTriggered?: boolean;
   error?: boolean;
+  heartbeat?: boolean;
+  sessionStart?: boolean;
+  sessionEnd?: boolean;
 }
 
 export interface TrackingConfig {
@@ -68,6 +74,16 @@ export interface TrackingConfig {
   headers?: Record<string, string>;
   transformEvent?: (event: TrackingEvent) => TrackingEvent | null;
   onTrack?: (event: TrackingEvent) => void;
+  /** Heartbeat interval in ms. Disabled by default. Set to enable (e.g. 30000). */
+  heartbeat?: number;
+  /** Max retry attempts for failed send requests (default: 3) */
+  maxRetries?: number;
+  /** Request timeout in ms (default: 5000) */
+  requestTimeout?: number;
+  /** Enable offline queue with localStorage (default: false) */
+  offlineQueue?: boolean;
+  /** Max number of events stored in offline queue (default: 100) */
+  offlineQueueMaxSize?: number;
 }
 
 export interface TrackingContextValue {

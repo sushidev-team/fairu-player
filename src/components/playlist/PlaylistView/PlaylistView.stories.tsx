@@ -6,7 +6,7 @@ import type { Track } from '@/types/player';
 const sampleTracks: Track[] = [
   {
     id: '1',
-    src: 'https://example.com/track1.mp3',
+    src: 'https://files.fairu.app/a182ad73-8ecd-46d2-80f0-126cdf933b27/Sushi-jpop-04.mp3',
     title: 'Episode 1: Getting Started with React',
     artist: 'Tech Talks Podcast',
     artwork: 'https://picsum.photos/100?random=1',
@@ -14,7 +14,7 @@ const sampleTracks: Track[] = [
   },
   {
     id: '2',
-    src: 'https://example.com/track2.mp3',
+    src: 'https://files.fairu.app/a182ad73-8ecd-46d2-80f0-126cdf933b27/Sushi-jpop-04.mp3',
     title: 'Episode 2: State Management Deep Dive',
     artist: 'Tech Talks Podcast',
     artwork: 'https://picsum.photos/100?random=2',
@@ -22,7 +22,7 @@ const sampleTracks: Track[] = [
   },
   {
     id: '3',
-    src: 'https://example.com/track3.mp3',
+    src: 'https://files.fairu.app/a182ad73-8ecd-46d2-80f0-126cdf933b27/Sushi-jpop-04.mp3',
     title: 'Episode 3: Building Custom Hooks',
     artist: 'Tech Talks Podcast',
     artwork: 'https://picsum.photos/100?random=3',
@@ -30,7 +30,7 @@ const sampleTracks: Track[] = [
   },
   {
     id: '4',
-    src: 'https://example.com/track4.mp3',
+    src: 'https://files.fairu.app/a182ad73-8ecd-46d2-80f0-126cdf933b27/Sushi-jpop-04.mp3',
     title: 'Episode 4: Performance Optimization',
     artist: 'Tech Talks Podcast',
     artwork: 'https://picsum.photos/100?random=4',
@@ -38,7 +38,7 @@ const sampleTracks: Track[] = [
   },
   {
     id: '5',
-    src: 'https://example.com/track5.mp3',
+    src: 'https://files.fairu.app/a182ad73-8ecd-46d2-80f0-126cdf933b27/Sushi-jpop-04.mp3',
     title: 'Episode 5: Testing Best Practices',
     artist: 'Tech Talks Podcast',
     artwork: 'https://picsum.photos/100?random=5',

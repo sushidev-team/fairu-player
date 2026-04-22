@@ -457,6 +457,8 @@ export const initialVideoState: VideoState = {
   volume: 1,
   playbackRate: 1,
   error: null,
+  retryCount: 0,
+  isRetrying: false,
   isFullscreen: false,
   isPictureInPicture: false,
   isCasting: false,

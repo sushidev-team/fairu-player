@@ -11,9 +11,12 @@ import { VideoOverlay } from './VideoOverlay';
 import { VideoControls } from './VideoControls';
 import { LogoOverlay } from './LogoOverlay';
 import { EndScreen } from './EndScreen';
+import { GestureOverlay, type GestureFeedback } from './GestureOverlay';
 import { OverlayAd } from '@/components/ads/OverlayAd';
 import { InfoCard, InfoCardIcon } from '@/components/ads/InfoCard';
 import { useKeyboardControls } from '@/hooks/useKeyboardControls';
+import { useGestures } from '@/hooks/useGestures';
+import { PlayerErrorBoundary } from '@/components/ErrorBoundary';
 import type { VideoConfig, VideoPlayerProps, VideoAdConfig, WatchProgress, VideoAdBreak, CustomAdComponentProps, VideoAd, OverlayAd as OverlayAdType, InfoCard as InfoCardType, RecommendedVideo } from '@/types/video';
 
 /**
@@ -119,11 +122,55 @@ function VideoPlayerInner({
     }
   }, [config.endScreen, onVideoSelect]);
 
-  // Keyboard controls
+  // Keyboard controls (with chapter navigation)
+  const chapters = currentTrack?.chapters;
   useKeyboardControls({
     controls: isAdPlaying ? undefined : controls,
     enabled: !isAdPlaying,
+    chapters,
+    currentTime: state.currentTime,
   });
+
+  // Touch gesture support
+  const [gestureFeedback, setGestureFeedback] = useState<GestureFeedback | null>(null);
+  const isTouchDevice = typeof window !== 'undefined' && 'ontouchstart' in window;
+  const skipForwardAmount = config.skipForwardSeconds ?? 10;
+  const skipBackwardAmount = config.skipBackwardSeconds ?? 10;
+
+  useGestures({
+    containerRef: containerRef as React.RefObject<HTMLElement>,
+    enabled: isTouchDevice && !isAdPlaying,
+    onDoubleTapLeft: useCallback(() => {
+      controls.skipBackward(skipBackwardAmount);
+      setGestureFeedback({ type: 'skip-backward', label: `-${skipBackwardAmount}s` });
+    }, [controls, skipBackwardAmount]),
+    onDoubleTapRight: useCallback(() => {
+      controls.skipForward(skipForwardAmount);
+      setGestureFeedback({ type: 'skip-forward', label: `+${skipForwardAmount}s` });
+    }, [controls, skipForwardAmount]),
+    onSwipeUp: useCallback(() => {
+      const newVolume = Math.min(1, state.volume + 0.1);
+      controls.setVolume(newVolume);
+      setGestureFeedback({ type: 'swipe-up', label: `${Math.round(newVolume * 100)}%` });
+    }, [controls, state.volume]),
+    onSwipeDown: useCallback(() => {
+      const newVolume = Math.max(0, state.volume - 0.1);
+      controls.setVolume(newVolume);
+      setGestureFeedback({ type: 'swipe-down', label: `${Math.round(newVolume * 100)}%` });
+    }, [controls, state.volume]),
+    onSwipeLeft: useCallback(() => {
+      controls.skipBackward(skipBackwardAmount);
+      setGestureFeedback({ type: 'swipe-left', label: `-${skipBackwardAmount}s` });
+    }, [controls, skipBackwardAmount]),
+    onSwipeRight: useCallback(() => {
+      controls.skipForward(skipForwardAmount);
+      setGestureFeedback({ type: 'swipe-right', label: `+${skipForwardAmount}s` });
+    }, [controls, skipForwardAmount]),
+  });
+
+  const handleGestureDismiss = useCallback(() => {
+    setGestureFeedback(null);
+  }, []);
 
   return (
     <div
@@ -177,6 +224,14 @@ function VideoPlayerInner({
           isLoading={state.isLoading}
           onClick={handleClick}
           visible={!state.isPlaying || state.isLoading}
+        />
+      )}
+
+      {/* Gesture Overlay (touch feedback) */}
+      {!isAdPlaying && isTouchDevice && (
+        <GestureOverlay
+          feedback={gestureFeedback}
+          onDismiss={handleGestureDismiss}
         />
       )}
 
@@ -402,32 +457,34 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerWithProviderPro
   }, [onPictureInPictureChange, playerEventBus]);
 
   return (
-    <VideoProvider
-      config={videoConfig}
-      adEventBus={adEventBus}
-      playerEventBus={playerEventBus}
-      onStart={onStart}
-      onPlay={onPlay}
-      onPause={onPause}
-      onEnded={onEnded}
-      onFinished={onFinished}
-      onTimeUpdate={onTimeUpdate}
-      onWatchProgressUpdate={onWatchProgressUpdate}
-      onTrackChange={onTrackChange}
-      onError={onError}
-      onFullscreenChange={onFullscreenChange}
-      onPictureInPictureChange={handlePictureInPictureChange}
-      onTabVisibilityChange={onTabVisibilityChange}
-    >
-      <VideoPlayerWithOverlayProvider
-        className={className}
-        videoConfig={videoConfig}
-        adConfig={adConfig}
+    <PlayerErrorBoundary onError={onError} className="aspect-video">
+      <VideoProvider
+        config={videoConfig}
         adEventBus={adEventBus}
         playerEventBus={playerEventBus}
-        playerRef={ref}
-      />
-    </VideoProvider>
+        onStart={onStart}
+        onPlay={onPlay}
+        onPause={onPause}
+        onEnded={onEnded}
+        onFinished={onFinished}
+        onTimeUpdate={onTimeUpdate}
+        onWatchProgressUpdate={onWatchProgressUpdate}
+        onTrackChange={onTrackChange}
+        onError={onError}
+        onFullscreenChange={onFullscreenChange}
+        onPictureInPictureChange={handlePictureInPictureChange}
+        onTabVisibilityChange={onTabVisibilityChange}
+      >
+        <VideoPlayerWithOverlayProvider
+          className={className}
+          videoConfig={videoConfig}
+          adConfig={adConfig}
+          adEventBus={adEventBus}
+          playerEventBus={playerEventBus}
+          playerRef={ref}
+        />
+      </VideoProvider>
+    </PlayerErrorBoundary>
   );
 });
 
@@ -664,11 +721,55 @@ function VideoPlayerInnerWithAds({
     },
   };
 
-  // Keyboard controls
+  // Keyboard controls (with chapter navigation)
+  const chaptersWithAds = currentTrack?.chapters;
   useKeyboardControls({
     controls: isAdPlaying ? undefined : wrappedControls,
     enabled: !isAdPlaying,
+    chapters: chaptersWithAds,
+    currentTime: state.currentTime,
   });
+
+  // Touch gesture support
+  const [gestureFeedbackWithAds, setGestureFeedbackWithAds] = useState<GestureFeedback | null>(null);
+  const isTouchDeviceWithAds = typeof window !== 'undefined' && 'ontouchstart' in window;
+  const skipForwardAmountWithAds = config.skipForwardSeconds ?? 10;
+  const skipBackwardAmountWithAds = config.skipBackwardSeconds ?? 10;
+
+  useGestures({
+    containerRef: containerRef as React.RefObject<HTMLElement>,
+    enabled: isTouchDeviceWithAds && !isAdPlaying,
+    onDoubleTapLeft: useCallback(() => {
+      wrappedControls.skipBackward(skipBackwardAmountWithAds);
+      setGestureFeedbackWithAds({ type: 'skip-backward', label: `-${skipBackwardAmountWithAds}s` });
+    }, [wrappedControls, skipBackwardAmountWithAds]),
+    onDoubleTapRight: useCallback(() => {
+      wrappedControls.skipForward(skipForwardAmountWithAds);
+      setGestureFeedbackWithAds({ type: 'skip-forward', label: `+${skipForwardAmountWithAds}s` });
+    }, [wrappedControls, skipForwardAmountWithAds]),
+    onSwipeUp: useCallback(() => {
+      const newVolume = Math.min(1, state.volume + 0.1);
+      wrappedControls.setVolume(newVolume);
+      setGestureFeedbackWithAds({ type: 'swipe-up', label: `${Math.round(newVolume * 100)}%` });
+    }, [wrappedControls, state.volume]),
+    onSwipeDown: useCallback(() => {
+      const newVolume = Math.max(0, state.volume - 0.1);
+      wrappedControls.setVolume(newVolume);
+      setGestureFeedbackWithAds({ type: 'swipe-down', label: `${Math.round(newVolume * 100)}%` });
+    }, [wrappedControls, state.volume]),
+    onSwipeLeft: useCallback(() => {
+      wrappedControls.skipBackward(skipBackwardAmountWithAds);
+      setGestureFeedbackWithAds({ type: 'swipe-left', label: `-${skipBackwardAmountWithAds}s` });
+    }, [wrappedControls, skipBackwardAmountWithAds]),
+    onSwipeRight: useCallback(() => {
+      wrappedControls.skipForward(skipForwardAmountWithAds);
+      setGestureFeedbackWithAds({ type: 'swipe-right', label: `+${skipForwardAmountWithAds}s` });
+    }, [wrappedControls, skipForwardAmountWithAds]),
+  });
+
+  const handleGestureDismissWithAds = useCallback(() => {
+    setGestureFeedbackWithAds(null);
+  }, []);
 
   return (
     <div
@@ -722,6 +823,14 @@ function VideoPlayerInnerWithAds({
           isLoading={state.isLoading}
           onClick={handleClick}
           visible={!state.isPlaying || state.isLoading}
+        />
+      )}
+
+      {/* Gesture Overlay (touch feedback) */}
+      {!isAdPlaying && isTouchDeviceWithAds && (
+        <GestureOverlay
+          feedback={gestureFeedbackWithAds}
+          onDismiss={handleGestureDismissWithAds}
         />
       )}
 
