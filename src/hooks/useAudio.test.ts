@@ -1,6 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
 import { useAudio } from './useAudio';
-import { fireMediaEvent, simulateTimeUpdate, simulateLoadedMetadata } from '@/test/helpers';
 
 describe('useAudio', () => {
   // ── Return shape ──────────────────────────────────────────────────

@@ -82,7 +82,7 @@ describe('useCast', () => {
     if (originalDescriptor) {
       Object.defineProperty(HTMLVideoElement.prototype, 'remote', originalDescriptor);
     } else {
-      delete (HTMLVideoElement.prototype as Record<string, unknown>).remote;
+      delete (HTMLVideoElement.prototype as unknown as Record<string, unknown>).remote;
     }
   });
 
@@ -100,7 +100,7 @@ describe('useCast', () => {
       'remote',
     );
     if (originalDescriptor) {
-      delete (HTMLVideoElement.prototype as Record<string, unknown>).remote;
+      delete (HTMLVideoElement.prototype as unknown as Record<string, unknown>).remote;
     }
 
     try {
@@ -122,7 +122,7 @@ describe('useCast', () => {
       'remote',
     );
     if (originalDescriptor) {
-      delete (HTMLVideoElement.prototype as Record<string, unknown>).remote;
+      delete (HTMLVideoElement.prototype as unknown as Record<string, unknown>).remote;
     }
 
     try {
@@ -145,7 +145,7 @@ describe('useCast', () => {
       'remote',
     );
     if (originalDescriptor) {
-      delete (HTMLVideoElement.prototype as Record<string, unknown>).remote;
+      delete (HTMLVideoElement.prototype as unknown as Record<string, unknown>).remote;
     }
 
     try {
@@ -275,9 +275,9 @@ describe('useCast', () => {
     const ref = { current: video };
     const { result } = renderHook(() => useCast(ref));
 
-    const connectCall = remote.addEventListener.mock.calls.find(
-      (c: [string, Function]) => c[0] === 'connect',
-    );
+    const connectCall = (remote.addEventListener.mock.calls as [string, Function][]).find(
+      (c) => c[0] === 'connect',
+    )!;
     const connectHandler = connectCall[1];
 
     act(() => {
@@ -293,18 +293,18 @@ describe('useCast', () => {
     const { result } = renderHook(() => useCast(ref));
 
     // First connect
-    const connectCall = remote.addEventListener.mock.calls.find(
-      (c: [string, Function]) => c[0] === 'connect',
-    );
+    const connectCall = (remote.addEventListener.mock.calls as [string, Function][]).find(
+      (c) => c[0] === 'connect',
+    )!;
     act(() => {
       connectCall[1]();
     });
     expect(result.current.isCasting).toBe(true);
 
     // Then disconnect
-    const disconnectCall = remote.addEventListener.mock.calls.find(
-      (c: [string, Function]) => c[0] === 'disconnect',
-    );
+    const disconnectCall = (remote.addEventListener.mock.calls as [string, Function][]).find(
+      (c) => c[0] === 'disconnect',
+    )!;
     act(() => {
       disconnectCall[1]();
     });
@@ -407,9 +407,9 @@ describe('useCast', () => {
     const ref = { current: video };
     renderHook(() => useCast(ref, { onChange }));
 
-    const connectCall = remote.addEventListener.mock.calls.find(
-      (c: [string, Function]) => c[0] === 'connect',
-    );
+    const connectCall = (remote.addEventListener.mock.calls as [string, Function][]).find(
+      (c) => c[0] === 'connect',
+    )!;
 
     act(() => {
       connectCall[1]();
@@ -424,9 +424,9 @@ describe('useCast', () => {
     const ref = { current: video };
     renderHook(() => useCast(ref, { onChange }));
 
-    const disconnectCall = remote.addEventListener.mock.calls.find(
-      (c: [string, Function]) => c[0] === 'disconnect',
-    );
+    const disconnectCall = (remote.addEventListener.mock.calls as [string, Function][]).find(
+      (c) => c[0] === 'disconnect',
+    )!;
 
     act(() => {
       disconnectCall[1]();

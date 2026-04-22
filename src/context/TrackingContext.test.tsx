@@ -555,7 +555,7 @@ describe('TrackingContext', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
-      const body = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
+      const body = JSON.parse((mockFetch.mock.calls[0] as any[])[1]?.body as string);
       // session_start + play + pause = 3
       expect(body.events).toHaveLength(3);
     });
@@ -611,7 +611,7 @@ describe('TrackingContext', () => {
 
       // session_start is at index 0 (with old ID), play event is at index 1
       const lastCallIndex = mockFetch.mock.calls.length - 1;
-      const body = JSON.parse(mockFetch.mock.calls[lastCallIndex][1]?.body as string);
+      const body = JSON.parse((mockFetch.mock.calls[lastCallIndex] as any[])[1]?.body as string);
       expect(body.sessionId).toBe('session-123');
     });
 
@@ -635,7 +635,7 @@ describe('TrackingContext', () => {
         result.current.track(createEvent());
       });
 
-      const firstCallBody = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
+      const firstCallBody = JSON.parse((mockFetch.mock.calls[0] as any[])[1]?.body as string);
       expect(firstCallBody.sessionId).toBe('session-abc');
 
       act(() => {
@@ -646,7 +646,7 @@ describe('TrackingContext', () => {
         result.current.track(createEvent());
       });
 
-      const secondCallBody = JSON.parse(mockFetch.mock.calls[1][1]?.body as string);
+      const secondCallBody = JSON.parse((mockFetch.mock.calls[1] as any[])[1]?.body as string);
       expect(secondCallBody.sessionId).toBe('session-xyz');
     });
   });

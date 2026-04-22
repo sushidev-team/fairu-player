@@ -5,7 +5,7 @@ import { TrackingProvider } from '@/context/TrackingContext';
 import { LabelsProvider } from '@/context/LabelsContext';
 import type { Track, PlayerConfig } from '@/types/player';
 import type { TrackingConfig } from '@/types/tracking';
-import type { VideoTrack, VideoConfig, OverlayAd, InfoCard } from '@/types/video';
+import type { VideoTrack, OverlayAd, InfoCard } from '@/types/video';
 import type { Ad, AdBreak } from '@/types/ads';
 
 // ─── Mock Data Factories ─────────────────────────────────────────────
@@ -140,7 +140,7 @@ export function createMockVideoElement(overrides: Partial<HTMLVideoElement> = {}
 
 // ─── Mock HLS Instance ──────────────────────────────────────────────
 
-export function createMockHlsInstance() {
+export function createMockHlsInstance(): Record<string, unknown> {
   return {
     loadSource: vi.fn(),
     attachMedia: vi.fn(),

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, render } from '@testing-library/react';
 import { AdProvider, useAds } from './AdContext';
 import { createMockAd, createMockAdBreak } from '@/test/helpers';
-import type { AdConfig, Ad, AdBreak } from '@/types/ads';
+import type { AdConfig, AdBreak } from '@/types/ads';
 
 // Mock fetch
 const mockFetch = vi.fn(() => Promise.resolve(new Response()));
@@ -856,16 +856,18 @@ describe('AdContext', () => {
      * the internal <audio> element plus the hook result so we can
      * dispatch native events and assert state/callback changes.
      */
-    function setupWithAudio(config: Partial<AdConfig>, adBreak: AdBreak) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    function setupWithAudio(config: Partial<AdConfig>, _adBreak: AdBreak) {
       let audioElement: HTMLAudioElement | null = null;
 
       // Consumer component that captures the audio element from the DOM
       function AudioCapture() {
         const ctx = useAds();
+        void ctx;
         return null;
       }
 
-      const { container, rerender } = render(
+      const { container, rerender: _rerender } = render(
         <AdProvider config={config}>
           <AudioCapture />
         </AdProvider>
@@ -881,6 +883,7 @@ describe('AdContext', () => {
 
       return { audioElement: audioElement!, container };
     }
+    void setupWithAudio;
 
     /**
      * Helper that renders the provider, starts an ad break via the hook,
@@ -921,7 +924,7 @@ describe('AdContext', () => {
         });
         const adBreak = createMockAdBreak({ ads: [ad] });
 
-        const { hookResult, audioElement } = renderAndStartAd(
+        const { hookResult: _hookResult, audioElement } = renderAndStartAd(
           { enabled: true, onAdProgress },
           adBreak
         );

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TrackingService } from './TrackingService';
 import { createMockTrackingConfig } from '@/test/helpers';
-import type { TrackingConfig, TrackingEvent, TrackingEventData } from '@/types/tracking';
+import type { TrackingEvent, TrackingEventData } from '@/types/tracking';
 
 function defaultEventData(
   overrides: Partial<Omit<TrackingEventData, 'sessionId'>> = {},

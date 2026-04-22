@@ -410,7 +410,7 @@ describe('VolumeControl', () => {
   // ── Volume fill width ─────────────────────────────────────────────
 
   it('shows correct volume fill width (horizontal)', () => {
-    const { container } = renderVolumeControl({ orientation: 'horizontal', volume: 0.6, muted: false });
+    renderVolumeControl({ orientation: 'horizontal', volume: 0.6, muted: false });
     const slider = screen.getByRole('slider');
     // Volume fill is inside the slider
     const fill = slider.querySelector('.absolute.left-0.top-0.bottom-0');
@@ -418,7 +418,7 @@ describe('VolumeControl', () => {
   });
 
   it('shows 0% fill when muted (horizontal)', () => {
-    const { container } = renderVolumeControl({ orientation: 'horizontal', volume: 0.6, muted: true });
+    renderVolumeControl({ orientation: 'horizontal', volume: 0.6, muted: true });
     const slider = screen.getByRole('slider');
     const fill = slider.querySelector('.absolute.left-0.top-0.bottom-0');
     expect((fill as HTMLElement)?.style.width).toBe('0%');

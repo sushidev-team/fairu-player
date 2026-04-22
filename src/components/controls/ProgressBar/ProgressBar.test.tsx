@@ -86,7 +86,7 @@ describe('ProgressBar', () => {
   });
 
   it('shows 0% progress when duration is 0', () => {
-    const { container } = renderProgressBar({ currentTime: 0, duration: 0 });
+    renderProgressBar({ currentTime: 0, duration: 0 });
     // Should not crash and show 0%
     expect(screen.getByRole('slider')).toBeInTheDocument();
   });

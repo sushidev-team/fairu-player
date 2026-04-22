@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AdService } from './AdService';
 import { createMockAd, createMockAdBreak } from '@/test/helpers';
-import type { AdConfig, Ad, AdBreak } from '@/types/ads';
+import type { AdConfig, AdBreak } from '@/types/ads';
 
 function createAdConfig(overrides: Partial<AdConfig> = {}): AdConfig {
   return {

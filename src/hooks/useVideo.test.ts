@@ -20,6 +20,8 @@ const mockMediaState: MediaState = {
   volume: 1,
   playbackRate: 1,
   error: null,
+  retryCount: 0,
+  isRetrying: false,
 };
 
 const mockMediaControls: MediaControls = {
@@ -34,6 +36,7 @@ const mockMediaControls: MediaControls = {
   setVolume: vi.fn(),
   toggleMute: vi.fn(),
   setPlaybackRate: vi.fn(),
+  retry: vi.fn().mockResolvedValue(undefined),
 };
 
 let currentMediaState = { ...mockMediaState };
@@ -132,6 +135,7 @@ function resetMocks() {
     setVolume: vi.fn(),
     toggleMute: vi.fn(),
     setPlaybackRate: vi.fn(),
+    retry: vi.fn().mockResolvedValue(undefined),
   };
   mockHlsReturn = {
     isHLS: false,
@@ -158,11 +162,11 @@ function resetMocks() {
 const EMPTY_QUALITIES: VideoQuality[] = [];
 
 function renderVideoHook(options: UseVideoOptions = {}) {
-  const stableOpts = { qualities: EMPTY_QUALITIES, ...options };
+  const stableOpts: UseVideoOptions = { qualities: EMPTY_QUALITIES, ...options };
   const hookReturn = renderHook(
     ({ opts }: { opts: UseVideoOptions }) =>
       useVideo({ qualities: EMPTY_QUALITIES, ...opts }),
-    { initialProps: { opts: stableOpts } },
+    { initialProps: { opts: stableOpts } as { opts: UseVideoOptions } },
   );
   return hookReturn;
 }
@@ -707,7 +711,7 @@ describe('useVideo', () => {
   describe('watch progress tracking', () => {
     it('tracks a segment when pausing after playing', () => {
       const onWatchProgressUpdate = vi.fn();
-      const { result, rerender } = renderVideoHook({ onWatchProgressUpdate });
+      const { rerender } = renderVideoHook({ onWatchProgressUpdate });
 
       // Start playing at time 10
       currentMediaState = { ...mockMediaState, isPlaying: true, currentTime: 10 };
@@ -1145,7 +1149,7 @@ describe('useVideo', () => {
 
     it('clears controls timeout on unmount', () => {
       currentMediaState = { ...mockMediaState, isPlaying: true };
-      const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+      const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
       const { unmount } = renderVideoHook();
 
       unmount();
@@ -1159,10 +1163,10 @@ describe('useVideo', () => {
 
   describe('poster loading', () => {
     it('sets posterLoaded when poster image loads', () => {
-      const originalImage = global.Image;
+      const originalImage = globalThis.Image;
       let imageOnload: (() => void) | null = null;
 
-      (global as any).Image = class MockImage {
+      (globalThis as any).Image = class MockImage {
         onload: (() => void) | null = null;
         set src(_url: string) {
           imageOnload = this.onload;
@@ -1180,7 +1184,7 @@ describe('useVideo', () => {
         expect(result.current.state.posterLoaded).toBe(true);
       }
 
-      global.Image = originalImage;
+      globalThis.Image = originalImage;
     });
   });
 

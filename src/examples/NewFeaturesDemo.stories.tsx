@@ -67,7 +67,7 @@ type Story = StoryObj;
 function IntegratedDemoComponent() {
   // --- State ---
   const [currentTime, setCurrentTime] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [hasPlayed, setHasPlayed] = useState(false);
 

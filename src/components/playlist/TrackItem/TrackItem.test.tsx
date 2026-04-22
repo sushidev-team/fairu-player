@@ -4,7 +4,6 @@ import { TrackItem } from './TrackItem';
 import { createMockTrack } from '@/test/helpers';
 import { LabelsProvider } from '@/context/LabelsContext';
 import type { ReactNode } from 'react';
-import type { Track } from '@/types/player';
 
 function Wrapper({ children }: { children: ReactNode }) {
   return <LabelsProvider>{children}</LabelsProvider>;
