@@ -429,6 +429,8 @@ export interface VideoPlayerProps {
   onFullscreenChange?: (isFullscreen: boolean) => void;
   onPictureInPictureChange?: (isPiP: boolean) => void;
   onTabVisibilityChange?: (isVisible: boolean) => void;
+  /** Called when a marker on the timeline is clicked */
+  onMarkerClick?: (marker: TimelineMarker, index: number) => void;
 }
 
 /**

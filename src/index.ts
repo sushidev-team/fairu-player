@@ -1,7 +1,7 @@
 // Main exports for @fairu/player
 
 // Components
-export { Player, type PlayerInnerProps, type PlayerProps } from './components/Player';
+export { Player, type PlayerInnerProps, type PlayerProps, type PlayerRef } from './components/Player';
 export {
   VideoPlayer,
   VideoOverlay,

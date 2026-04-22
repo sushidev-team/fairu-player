@@ -15,6 +15,7 @@ export interface Track {
   artwork?: string;
   duration?: number;
   chapters?: Chapter[];
+  markers?: import('./markers').TimelineMarker[];
 }
 
 export type RepeatMode = 'none' | 'one' | 'all';
@@ -113,10 +114,26 @@ export interface PlayerProps {
   playlist?: Track[];
   theme?: PlayerTheme;
   className?: string;
+  /** Timeline markers — override track.markers if provided */
+  markers?: import('./markers').TimelineMarker[];
+  /** Called when a marker on the timeline is clicked */
+  onMarkerClick?: (marker: import('./markers').TimelineMarker, index: number) => void;
   onPlay?: () => void;
   onPause?: () => void;
   onEnded?: () => void;
   onTimeUpdate?: (time: number) => void;
   onTrackChange?: (track: Track, index: number) => void;
   onError?: (error: Error) => void;
+}
+
+/**
+ * Imperative ref handle for the audio Player
+ */
+export interface PlayerRef {
+  /** Jump the player head to a specific time (in seconds) */
+  seekTo: (seconds: number) => void;
+  /** Read the current playback position (in seconds) */
+  getCurrentTime: () => number;
+  /** Read the current total duration (in seconds) */
+  getDuration: () => number;
 }

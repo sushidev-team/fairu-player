@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { forwardRef, useCallback, useImperativeHandle, useRef } from 'react';
 import { cn } from '@/utils';
 import { usePlayer } from '@/hooks/usePlayer';
 import { useChapters } from '@/hooks/useChapters';
@@ -13,7 +13,8 @@ import { ChapterList } from '@/components/chapters/ChapterList';
 import { PlaylistView } from '@/components/playlist/PlaylistView';
 import { PlaylistControls } from '@/components/playlist/PlaylistControls';
 import { AdOverlay } from '@/components/ads/AdOverlay';
-import type { PlayerProps, Chapter } from '@/types/player';
+import type { PlayerProps, Chapter, PlayerRef } from '@/types/player';
+import type { TimelineMarker } from '@/types/markers';
 import type { AdState, AdControls } from '@/types/ads';
 
 export interface PlayerInnerProps {
@@ -23,17 +24,36 @@ export interface PlayerInnerProps {
   className?: string;
   adState?: AdState;
   adControls?: Pick<AdControls, 'skipAd' | 'clickThrough'>;
+  /** Timeline markers — override track.markers if provided */
+  markers?: TimelineMarker[];
+  /** Called when a marker on the timeline is clicked */
+  onMarkerClick?: (marker: TimelineMarker, index: number) => void;
 }
 
-export function PlayerInner({
+export const PlayerInner = forwardRef<PlayerRef, PlayerInnerProps>(function PlayerInner({
   showChapters = false,
   showPlaylist = false,
   compact = false,
   className,
   adState,
   adControls,
-}: PlayerInnerProps) {
+  markers,
+  onMarkerClick,
+}, ref) {
   const { state, playlistState, controls, playlistControls, config } = usePlayer();
+
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  useImperativeHandle(ref, () => ({
+    seekTo: (seconds: number) => {
+      controls.seek(Math.max(0, seconds));
+    },
+    getCurrentTime: () => stateRef.current.currentTime,
+    getDuration: () => stateRef.current.duration,
+  }), [controls]);
+
+  const effectiveMarkers = markers ?? playlistState.currentTrack?.markers;
   const { features = {} } = config;
 
   // Check if ads are playing - disable controls when true
@@ -148,6 +168,8 @@ export function PlayerInner({
             duration={state.duration}
             buffered={state.buffered}
             chapters={chapters}
+            markers={effectiveMarkers}
+            onMarkerClick={onMarkerClick}
             onSeek={controlsDisabled ? undefined : controls.seek}
             disabled={controlsDisabled}
           />
@@ -267,7 +289,7 @@ export function PlayerInner({
       )}
     </div>
   );
-}
+});
 
-// Re-export props type
-export type { PlayerProps };
+// Re-export props types
+export type { PlayerProps, PlayerRef };

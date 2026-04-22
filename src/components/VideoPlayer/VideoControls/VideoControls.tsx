@@ -28,6 +28,8 @@ export interface VideoControlsProps {
   subtitles?: Subtitle[];
   /** Timeline markers */
   markers?: TimelineMarker[];
+  /** Called when a marker on the timeline is clicked */
+  onMarkerClick?: (marker: TimelineMarker, index: number) => void;
   onFullscreenClick?: () => void;
   onQualityChange?: (quality: string) => void;
 }
@@ -46,6 +48,7 @@ export function VideoControls({
   playlistControls,
   subtitles = [],
   markers,
+  onMarkerClick,
   onFullscreenClick,
   onQualityChange,
 }: VideoControlsProps) {
@@ -71,6 +74,7 @@ export function VideoControls({
           duration={state.duration}
           buffered={state.buffered}
           markers={markers}
+          onMarkerClick={onMarkerClick}
           disabled={disabled || features.seekingDisabled}
           onSeek={features.seekingDisabled ? undefined : controls.seek}
           className="mb-3"
