@@ -11,7 +11,7 @@
  *   understands, so both players share one pixel-firing implementation.
  */
 
-import { toUrlList, type AdPosition, type AdTrackingUrls } from '@/types/ads';
+import { toUrlList, type Ad, type AdPosition, type AdTrackingUrls } from '@/types/ads';
 import type { VideoAd, VideoAdBreak } from '@/types/video';
 import {
   VastError,
@@ -192,6 +192,17 @@ export function toVideoAdBreak(
  * once-only quartiles without its configs having to change.
  */
 export function videoAdToTrackable(ad: VideoAd): TrackableAd {
+  return adToTrackable(ad);
+}
+
+/**
+ * Normalise any {@link Ad}-shaped object — audio or video — for the tracker.
+ *
+ * `VideoAd` and the base `Ad` differ only in fields the tracker does not read,
+ * so one implementation covers the classic video player, the audio player and
+ * the reels feed.
+ */
+export function adToTrackable(ad: Ad): TrackableAd {
   const urls = ad.trackingUrls;
   const trackingEvents: VastTrackingEvents = {};
 

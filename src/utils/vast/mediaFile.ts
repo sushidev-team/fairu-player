@@ -17,6 +17,25 @@ const DEFAULT_SUPPORTED_TYPES = [
   'video/ogg',
 ];
 
+/**
+ * MIME types an `<audio>` element can play, in preference order.
+ *
+ * VAST 4.1 folded DAAST into the main spec, so an audio ad is an ordinary VAST
+ * document whose `<MediaFile>` carries an `audio/*` type. Without these in the
+ * allow-list every audio creative fails selection and reports VAST error 403.
+ */
+const DEFAULT_AUDIO_TYPES = [
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/aac',
+  'audio/aacp',
+  'audio/ogg',
+  'audio/webm',
+  'audio/wav',
+  'application/x-mpegurl',
+  'application/vnd.apple.mpegurl',
+];
+
 const HLS_TYPES = new Set(['application/x-mpegurl', 'application/vnd.apple.mpegurl']);
 
 /**
@@ -32,8 +51,29 @@ function inferType(url: string): string | undefined {
   if (path.endsWith('.mp4') || path.endsWith('.m4v')) return 'video/mp4';
   if (path.endsWith('.m3u8')) return 'application/x-mpegurl';
   if (path.endsWith('.webm')) return 'video/webm';
-  if (path.endsWith('.ogv') || path.endsWith('.ogg')) return 'video/ogg';
+  if (path.endsWith('.ogv')) return 'video/ogg';
+  // Audio extensions. `.ogg` is ambiguous but overwhelmingly audio in practice.
+  if (path.endsWith('.mp3')) return 'audio/mpeg';
+  if (path.endsWith('.m4a')) return 'audio/mp4';
+  if (path.endsWith('.aac')) return 'audio/aac';
+  if (path.endsWith('.ogg') || path.endsWith('.oga')) return 'audio/ogg';
+  if (path.endsWith('.wav')) return 'audio/wav';
   return undefined;
+}
+
+/**
+ * The MIME allow-list for a given set of options.
+ *
+ * `audioOnly` switches to the audio list rather than merely adding to it: a
+ * podcast player handed a video creative must reject it, not silently play the
+ * audio track of an MP4 while the listener sees nothing.
+ */
+function supportedTypesFor(options: MediaFileSelectionOptions): string[] {
+  const explicit = options.supportedTypes;
+  if (explicit) return explicit.map((t) => t.toLowerCase());
+  return (options.audioOnly ? DEFAULT_AUDIO_TYPES : DEFAULT_SUPPORTED_TYPES).map((t) =>
+    t.toLowerCase()
+  );
 }
 
 /**
@@ -55,10 +95,7 @@ export function isPlayableMediaFile(
 
   if (HLS_TYPES.has(type) && options.allowHls === false) return false;
 
-  const supported = (options.supportedTypes ?? DEFAULT_SUPPORTED_TYPES).map((t) =>
-    t.toLowerCase()
-  );
-  return supported.includes(type);
+  return supportedTypesFor(options).includes(type);
 }
 
 /**
@@ -84,9 +121,7 @@ export function selectMediaFile(
   if (playable.length === 0) return undefined;
   if (playable.length === 1) return playable[0];
 
-  const supported = (options.supportedTypes ?? DEFAULT_SUPPORTED_TYPES).map((t) =>
-    t.toLowerCase()
-  );
+  const supported = supportedTypesFor(options);
   const pixelRatio = options.pixelRatio ?? 1;
   const targetHeight = (options.height ?? 0) * pixelRatio;
   const maxBitrate = options.maxBitrate ?? Infinity;
@@ -124,6 +159,24 @@ export function selectMediaFile(
   });
 
   return ranked[0]?.file;
+}
+
+/**
+ * Selection defaults for an audio-only player (podcasts).
+ *
+ * Resolution is meaningless here, so ranking falls through to MIME preference
+ * and bitrate. The cap is generous because a 128 kbps spot next to a 128 kbps
+ * episode is the normal case and there is no pixel budget to trade against.
+ */
+export function audioAdMediaOptions(
+  overrides: MediaFileSelectionOptions = {}
+): MediaFileSelectionOptions {
+  return {
+    audioOnly: true,
+    maxBitrate: 320,
+    allowHls: true,
+    ...overrides,
+  };
 }
 
 /**

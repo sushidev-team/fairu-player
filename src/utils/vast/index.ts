@@ -19,6 +19,7 @@ export {
   selectMediaFile,
   isPlayableMediaFile,
   verticalFeedMediaOptions,
+  audioAdMediaOptions,
 } from './mediaFile';
 
 export {
@@ -46,5 +47,15 @@ export {
   videoAdToTrackable,
   toVideoAdBreak,
   landscapePlayerMediaOptions,
+  adToTrackable,
   type ToVideoAdOptions,
 } from './toVideoAd';
+
+export {
+  vastAdToAudioAd,
+  vastAdsToAudioAds,
+  toAudioAdBreak,
+  getCompanions,
+  selectCompanion,
+  type ToAudioAdOptions,
+} from './toAudioAd';

@@ -2,6 +2,7 @@
 
 // Components
 export { Player, type PlayerInnerProps, type PlayerProps } from './components/Player';
+export { AudioPlayer, type AudioPlayerProps } from './components/AudioPlayer';
 export {
   VideoPlayer,
   VideoOverlay,
@@ -69,11 +70,13 @@ export {
   OverlayAd,
   InfoCard,
   InfoCardIcon,
+  CompanionAd,
   type AdOverlayProps,
   type AdSkipButtonProps,
   type OverlayAdProps,
   type InfoCardProps,
   type InfoCardIconProps,
+  type CompanionAdProps,
 } from './components/ads';
 export {
   Rating,
@@ -263,6 +266,7 @@ export {
   selectMediaFile,
   isPlayableMediaFile,
   verticalFeedMediaOptions,
+  audioAdMediaOptions,
   vastAdToReelAd,
   vastAdsToReelAds,
   vastAdToVideoAd,
@@ -270,6 +274,12 @@ export {
   videoAdToTrackable,
   toVideoAdBreak,
   landscapePlayerMediaOptions,
+  adToTrackable,
+  vastAdToAudioAd,
+  vastAdsToAudioAds,
+  toAudioAdBreak,
+  getCompanions,
+  selectCompanion,
   substituteMacros,
   substituteMacrosAll,
   defaultMacroContext,
@@ -281,6 +291,7 @@ export {
   type VastMacroContext,
   type ToReelAdOptions,
   type ToVideoAdOptions,
+  type ToAudioAdOptions,
 } from './utils/vast';
 
 export { VastError, VastErrorCode } from './types/vast';

@@ -45,11 +45,22 @@ export interface Ad {
   clickThroughUrl?: string;
   title?: string;
   description?: string;
+  /**
+   * `<Companion>` creative — a static image shown alongside the ad.
+   *
+   * For a podcast this is the most valuable part of the unit: it replaces the
+   * episode artwork for the duration of the spot and stays visible on the lock
+   * screen, where a linear audio ad has already finished.
+   */
   companion?: {
     imageUrl: string;
     clickUrl: string;
     width: number;
     height: number;
+    /** Fired in addition to navigating to `clickUrl`. */
+    clickTrackingUrls?: string[];
+    /** `creativeView` fires when the companion becomes visible. */
+    trackingEvents?: import('./vast').VastTrackingEvents;
   };
   trackingUrls?: AdTrackingUrls;
 }

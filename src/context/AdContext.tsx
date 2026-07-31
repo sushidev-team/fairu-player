@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import type { AdConfig, AdContextValue, AdState, Ad, AdBreak, AdProgressInfo } from '@/types/ads';
+import { VastErrorCode } from '@/types/vast';
+import { VastTracker } from '@/utils/vast/VastTracker';
+import { adToTrackable } from '@/utils/vast/toVideoAd';
 
 const DEFAULT_CONFIG: AdConfig = {
   enabled: false,
@@ -36,38 +39,44 @@ export function AdProvider({ children, config: userConfig = {} }: AdProviderProp
   const adAudioRef = useRef<HTMLAudioElement | null>(null);
   const currentAdIndex = useRef(0);
   const skipTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Track which quartiles have been fired (to avoid duplicate fires)
-  const firedQuartiles = useRef<Set<string>>(new Set());
-  // Track which progress offsets have been fired
-  const firedProgressOffsets = useRef<Set<number>>(new Set());
 
   // Update state helper
   const updateState = useCallback((updates: Partial<AdState>) => {
     setState((prev) => ({ ...prev, ...updates }));
   }, []);
 
-  // Standard VAST event types (excludes 'progress' which has a different structure)
-  type StandardTrackingEvent = Exclude<keyof NonNullable<Ad['trackingUrls']>, 'progress'>;
+  /**
+   * Pixels go through the shared {@link VastTracker}, the same as the video
+   * player. Doing it here by hand would repeat the three defects this context
+   * used to have: only the first URL per event fired, `[CACHEBUSTING]` was sent
+   * verbatim, and a plain `fetch` lost pixels during page teardown.
+   */
+  const trackerRef = useRef<VastTracker | null>(null);
+  const configRef = useRef(config);
+  configRef.current = config;
 
-  // Track ad impression
-  const trackAdEvent = useCallback(async (ad: Ad, eventType: StandardTrackingEvent) => {
-    const url = ad.trackingUrls?.[eventType];
-    if (url && typeof url === 'string') {
-      try {
-        await fetch(url, { method: 'GET', mode: 'no-cors' });
-      } catch (error) {
-        console.error(`Failed to track ad ${eventType}:`, error);
-      }
-    }
+  const startTracking = useCallback((ad: Ad, adBreak: AdBreak) => {
+    trackerRef.current?.dispose();
+    trackerRef.current = new VastTracker(adToTrackable(ad), {
+      macros: { BREAKPOSITION: adBreak.position },
+      onEvent: (event) => {
+        const cfg = configRef.current;
+        if (event === 'firstQuartile') cfg.onFirstQuartile?.(ad, adBreak);
+        else if (event === 'midpoint') cfg.onMidpoint?.(ad, adBreak);
+        else if (event === 'thirdQuartile') cfg.onThirdQuartile?.(ad, adBreak);
+      },
+    });
+    return trackerRef.current;
   }, []);
+
+  useEffect(() => () => trackerRef.current?.dispose(), []);
 
   // Play ad
   const playAd = useCallback((ad: Ad, adBreak: AdBreak, adsRemaining: number) => {
     if (!adAudioRef.current) return;
 
-    // Reset quartile and progress tracking for new ad
-    firedQuartiles.current.clear();
-    firedProgressOffsets.current.clear();
+    // A fresh tracker per ad scopes "fire once" to this playback.
+    const tracker = startTracking(ad, adBreak);
 
     adAudioRef.current.src = ad.src;
     adAudioRef.current.play();
@@ -85,8 +94,7 @@ export function AdProvider({ children, config: userConfig = {} }: AdProviderProp
       adsRemaining,
     });
 
-    trackAdEvent(ad, 'impression');
-    trackAdEvent(ad, 'start');
+    tracker.impression();
     config.onAdStart?.(ad, adBreak);
 
     // Start skip countdown if applicable
@@ -103,7 +111,7 @@ export function AdProvider({ children, config: userConfig = {} }: AdProviderProp
         }
       }, 1000);
     }
-  }, [config, trackAdEvent, updateState]);
+  }, [config, startTracking, updateState]);
 
   // Skip ad
   const skipAd = useCallback(() => {
@@ -113,7 +121,7 @@ export function AdProvider({ children, config: userConfig = {} }: AdProviderProp
       clearInterval(skipTimer.current);
     }
 
-    trackAdEvent(state.currentAd, 'skip');
+    trackerRef.current?.skip();
     config.onAdSkip?.(state.currentAd, state.currentAdBreak);
 
     // Move to next ad or end ad break
@@ -128,19 +136,19 @@ export function AdProvider({ children, config: userConfig = {} }: AdProviderProp
       config.onAllAdsComplete?.(state.currentAdBreak);
       updateState(initialState);
     }
-  }, [state.canSkip, state.currentAd, state.currentAdBreak, trackAdEvent, config, playAd, updateState]);
+  }, [state.canSkip, state.currentAd, state.currentAdBreak, config, playAd, updateState]);
 
   // Click through
   const clickThrough = useCallback(() => {
     if (!state.currentAd || !state.currentAdBreak) return;
 
-    trackAdEvent(state.currentAd, 'click');
+    trackerRef.current?.click();
     config.onAdClick?.(state.currentAd, state.currentAdBreak);
 
     if (state.currentAd.clickThroughUrl) {
       window.open(state.currentAd.clickThroughUrl, '_blank');
     }
-  }, [state.currentAd, state.currentAdBreak, trackAdEvent, config]);
+  }, [state.currentAd, state.currentAdBreak, config]);
 
   // Start ad break
   const startAdBreak = useCallback((adBreak: AdBreak) => {
@@ -187,33 +195,9 @@ export function AdProvider({ children, config: userConfig = {} }: AdProviderProp
         };
         config.onAdProgress?.(progressInfo, state.currentAd, state.currentAdBreak);
 
-        // Track quartiles (only fire once each)
-        if (percentage >= 25 && !firedQuartiles.current.has('firstQuartile')) {
-          firedQuartiles.current.add('firstQuartile');
-          trackAdEvent(state.currentAd, 'firstQuartile');
-          config.onFirstQuartile?.(state.currentAd, state.currentAdBreak);
-        }
-        if (percentage >= 50 && !firedQuartiles.current.has('midpoint')) {
-          firedQuartiles.current.add('midpoint');
-          trackAdEvent(state.currentAd, 'midpoint');
-          config.onMidpoint?.(state.currentAd, state.currentAdBreak);
-        }
-        if (percentage >= 75 && !firedQuartiles.current.has('thirdQuartile')) {
-          firedQuartiles.current.add('thirdQuartile');
-          trackAdEvent(state.currentAd, 'thirdQuartile');
-          config.onThirdQuartile?.(state.currentAd, state.currentAdBreak);
-        }
-
-        // Track custom progress offsets
-        const progressUrls = state.currentAd.trackingUrls?.progress;
-        if (progressUrls) {
-          for (const { offset, url } of progressUrls) {
-            if (currentTime >= offset && !firedProgressOffsets.current.has(offset)) {
-              firedProgressOffsets.current.add(offset);
-              fetch(url, { method: 'GET', mode: 'no-cors' }).catch(() => {});
-            }
-          }
-        }
+        // Quartiles, `start` and offset-based progress pixels — once each, with
+        // macros substituted. Lifecycle callbacks ride the tracker's `onEvent`.
+        trackerRef.current?.progress(currentTime, duration);
       }
     };
 
@@ -224,7 +208,7 @@ export function AdProvider({ children, config: userConfig = {} }: AdProviderProp
         clearInterval(skipTimer.current);
       }
 
-      trackAdEvent(state.currentAd, 'complete');
+      trackerRef.current?.complete(audio.duration || state.currentAd.duration);
       config.onAdComplete?.(state.currentAd, state.currentAdBreak);
 
       // Move to next ad or end ad break
@@ -243,7 +227,7 @@ export function AdProvider({ children, config: userConfig = {} }: AdProviderProp
 
     const handleError = () => {
       if (state.currentAd && state.currentAdBreak) {
-        trackAdEvent(state.currentAd, 'error');
+        trackerRef.current?.error(VastErrorCode.MEDIAFILE_DISPLAY);
         config.onAdError?.(new Error('Ad playback error'), state.currentAd, state.currentAdBreak);
       }
       updateState(initialState);
@@ -251,14 +235,14 @@ export function AdProvider({ children, config: userConfig = {} }: AdProviderProp
 
     const handlePause = () => {
       if (state.currentAd && state.currentAdBreak) {
-        trackAdEvent(state.currentAd, 'pause');
+        trackerRef.current?.paused(true);
         config.onAdPause?.(state.currentAd, state.currentAdBreak);
       }
     };
 
     const handleResume = () => {
       if (state.currentAd && state.currentAdBreak) {
-        trackAdEvent(state.currentAd, 'resume');
+        trackerRef.current?.paused(false);
         config.onAdResume?.(state.currentAd, state.currentAdBreak);
       }
     };
@@ -276,7 +260,7 @@ export function AdProvider({ children, config: userConfig = {} }: AdProviderProp
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('play', handleResume);
     };
-  }, [state.currentAd, state.currentAdBreak, config, trackAdEvent, playAd, updateState]);
+  }, [state.currentAd, state.currentAdBreak, config, playAd, updateState]);
 
   const contextValue = useMemo<AdContextValue>(() => ({
     state,

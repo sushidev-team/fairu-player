@@ -293,6 +293,14 @@ export interface MediaFileSelectionOptions {
   supportedTypes?: string[];
   /** Allow HLS (`application/x-mpegURL`) media files. Default: true. */
   allowHls?: boolean;
+  /**
+   * Select for an audio-only player. Switches the default MIME allow-list to
+   * `audio/*` and makes resolution irrelevant to ranking.
+   *
+   * VAST 4.1 absorbed DAAST, so audio ads are ordinary VAST documents — the only
+   * thing that differs is which `<MediaFile>` types the player can accept.
+   */
+  audioOnly?: boolean;
 }
 
 /** Options for {@link VastClient}. */

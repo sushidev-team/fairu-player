@@ -59,6 +59,21 @@ export const SAMPLE_DURATIONS = {
   sintel: 10,
 } as const;
 
+/**
+ * Audio clips, for the podcast player and audio ad stories.
+ *
+ * Verified to answer `200` with an `audio/*` content type. Note that most of
+ * `mdn.github.io/shared-assets/audio/` is 404 — only the few below exist.
+ */
+export const SAMPLE_AUDIO = {
+  /** ~2s roar, CC0. */
+  tRex: 'https://mdn.github.io/shared-assets/audio/t-rex-roar.mp3',
+  /** ~2s, the older MDN host, still live. */
+  tRexLegacy: 'https://interactive-examples.mdn.mozilla.net/media/cc0-audio/t-rex-roar.mp3',
+  /** ~1s whinny — stands in for a short ad spot. */
+  horse: 'https://www.w3schools.com/html/horse.mp3',
+} as const;
+
 /** HLS manifests, for the streaming and quality-selector stories. */
 export const SAMPLE_HLS = {
   /** Multi-bitrate, well-known test stream. */
