@@ -453,7 +453,14 @@ function VideoPlayerWithOverlayProvider({
       adEventBus={adEventBus}
     >
       <VideoPlayerRefHandler playerRef={playerRef} />
-      {adConfig?.enabled ? (
+      {/*
+        Switch on whether an ad config was *supplied*, not on `enabled`.
+        `enabled` commonly flips false → true while ad tags are still resolving
+        (that is exactly what `useVastAdBreaks` produces), and branching on it
+        would unmount one subtree and mount the other — swapping the `<video>`
+        element mid-flight.
+      */}
+      {adConfig ? (
         <VideoAdProvider config={adConfig}>
           <VideoPlayerWithAds className={className} />
         </VideoAdProvider>

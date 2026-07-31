@@ -46,3 +46,46 @@ Object.defineProperty(HTMLMediaElement.prototype, 'load', {
   writable: true,
   value: () => {},
 });
+
+// jsdom has no PointerEvent constructor, so fireEvent silently drops
+// `pointerId` and `isPrimary` from its init dict. Any component that guards on
+// those (multi-touch handling, pointer capture) then looks broken in tests while
+// being correct in a browser. This minimal implementation carries the fields
+// through.
+if (typeof window.PointerEvent === 'undefined') {
+  class PointerEventPolyfill extends MouseEvent {
+    readonly pointerId: number;
+    readonly pointerType: string;
+    readonly isPrimary: boolean;
+    readonly width: number;
+    readonly height: number;
+    readonly pressure: number;
+
+    constructor(type: string, params: PointerEventInit = {}) {
+      super(type, params);
+      this.pointerId = params.pointerId ?? 0;
+      this.pointerType = params.pointerType ?? 'mouse';
+      this.isPrimary = params.isPrimary ?? true;
+      this.width = params.width ?? 1;
+      this.height = params.height ?? 1;
+      this.pressure = params.pressure ?? 0;
+    }
+  }
+
+  Object.defineProperty(window, 'PointerEvent', {
+    configurable: true,
+    writable: true,
+    value: PointerEventPolyfill,
+  });
+}
+
+// Pointer capture is not implemented in jsdom and throws when called.
+for (const method of ['setPointerCapture', 'releasePointerCapture', 'hasPointerCapture'] as const) {
+  if (typeof Element.prototype[method] !== 'function') {
+    Object.defineProperty(Element.prototype, method, {
+      configurable: true,
+      writable: true,
+      value: () => (method === 'hasPointerCapture' ? false : undefined),
+    });
+  }
+}

@@ -1,4 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
+import { SAMPLE_VIDEOS, poster } from '@/stories/fixtures';
+import { useVastAdBreaks } from '@/hooks/useVastAdBreaks';
+import { Note, Panel, Stage } from '@/stories/preview-kit';
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { VideoPlayer, type VideoPlayerRef } from './VideoPlayer';
 import { VideoProvider, useVideoPlayer } from '@/context/VideoContext';
@@ -48,10 +51,10 @@ type Story = StoryObj<typeof VideoPlayer>;
 // Sample video tracks - using free test videos
 const sampleVideo: VideoTrack = {
   id: '1',
-  src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+  src: SAMPLE_VIDEOS.bigBuckBunny,
   title: 'Big Buck Bunny',
   artist: 'Blender Foundation',
-  poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
+  poster: poster('BigBuckBunny', 1280, 720),
   duration: 596,
 };
 
@@ -69,18 +72,18 @@ const videoPlaylist: VideoTrack[] = [
   sampleVideo,
   {
     id: '2',
-    src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    src: SAMPLE_VIDEOS.flower,
     title: 'Elephants Dream',
     artist: 'Blender Foundation',
-    poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ElephantsDream.jpg',
+    poster: poster('ElephantsDream', 1280, 720),
     duration: 653,
   },
   {
     id: '3',
-    src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+    src: SAMPLE_VIDEOS.tearsOfSteel,
     title: 'Sintel',
     artist: 'Blender Foundation',
-    poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/Sintel.jpg',
+    poster: poster('Sintel', 1280, 720),
     duration: 888,
   },
 ];
@@ -92,7 +95,7 @@ const samplePreRollAd: VideoAdBreak = {
   ads: [
     {
       id: 'ad-1',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      src: SAMPLE_VIDEOS.friday,
       duration: 15,
       skipAfterSeconds: 5,
       title: 'ForBiggerBlazes - Sample Ad',
@@ -117,7 +120,7 @@ const sampleMidRollAd: VideoAdBreak = {
   ads: [
     {
       id: 'mid-ad-1',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+      src: SAMPLE_VIDEOS.jellyfish,
       duration: 15,
       skipAfterSeconds: 3,
       title: 'Mid-Roll Ad',
@@ -450,7 +453,7 @@ const nonSkippablePreRollAd: VideoAdBreak = {
   ads: [
     {
       id: 'ad-non-skip-1',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      src: SAMPLE_VIDEOS.friday,
       duration: 15,
       skipAfterSeconds: null, // null means non-skippable
       title: 'Non-Skippable Ad',
@@ -927,7 +930,7 @@ const mixedAdBreak: VideoAdBreak = {
   ads: [
     {
       id: 'video-ad-1',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      src: SAMPLE_VIDEOS.friday,
       duration: 15,
       skipAfterSeconds: 5,
       title: 'Video Ad',
@@ -974,9 +977,9 @@ function FairuVideoDemo() {
   // For demo, use real video
   const demoTrack: VideoTrack = {
     id: exampleUuid,
-    src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    src: SAMPLE_VIDEOS.bigBuckBunny,
     title: 'Big Buck Bunny (Demo)',
-    poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
+    poster: poster('BigBuckBunny', 1280, 720),
   };
 
   return (
@@ -1053,21 +1056,21 @@ function FairuVideoPlaylistDemo() {
   const demoPlaylist: VideoTrack[] = [
     {
       id: 'video-uuid-1',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+      src: SAMPLE_VIDEOS.bigBuckBunny,
       title: 'Kapitel 1: Einführung',
-      poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
+      poster: poster('BigBuckBunny', 1280, 720),
     },
     {
       id: 'video-uuid-2',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+      src: SAMPLE_VIDEOS.flower,
       title: 'Kapitel 2: Grundlagen',
-      poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ElephantsDream.jpg',
+      poster: poster('ElephantsDream', 1280, 720),
     },
     {
       id: 'video-uuid-3',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+      src: SAMPLE_VIDEOS.tearsOfSteel,
       title: 'Kapitel 3: Fortgeschritten',
-      poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/Sintel.jpg',
+      poster: poster('Sintel', 1280, 720),
     },
   ];
 
@@ -1540,37 +1543,37 @@ const recommendedVideos: RecommendedVideo[] = [
   {
     id: 'rec-1',
     title: 'Introduction to TypeScript - Complete Guide 2024',
-    thumbnail: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
+    thumbnail: poster('BigBuckBunny', 1280, 720),
     duration: 1245,
     views: '1.2M views',
     channel: 'Code Academy',
     channelAvatar: 'https://placehold.co/32x32/2d5a27/ffffff?text=CA',
-    src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    src: SAMPLE_VIDEOS.bigBuckBunny,
   },
   {
     id: 'rec-2',
     title: 'React Best Practices You Need to Know',
-    thumbnail: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ElephantsDream.jpg',
+    thumbnail: poster('ElephantsDream', 1280, 720),
     duration: 845,
     views: '856K views',
     channel: 'Frontend Masters',
     channelAvatar: 'https://placehold.co/32x32/5a272d/ffffff?text=FM',
-    src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    src: SAMPLE_VIDEOS.flower,
   },
   {
     id: 'rec-3',
     title: 'Building a Video Player from Scratch',
-    thumbnail: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/Sintel.jpg',
+    thumbnail: poster('Sintel', 1280, 720),
     duration: 2100,
     views: '432K views',
     channel: 'Dev Tutorials',
     channelAvatar: 'https://placehold.co/32x32/1a1a2e/ffffff?text=DT',
-    src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+    src: SAMPLE_VIDEOS.tearsOfSteel,
   },
   {
     id: 'rec-4',
     title: 'CSS Grid Layout - Master Guide',
-    thumbnail: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+    thumbnail: poster('ForBiggerBlazes', 1280, 720),
     duration: 1560,
     views: '678K views',
     channel: 'CSS Wizards',
@@ -1578,7 +1581,7 @@ const recommendedVideos: RecommendedVideo[] = [
   {
     id: 'rec-5',
     title: 'Node.js Performance Optimization',
-    thumbnail: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerEscapes.jpg',
+    thumbnail: poster('ForBiggerEscapes', 1280, 720),
     duration: 1890,
     views: '234K views',
     channel: 'Backend Pro',
@@ -1586,7 +1589,7 @@ const recommendedVideos: RecommendedVideo[] = [
   {
     id: 'rec-6',
     title: 'Database Design Fundamentals',
-    thumbnail: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerFun.jpg',
+    thumbnail: poster('ForBiggerFun', 1280, 720),
     duration: 2400,
     views: '567K views',
     channel: 'Data School',
@@ -1601,9 +1604,9 @@ export const WithEndScreen: Story = {
   args: {
     track: {
       id: 'short-video',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      src: SAMPLE_VIDEOS.friday,
       title: 'Short Demo Video',
-      poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+      poster: poster('ForBiggerBlazes', 1280, 720),
       duration: 15,
     },
     config: {
@@ -1629,9 +1632,9 @@ export const EndScreenWithAutoPlay: Story = {
   args: {
     track: {
       id: 'short-video-autoplay',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      src: SAMPLE_VIDEOS.friday,
       title: 'Short Demo Video',
-      poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+      poster: poster('ForBiggerBlazes', 1280, 720),
       duration: 15,
     },
     config: {
@@ -1657,9 +1660,9 @@ export const EndScreenCarousel: Story = {
   args: {
     track: {
       id: 'short-video-carousel',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      src: SAMPLE_VIDEOS.friday,
       title: 'Short Demo Video',
-      poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+      poster: poster('ForBiggerBlazes', 1280, 720),
       duration: 15,
     },
     config: {
@@ -1684,9 +1687,9 @@ function EndScreenInteractiveDemo() {
   const [events, setEvents] = useState<string[]>([]);
   const [currentVideo, setCurrentVideo] = useState<VideoTrack>({
     id: 'demo-video',
-    src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    src: SAMPLE_VIDEOS.friday,
     title: 'Demo Video',
-    poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+    poster: poster('ForBiggerBlazes', 1280, 720),
   });
 
   const addEvent = useCallback((event: string) => {
@@ -1902,9 +1905,9 @@ function AllAdFeaturesDemo() {
       <VideoPlayer
         track={{
           id: 'demo-all-features',
-          src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+          src: SAMPLE_VIDEOS.friday,
           title: 'Demo Video mit allen Features',
-          poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+          poster: poster('ForBiggerBlazes', 1280, 720),
         }}
         config={{
           overlayAds,
@@ -1946,7 +1949,7 @@ const bumperAdBreak: VideoAdBreak = {
   ads: [
     {
       id: 'bumper-1',
-      src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      src: SAMPLE_VIDEOS.friday,
       duration: 6,
       type: 'bumper', // Bumper ads are always 6s and non-skippable
       title: 'Bumper Ad',
@@ -2086,9 +2089,9 @@ function DynamicAdTriggeringDemo() {
         ref={playerRef}
         track={{
           id: 'demo-dynamic',
-          src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+          src: SAMPLE_VIDEOS.bigBuckBunny,
           title: 'Dynamic Ad Triggering Demo',
-          poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
+          poster: poster('BigBuckBunny', 1280, 720),
         }}
       />
 
@@ -2367,9 +2370,9 @@ function EventPipelineDemo() {
       <VideoPlayer
         track={{
           id: 'demo-event-pipeline',
-          src: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+          src: SAMPLE_VIDEOS.bigBuckBunny,
           title: 'Event Pipeline Demo',
-          poster: 'https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
+          poster: poster('BigBuckBunny', 1280, 720),
         }}
         adEventBus={adEventBus}
       />
@@ -2814,4 +2817,169 @@ function CastInteractiveDemo() {
 
 export const CastInteractive: Story = {
   render: () => <CastInteractiveDemo />,
+};
+
+/* -------------------------------------------------------------------------- */
+/*                          VAST ad tags (useVastAdBreaks)                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A complete VAST 4.2 document, served inline.
+ *
+ * The player parses this with the same pipeline a live tag URL goes through —
+ * media-file selection, skipoffset, quartile and progress tracking, click
+ * tracking — so the demo exercises the real path without an ad server.
+ */
+function demoVast(id: string, title: string, clip: string, skip: string | null): string {
+  return `<VAST version="4.2">
+    <Ad id="${id}"><InLine>
+      <AdSystem>Fairu Storybook</AdSystem>
+      <AdTitle>${title}</AdTitle>
+      <Advertiser>Acme</Advertiser>
+      <Impression><![CDATA[https://tracking.invalid/${id}/imp?cb=[CACHEBUSTING]]]></Impression>
+      <Error><![CDATA[https://tracking.invalid/${id}/err?code=[ERRORCODE]]]></Error>
+      <Creatives><Creative><Linear${skip ? ` skipoffset="${skip}"` : ''}>
+        <Duration>00:00:10</Duration>
+        <TrackingEvents>
+          <Tracking event="start"><![CDATA[https://tracking.invalid/${id}/start]]></Tracking>
+          <Tracking event="firstQuartile"><![CDATA[https://tracking.invalid/${id}/q1]]></Tracking>
+          <Tracking event="midpoint"><![CDATA[https://tracking.invalid/${id}/q2]]></Tracking>
+          <Tracking event="thirdQuartile"><![CDATA[https://tracking.invalid/${id}/q3]]></Tracking>
+          <Tracking event="complete"><![CDATA[https://tracking.invalid/${id}/complete]]></Tracking>
+        </TrackingEvents>
+        <VideoClicks>
+          <ClickThrough><![CDATA[https://example.com/landing]]></ClickThrough>
+          <ClickTracking><![CDATA[https://tracking.invalid/${id}/click]]></ClickTracking>
+        </VideoClicks>
+        <MediaFiles>
+          <MediaFile delivery="progressive" type="video/mp4" bitrate="900" width="1280" height="720">
+            <![CDATA[${clip}]]>
+          </MediaFile>
+        </MediaFiles>
+      </Linear></Creative></Creatives>
+    </InLine></Ad>
+  </VAST>`;
+}
+
+const DEMO_PREROLL_VAST = demoVast('pre', 'Acme — Pre-Roll', SAMPLE_VIDEOS.jellyfish, '00:00:05');
+const DEMO_MIDROLL_VAST = demoVast('mid', 'Acme — Mid-Roll', SAMPLE_VIDEOS.bigBuckBunny, null);
+
+/** A VMAP that owns placement, with its creatives inline. */
+const DEMO_VMAP = `<vmap:VMAP xmlns:vmap="http://www.iab.net/videosuite/vmap" version="1.0">
+  <vmap:AdBreak timeOffset="start" breakType="linear" breakId="preroll">
+    <vmap:AdSource><vmap:VASTAdData>${DEMO_PREROLL_VAST}</vmap:VASTAdData></vmap:AdSource>
+  </vmap:AdBreak>
+  <vmap:AdBreak timeOffset="25%" breakType="linear" breakId="midroll">
+    <vmap:AdSource><vmap:VASTAdData>${DEMO_MIDROLL_VAST}</vmap:VASTAdData></vmap:AdSource>
+  </vmap:AdBreak>
+</vmap:VMAP>`;
+
+function VastTagDemo({ vmap }: { vmap: boolean }) {
+  const [log, setLog] = useState<string[]>([]);
+  const push = (line: string) =>
+    setLog((prev) => [`${new Date().toISOString().slice(14, 22)}  ${line}`, ...prev].slice(0, 24));
+
+  const { adBreaks, loading, error } = useVastAdBreaks(
+    vmap
+      ? { vmapXml: DEMO_VMAP, duration: 70, defaultSkipOffset: 5 }
+      : {
+          // Inline VAST: the document is already in hand, so no ad request is
+          // made at all. A live integration passes a tag URL string here.
+          preRoll: { xml: DEMO_PREROLL_VAST },
+          midRolls: [{ at: 20, tagUrl: { xml: DEMO_MIDROLL_VAST } }],
+          defaultSkipOffset: 5,
+        }
+  );
+
+  const summary = loading
+    ? 'Resolving ad tags…'
+    : error
+      ? `Failed: ${error.message}`
+      : adBreaks.length === 0
+        ? 'No ad breaks resolved'
+        : adBreaks
+            .map((b) => `${b.position}${b.triggerTime ? ` @ ${Math.round(b.triggerTime)}s` : ''}`)
+            .join(' · ');
+
+  return (
+    <Stage
+      title={vmap ? 'VMAP-driven ad breaks' : 'VAST tag → ad breaks'}
+      description={
+        <>
+          <strong>Press play.</strong> A pre-roll fires on the first play, not on load — so the
+          story looks idle until you start the video. The mid-roll follows at 20s.
+        </>
+      }
+      aside={
+        <>
+          <Panel title="Resolved breaks" meta={loading ? '…' : String(adBreaks.length)}>
+            <p
+              className="m-0 text-[12px]"
+              style={{ color: error ? '#ef4444' : 'var(--fp-color-text-secondary)' }}
+            >
+              {summary}
+            </p>
+          </Panel>
+
+          <Panel title="Ad lifecycle" meta={log.length ? String(log.length) : undefined}>
+            <pre
+              className="m-0 max-h-56 overflow-y-auto text-[11px] leading-relaxed"
+              style={{
+                fontFamily: 'var(--fp-font-family-mono)',
+                color: 'var(--fp-color-text-secondary)',
+              }}
+            >
+              {log.join('\n') || 'Nothing yet — press play.'}
+            </pre>
+          </Panel>
+
+          <Note>
+            Tracking pixels point at <code>tracking.invalid</code>, so the requests fail
+            harmlessly. Watch the network tab to see them go out with{' '}
+            <code>[CACHEBUSTING]</code> substituted.
+          </Note>
+        </>
+      }
+    >
+      <div className="fp-dark w-full max-w-[760px]">
+        <VideoPlayer
+          track={{
+            id: 'vast-demo',
+            src: SAMPLE_VIDEOS.tearsOfSteel,
+            title: 'Content mit VAST-Ads',
+            poster: poster('vast-demo', 1280, 720),
+          }}
+          adConfig={{
+            enabled: adBreaks.length > 0,
+            adBreaks,
+            onAdStart: (ad) => push(`ad:start         ${ad.title ?? ad.id}`),
+            onFirstQuartile: (ad) => push(`ad:firstQuartile ${ad.id}`),
+            onMidpoint: (ad) => push(`ad:midpoint      ${ad.id}`),
+            onThirdQuartile: (ad) => push(`ad:thirdQuartile ${ad.id}`),
+            onAdComplete: (ad) => push(`ad:complete      ${ad.id}`),
+            onAdSkip: (ad) => push(`ad:skip          ${ad.id}`),
+            onAdClick: (ad) => push(`ad:click         ${ad.id}`),
+          }}
+        />
+      </div>
+    </Stage>
+  );
+}
+
+
+
+/**
+ * The classic player fed by a **VAST tag**, not by hand-written ad definitions.
+ *
+ * `useVastAdBreaks` fetches the tag, resolves any wrapper chain, picks a media
+ * file and produces `VideoAdBreak[]`. Tracking pixels are fired by the shared
+ * `VastTracker`, so quartiles fire once and macros are substituted.
+ */
+export const VastTagPreRoll: Story = {
+  render: () => <VastTagDemo vmap={false} />,
+};
+
+/** Placement owned by a VMAP document: pre-roll plus a mid-roll at 25%. */
+export const VmapAdBreaks: Story = {
+  render: () => <VastTagDemo vmap />,
 };

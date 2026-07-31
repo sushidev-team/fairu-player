@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
+import { poster } from '@/stories/fixtures';
 import { Stats, StatIcons } from './Stats';
 import { Rating } from './Rating';
 import { LabelsProvider } from '@/context/LabelsContext';
@@ -247,7 +248,7 @@ function CombinedDemo() {
       <div className="bg-gray-800 rounded-lg overflow-hidden">
         <div className="aspect-video bg-gray-700 relative">
           <img
-            src="https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg"
+            src={poster('BigBuckBunny', 1280, 720)}
             alt="Video thumbnail"
             className="w-full h-full object-cover"
           />

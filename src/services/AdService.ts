@@ -1,4 +1,5 @@
-import type { AdConfig, Ad, AdBreak, AdPosition } from '@/types/ads';
+import { toUrlList, type AdConfig, type Ad, type AdBreak, type AdPosition, type AdTrackingUrl } from '@/types/ads';
+import { defaultMacroContext, sendBeacon, substituteMacros } from '@/utils/vast';
 
 export class AdService {
   private config: AdConfig;
@@ -47,20 +48,26 @@ export class AdService {
   }
 
   /**
-   * Track ad event
-   * @param eventType - Standard VAST event type (excludes 'progress' which has a different structure)
+   * Track ad event.
+   *
+   * Fires **every** URL declared for the event — a VAST wrapper chain routinely
+   * contributes more than one — with macros substituted and `sendBeacon` as the
+   * transport. Prefer {@link import('@/utils/vast').VastTracker} for anything
+   * with playback state; it additionally guarantees once-only quartiles.
+   *
+   * @param eventType - Standard VAST event type (excludes 'progress', which has
+   * a different structure)
    */
-  async trackAdEvent(
+  trackAdEvent(
     ad: Ad,
     eventType: Exclude<keyof NonNullable<Ad['trackingUrls']>, 'progress'>
-  ): Promise<void> {
-    const url = ad.trackingUrls?.[eventType];
-    if (!url || typeof url !== 'string') return;
+  ): void {
+    const urls = toUrlList(ad.trackingUrls?.[eventType] as AdTrackingUrl | undefined);
+    if (urls.length === 0) return;
 
-    try {
-      await fetch(url, { method: 'GET', mode: 'no-cors' });
-    } catch (error) {
-      console.error(`Failed to track ad ${eventType}:`, error);
+    const macros = defaultMacroContext();
+    for (const url of urls) {
+      sendBeacon(substituteMacros(url, macros));
     }
   }
 

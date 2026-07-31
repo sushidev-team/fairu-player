@@ -123,7 +123,18 @@ export default defineConfig(({ mode }) => {
       !isCdn && !isCdnLoader && react(),
       isLib && dts({
         include: ['src'],
-        exclude: ['src/**/*.stories.tsx', 'src/**/*.test.tsx'],
+        // The old pattern only matched `.tsx`, so `.test.ts` declarations and the
+        // Storybook-only preview kit were published to consumers. Exclude the
+        // whole dev surface: specs, stories, the preview kit and the test setup.
+        exclude: [
+          'src/**/*.stories.ts',
+          'src/**/*.stories.tsx',
+          'src/**/*.test.ts',
+          'src/**/*.test.tsx',
+          'src/stories/**',
+          'src/test/**',
+          'src/examples/**',
+        ],
       }),
     ].filter(Boolean),
     resolve: {

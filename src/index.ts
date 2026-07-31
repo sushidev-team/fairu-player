@@ -83,6 +83,19 @@ export {
   type StatsProps,
 } from './components/stats';
 export {
+  ReelsPlayer,
+  ReelItem,
+  ReelAdSlide,
+  ReelInfo,
+  ReelActionRail,
+  ReelProgress,
+  type ReelItemProps,
+  type ReelAdSlideProps,
+  type ReelInfoProps,
+  type ReelActionRailProps,
+  type ReelProgressProps,
+} from './components/Reels';
+export {
   PodcastPage,
   PodcastPageContent,
   PodcastHeader,
@@ -181,6 +194,125 @@ export {
   type UseKeyboardControlsOptions,
 } from './hooks';
 
+// VAST ad breaks for the classic VideoPlayer
+export {
+  useVastAdBreaks,
+  type UseVastAdBreaksOptions,
+  type UseVastAdBreaksReturn,
+  type MidRollTag,
+} from './hooks/useVastAdBreaks';
+
+// Reels feed hook
+export { useReelsFeed, type UseReelsFeedOptions, type UseReelsFeedReturn } from './hooks/useReelsFeed';
+
+// Reels types
+export type {
+  Reel,
+  ReelAuthor,
+  ReelStats,
+  ReelAudioTrack,
+  ReelAd,
+  ReelAdSource,
+  ReelAdSlot,
+  ReelAdSlotState,
+  ReelAdSlotStatus,
+  ReelsAdConfig,
+  ReelContentSlide,
+  ReelAdSlideEntry,
+  ReelSlide,
+  ReelsFeatures,
+  ReelsLayout,
+  ReelsConfig,
+  ReelInteraction,
+  ReelsState,
+  ReelsControls,
+  ReelsCallbacks,
+  ReelsPlayerProps,
+} from './types/reels';
+export { createReelInteraction } from './types/reels';
+
+// Reels ad scheduling
+export {
+  buildSlides,
+  interleaveSlides,
+  planFrequencySlots,
+  planVmapSlots,
+  checkAdCaps,
+  slotHasSource,
+  adTagUrls,
+  type AdCapReason,
+  type AdSessionState,
+} from './utils/reelsAdScheduler';
+
+// VAST / VMAP
+export {
+  VastClient,
+  VastTracker,
+  requestWaterfall,
+  parseVast,
+  parseVmap,
+  parseXml,
+  parseDuration,
+  parseOffset,
+  parseTimeOffset,
+  offsetToContentCount,
+  isLinearBreak,
+  applyWrapperToAds,
+  getLinearCreative,
+  mergeTrackingEvents,
+  selectMediaFile,
+  isPlayableMediaFile,
+  verticalFeedMediaOptions,
+  vastAdToReelAd,
+  vastAdsToReelAds,
+  vastAdToVideoAd,
+  vastAdsToVideoAds,
+  videoAdToTrackable,
+  toVideoAdBreak,
+  landscapePlayerMediaOptions,
+  substituteMacros,
+  substituteMacrosAll,
+  defaultMacroContext,
+  formatPlayhead,
+  cacheBuster,
+  sendBeacon,
+  type VastRequestResult,
+  type VastTrackerOptions,
+  type VastMacroContext,
+  type ToReelAdOptions,
+  type ToVideoAdOptions,
+} from './utils/vast';
+
+export { VastError, VastErrorCode } from './types/vast';
+export { toUrlList } from './types/ads';
+export type {
+  VastAd,
+  VastAdVerification,
+  VastCreative,
+  VastLinearCreative,
+  VastNonLinearCreative,
+  VastMediaFile,
+  VastIcon,
+  VastVideoClicks,
+  VastResponse,
+  VastWrapper,
+  VastTrackingEvent,
+  VastTrackingEvents,
+  VastProgressTracking,
+  VastClientOptions,
+  VastErrorCodeValue,
+  MediaFileSelectionOptions,
+  TrackableAd,
+  VmapAdBreak,
+  VmapAdSource,
+  VmapResponse,
+  VmapTimeOffset,
+  VmapOffsetKind,
+} from './types/vast';
+
+// Security helpers for untrusted embed/ad input
+export { sanitizeUrl, sanitizeEndpoint, safeJsonParse } from './utils/security';
+
 // Services
 export { TrackingService, AdService } from './services';
 
@@ -208,6 +340,7 @@ export type {
   // Ad types
   AdPosition,
   AdTrackingUrls,
+  AdTrackingUrl,
   Ad,
   AdBreak,
   AdState,

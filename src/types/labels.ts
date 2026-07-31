@@ -53,6 +53,23 @@ export interface PlayerLabels {
   rateUp: string;
   rateDown: string;
   removeRating: string;
+  // Reels / Shorts
+  reelsFeed: string;
+  nextReel: string;
+  previousReel: string;
+  like: string;
+  unlike: string;
+  comment: string;
+  share: string;
+  save: string;
+  unsave: string;
+  follow: string;
+  following: string;
+  showMore: string;
+  showLess: string;
+  sponsored: string;
+  adCountdown: string;
+  loadingMore: string;
 }
 
 /**
@@ -94,6 +111,22 @@ export const defaultLabels: PlayerLabels = {
   rateUp: 'Like',
   rateDown: 'Dislike',
   removeRating: 'Remove rating',
+  reelsFeed: 'Short video feed',
+  nextReel: 'Next video',
+  previousReel: 'Previous video',
+  like: 'Like',
+  unlike: 'Remove like',
+  comment: 'Comments',
+  share: 'Share',
+  save: 'Save',
+  unsave: 'Remove from saved',
+  follow: 'Follow',
+  following: 'Following',
+  showMore: 'more',
+  showLess: 'less',
+  sponsored: 'Sponsored',
+  adCountdown: '{seconds}s',
+  loadingMore: 'Loading more videos',
 };
 
 /**

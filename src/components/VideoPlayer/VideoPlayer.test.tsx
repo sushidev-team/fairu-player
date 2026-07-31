@@ -161,6 +161,58 @@ describe('VideoPlayer', () => {
     });
   });
 
+  describe('VideoPlayer source survives an adConfig.enabled toggle', () => {
+    // Regression: `adConfig.enabled` commonly flips false → true while ad tags
+    // resolve. The player used to branch on it, which unmounted one subtree and
+    // mounted the other — the new <video> never received a source, so the
+    // content showed a poster and a permanent spinner with no error anywhere.
+    const contentVideo = (container: HTMLElement) =>
+      container.querySelector('video') as HTMLVideoElement;
+
+    it('keeps the same video element across the toggle', () => {
+      const { container, rerender } = render(
+        <VideoPlayer track={sampleTrack} adConfig={{ enabled: false, adBreaks: [] }} />
+      );
+
+      const before = contentVideo(container);
+      expect(before).toBeTruthy();
+
+      rerender(<VideoPlayer track={sampleTrack} adConfig={{ enabled: true, adBreaks: [] }} />);
+
+      expect(contentVideo(container)).toBe(before);
+    });
+
+    it('has a source in both states', () => {
+      const { container, rerender } = render(
+        <VideoPlayer track={sampleTrack} adConfig={{ enabled: false, adBreaks: [] }} />
+      );
+
+      expect(contentVideo(container).src).toContain(sampleTrack.src);
+
+      rerender(<VideoPlayer track={sampleTrack} adConfig={{ enabled: true, adBreaks: [] }} />);
+
+      expect(contentVideo(container).src).toContain(sampleTrack.src);
+    });
+
+    it('has a source after a full remount', () => {
+      // `key` remounts the whole player, so `useMedia` is recreated too. The
+      // harder case — element swapped under a *living* hook — is covered in
+      // `useMedia.test.tsx`, since this one passes either way.
+      const { container, rerender } = render(
+        <VideoPlayer key="a" track={sampleTrack} adConfig={{ enabled: true, adBreaks: [] }} />
+      );
+
+      const before = contentVideo(container);
+      rerender(
+        <VideoPlayer key="b" track={sampleTrack} adConfig={{ enabled: true, adBreaks: [] }} />
+      );
+
+      const after = contentVideo(container);
+      expect(after).not.toBe(before);
+      expect(after.src).toContain(sampleTrack.src);
+    });
+  });
+
   describe('VideoPlayer with adConfig', () => {
     it('renders with ad config without errors', () => {
       const ref = createRef<VideoPlayerRef>();

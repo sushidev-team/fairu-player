@@ -23,8 +23,11 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
 
+      # `--legacy-peer-deps` was needed while Storybook 8 conflicted with its own
+      # addons. The tree resolves cleanly now, and keeping the flag would hide the
+      # next incompatible upgrade instead of failing on it.
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
       - name: Run type check
         run: npm run typecheck
@@ -34,6 +37,33 @@ jobs:
 
       - name: Build library
         run: npm run build:lib
+
+  audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The published package contains only `dist` and depends on clsx, hls.js
+      # and tailwind-merge, so a runtime advisory is the one that reaches
+      # consumers. This gate must never be allowed to fail silently.
+      - name: Audit runtime dependencies (blocking)
+        run: npm audit --omit=dev --audit-level=low
+
+      # Dev/build-time advisories are developer- and CI-machine risk rather than
+      # consumer risk. Still gated, but at `high` so a moderate ReDoS in a build
+      # tool cannot block a release.
+      - name: Audit all dependencies (high and above)
+        run: npm audit --audit-level=high
 
   lint:
     runs-on: ubuntu-latest
@@ -48,8 +78,11 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
+      # NOTE: `npm run lint` currently cannot pass — eslint and its plugins are
+      # not in devDependencies, so the binary is missing. `continue-on-error`
+      # keeps CI green while that is outstanding; see docs/DEPENDENCIES.md.
       - name: Run ESLint
         run: npm run lint
         continue-on-error: true
@@ -67,7 +100,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
       - name: Build Storybook
         run: npm run build-storybook

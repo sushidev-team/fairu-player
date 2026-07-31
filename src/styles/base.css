@@ -321,6 +321,68 @@
   animation: fp-skip-backward 300ms ease-out;
 }
 
+/* ---------------------------------------------------------------------------
+   Reels / Shorts
+   --------------------------------------------------------------------------- */
+
+/* Double-tap like burst. Scale + fade in one shot, then the element unmounts
+   on animationend, so no cleanup timer is needed. */
+@keyframes fp-reel-heart {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) rotate(-12deg);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1.15) rotate(6deg);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.4) translateY(-24px);
+  }
+}
+
+.fp-reel-heart {
+  animation: fp-reel-heart 900ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Audio credit ticker. Only animates when the text actually overflows its box;
+   short credits just sit still. */
+@keyframes fp-reel-ticker {
+  0%,
+  15% {
+    transform: translateX(0);
+  }
+  85%,
+  100% {
+    transform: translateX(calc(-100% + 8rem));
+  }
+}
+
+.fp-reel-ticker {
+  display: inline-block;
+  animation: fp-reel-ticker 12s linear infinite;
+}
+
+/* Motion-sensitive users get static UI rather than looping animation. */
+@media (prefers-reduced-motion: reduce) {
+  .fp-reel-ticker {
+    animation: none;
+  }
+
+  .fp-reel-heart {
+    animation-duration: 1ms;
+  }
+
+  .fairu-reels [style*='transition'] {
+    transition-duration: 1ms !important;
+  }
+}
+
 /* Screen reader only */
 .fp-sr-only {
   position: absolute;

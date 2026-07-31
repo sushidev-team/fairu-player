@@ -296,18 +296,35 @@ export function useMedia<T extends HTMLMediaElement>(
     updateState,
   ]);
 
-  // Handle source changes
+  // Remember which element already received which source.
+  const appliedRef = useRef<{ element: T | null; src: string | undefined }>({
+    element: null,
+    src: undefined,
+  });
+
+  // Handle source changes.
+  //
+  // Deliberately runs on every render with no dependency array. A ref change is
+  // invisible to React, so a dependency-gated effect never notices that the
+  // media element was replaced — which happens whenever an ancestor swaps
+  // subtrees. The element would then sit there with an empty `src`, showing a
+  // poster and a permanent spinner, with no error anywhere. The guard below
+  // makes the common case a no-op, so running every render costs nothing.
   useEffect(() => {
     const media = mediaRef.current;
     if (!media || !src) return;
 
+    const applied = appliedRef.current;
+    if (applied.element === media && applied.src === src) return;
+
+    appliedRef.current = { element: media, src };
     media.src = src;
     media.load();
 
     if (autoPlay) {
       play();
     }
-  }, [src, autoPlay, play]);
+  });
 
   const controls: MediaControls = {
     play,
