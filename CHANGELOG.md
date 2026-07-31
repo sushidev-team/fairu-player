@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/sushidev-team/fairu-player/compare/v1.3.0...v1.3.1) (2026-07-31)
+
+
+### Bug Fixes
+
+* ad issues ([7cde4d5](https://github.com/sushidev-team/fairu-player/commit/7cde4d5c8fe9d0ac0d420341e57808fa90733620))
+
 ## [1.3.0](https://github.com/sushidev-team/fairu-player/compare/v1.2.0...v1.3.0) (2026-07-31)
 
 
