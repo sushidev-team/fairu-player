@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/sushidev-team/fairu-player/compare/v1.2.0...v1.3.0) (2026-07-31)
+
+
+### Features
+
+* add VMAP Support + Reels ([7a071a6](https://github.com/sushidev-team/fairu-player/commit/7a071a6ab92f5b377cf1b54f1ac1c7bd53c93530))
+
 ## [1.2.0](https://github.com/sushidev-team/fairu-player/compare/v1.1.0...v1.2.0) (2026-01-26)
 
 
