@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -9,13 +10,20 @@ import { resolve } from 'node:path';
  * so a theme that set a typeface changed nothing in the video player or the
  * reels feed, and both silently inherited the host page's font. jsdom does not
  * apply stylesheets, so the guard has to read the source.
+ *
+ * The triple-slash reference keeps Node's globals scoped to this file. Adding
+ * `"node"` to `types` in tsconfig.json would make `process` and friends
+ * available throughout `src`, where they have no business being.
+ * A `?raw` import is not an option: Vitest stubs CSS, so it yields an empty
+ * string.
  */
 describe('font-family reaches every player root', () => {
   const css = readFileSync(resolve(__dirname, './base.css'), 'utf8');
 
   /** The selectors of every rule that sets `font-family: var(--fp-font-family)`. */
-  const selectorsWithFont = [...css.matchAll(/([^{}]+)\{[^}]*font-family:\s*var\(--fp-font-family\)[^}]*\}/g)]
-    .flatMap((match) => match[1].split(',').map((s) => s.trim().split('\n').pop()!.trim()));
+  const selectorsWithFont = [
+    ...css.matchAll(/([^{}]+)\{[^}]*font-family:\s*var\(--fp-font-family\)[^}]*\}/g),
+  ].flatMap((match) => match[1].split(',').map((s) => s.trim().split('\n').pop()!.trim()));
 
   it.each([
     '.fairu-player',
