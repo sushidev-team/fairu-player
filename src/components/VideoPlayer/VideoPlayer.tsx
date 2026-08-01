@@ -3,6 +3,8 @@ import { cn } from '@/utils/cn';
 import { VideoProvider, useVideoPlayer } from '@/context/VideoContext';
 import { VideoAdProvider, useVideoAds } from '@/context/VideoAdContext';
 import { OverlayAdProvider, useOverlayAds, type OverlayAdControls } from '@/context/OverlayAdContext';
+import { ThemeProvider } from '@/context/ThemeContext';
+import type { FairuTheme } from '@/types/theme';
 import type { AdEventBus } from '@/utils/AdEventBus';
 import type { PlayerEventBus } from '@/utils/PlayerEventBus';
 import { useLabels } from '@/context/LabelsContext';
@@ -352,6 +354,11 @@ export interface VideoPlayerWithProviderProps extends VideoPlayerProps {
   onFinished?: () => void;
   /** Called when watch progress updates */
   onWatchProgressUpdate?: (progress: WatchProgress) => void;
+  /**
+   * Override the look. Only what you set changes; everything else keeps the
+   * stylesheet default. See {@link FairuTheme}.
+   */
+  theme?: FairuTheme;
 }
 
 interface VideoPlayerWithOverlayProviderProps {
@@ -386,6 +393,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerWithProviderPro
   onFullscreenChange,
   onPictureInPictureChange,
   onTabVisibilityChange,
+  theme,
 }, ref) {
   const videoConfig: VideoConfig = {
     ...config,
@@ -402,6 +410,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerWithProviderPro
   }, [onPictureInPictureChange, playerEventBus]);
 
   return (
+    <ThemeProvider theme={theme} className="contents">
     <VideoProvider
       config={videoConfig}
       adEventBus={adEventBus}
@@ -428,6 +437,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerWithProviderPro
         playerRef={ref}
       />
     </VideoProvider>
+    </ThemeProvider>
   );
 });
 

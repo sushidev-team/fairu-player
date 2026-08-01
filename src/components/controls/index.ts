@@ -1,5 +1,5 @@
 export { PlayButton, type PlayButtonProps } from './PlayButton';
-export { ProgressBar, type ProgressBarProps } from './ProgressBar';
+export { ProgressBar, type ProgressBarProps, TimelineTracks, type TimelineTracksProps } from './ProgressBar';
 export { TimeDisplay, type TimeDisplayProps } from './TimeDisplay';
 export { VolumeControl, type VolumeControlProps } from './VolumeControl';
 export { PlaybackSpeed, type PlaybackSpeedProps } from './PlaybackSpeed';

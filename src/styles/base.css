@@ -12,6 +12,32 @@
   border-radius: var(--fp-border-radius);
 }
 
+/*
+ * Typeface for every player root.
+ *
+ * `--fp-font-family` used to be applied only by `.fairu-player`, which is the
+ * audio player — so setting a font through the theme changed nothing in the
+ * video player or the reels feed, and both silently inherited the host page's
+ * font instead.
+ *
+ * `.fp-theme` is listed too because `ThemeProvider` renders with
+ * `display: contents` inside the players: the element is removed from the box
+ * tree, but inherited properties such as `font-family` still pass through to
+ * its children, so one declaration covers every themed subtree.
+ */
+.fp-theme,
+.fairu-video-player,
+.fairu-audio-player,
+.fairu-reels {
+  font-family: var(--fp-font-family);
+}
+
+/* Timecodes and counters line up only with tabular figures. */
+.fp-tabular {
+  font-family: var(--fp-font-family-mono);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Focus styles for accessibility */
 .fairu-player *:focus-visible {
   outline: 2px solid var(--fp-color-primary);

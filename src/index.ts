@@ -23,6 +23,7 @@ export {
 export {
   PlayButton,
   ProgressBar,
+  TimelineTracks,
   TimeDisplay,
   VolumeControl,
   PlaybackSpeed,
@@ -35,6 +36,7 @@ export {
   CastButton,
   type PlayButtonProps,
   type ProgressBarProps,
+  type TimelineTracksProps,
   type TimeDisplayProps,
   type VolumeControlProps,
   type PlaybackSpeedProps,
@@ -149,6 +151,13 @@ export {
   type VideoAdProviderProps,
   type VideoAdContextValue,
 } from './context/VideoAdContext';
+export {
+  ThemeContext,
+  ThemeProvider,
+  useTheme,
+  type ThemeProviderProps,
+  type ThemeContextValue,
+} from './context/ThemeContext';
 export {
   LabelsContext,
   LabelsProvider,
@@ -365,6 +374,9 @@ export type {
   UseChaptersReturn,
   // Marker types
   TimelineMarker,
+  TimelineAction,
+  TimelineTrack,
+  TimelineActionRenderContext,
   MarkerState,
   MarkerControls as MarkerControlsInterface,
   UseMarkersOptions,
@@ -388,6 +400,22 @@ export type {
 
 // Labels utilities
 export { defaultLabels, interpolateLabel } from './types/labels';
+
+// Theming — every option maps to a `--fp-*` custom property, so the stylesheet
+// stays the default and a config only overrides what it names.
+export { themeToCssVars, mergeThemes, isEmptyTheme } from './utils/theme';
+export type {
+  FairuTheme,
+  ThemePreset,
+  ThemeColors,
+  ThemeProgress,
+  ThemeBorder,
+  ThemeGlass,
+  ThemeShadows,
+  ThemeSpacing,
+  ThemeTypography,
+  ThemeTransitions,
+} from './types/theme';
 
 // Video types
 export type {

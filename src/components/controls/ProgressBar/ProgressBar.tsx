@@ -2,7 +2,8 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { cn, formatTime } from '@/utils';
 import { useLabels } from '@/context/LabelsContext';
 import type { Chapter } from '@/types/player';
-import type { TimelineMarker } from '@/types/markers';
+import type { TimelineAction, TimelineMarker, TimelineTrack } from '@/types/markers';
+import { TimelineTracks } from './TimelineTracks';
 import type { PlayerLabels } from '@/types/labels';
 
 export interface ProgressBarProps {
@@ -16,6 +17,42 @@ export interface ProgressBarProps {
   onSeek?: (time: number) => void;
   onSeekStart?: () => void;
   onSeekEnd?: () => void;
+  /**
+   * Add a marker at a point on the bar.
+   *
+   * Given, the bar becomes somewhere markers are made as well as read: a double
+   * click on the track adds one there, and `M` adds one at the playhead. Seeking
+   * is untouched — a single click still seeks, because this is a player first.
+   */
+  onMarkerAdd?: (time: number) => void;
+  /** Move an existing marker. Given, its dot can be dragged along the bar. */
+  onMarkerMove?: (id: string, time: number) => void;
+  /** A marker was clicked without being dragged. */
+  onMarkerSelect?: (marker: TimelineMarker) => void;
+  /**
+   * Action lanes rendered **below** the seek bar.
+   *
+   * Separate from `markers`, which sit on the bar itself. A lane is its own
+   * surface, so its actions never compete with scrubbing: a single click can
+   * select, empty space can add, and a drag moves the action rather than the
+   * playhead. Ranges (`endTime`) are only possible here.
+   */
+  tracks?: TimelineTrack[];
+  /** Id of the selected action, when the host tracks a selection. */
+  selectedActionId?: string | null;
+  /** An action was clicked. Seeks first unless `track.seekOnSelect === false`. */
+  onActionSelect?: (action: TimelineAction, track: TimelineTrack) => void;
+  /** Empty space in an `editable` lane was clicked. */
+  onActionAdd?: (time: number, track: TimelineTrack) => void;
+  /** An action on a `movable` lane was dragged. `time` is its new start. */
+  onActionMove?: (action: TimelineAction, time: number, track: TimelineTrack) => void;
+  /** A range on a `resizable` lane had an edge dragged. */
+  onActionResize?: (
+    action: TimelineAction,
+    start: number,
+    end: number,
+    track: TimelineTrack
+  ) => void;
   className?: string;
   labels?: Pick<PlayerLabels, 'seekSlider'>;
 }
@@ -31,6 +68,15 @@ export function ProgressBar({
   onSeek,
   onSeekStart,
   onSeekEnd,
+  onMarkerAdd,
+  onMarkerMove,
+  onMarkerSelect,
+  tracks = [],
+  selectedActionId,
+  onActionSelect,
+  onActionAdd,
+  onActionMove,
+  onActionResize,
   className,
   labels: labelsProp,
 }: ProgressBarProps) {
@@ -41,6 +87,10 @@ export function ProgressBar({
   const [isHovering, setIsHovering] = useState(false);
   const [hoverPosition, setHoverPosition] = useState<number | null>(null);
   const [hoverTime, setHoverTime] = useState(0);
+  const [draggedMarker, setDraggedMarker] = useState<string | null>(null);
+
+  const canMoveMarkers = Boolean(onMarkerMove) && !disabled;
+  const canAddMarkers = Boolean(onMarkerAdd) && !disabled;
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const bufferedProgress = duration > 0 ? (buffered / duration) * 100 : 0;
@@ -134,9 +184,71 @@ export function ProgressBar({
     onSeekEnd?.();
   }, [onSeekEnd]);
 
+  /**
+   * Drag a marker instead of seeking.
+   *
+   * A dot sits on the surface that seeks, so every one of these handlers has to
+   * stop the event reaching it — and mouse and touch are stopped separately from
+   * pointer, because stopping a `pointerdown` does not stop the `mousedown` the
+   * browser raises alongside it. Without that, picking a marker up would scrub
+   * the playhead to wherever it was grabbed.
+   *
+   * `setPointerCapture` is what keeps the dot following once the cursor leaves
+   * the bar; without it a drag that strays upward stops dead halfway.
+   */
+  const handleMarkerPointerDown = useCallback((e: React.PointerEvent, marker: TimelineMarker) => {
+    if (!canMoveMarkers) return;
+    e.stopPropagation();
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    setDraggedMarker(marker.id);
+  }, [canMoveMarkers]);
+
+  const handleMarkerPointerMove = useCallback((e: React.PointerEvent, marker: TimelineMarker) => {
+    if (draggedMarker !== marker.id) return;
+    e.stopPropagation();
+    onMarkerMove?.(marker.id, calculateTimeFromPosition(e.clientX));
+  }, [draggedMarker, onMarkerMove, calculateTimeFromPosition]);
+
+  const handleMarkerPointerUp = useCallback((e: React.PointerEvent, marker: TimelineMarker) => {
+    if (draggedMarker !== marker.id) return;
+    e.stopPropagation();
+    setDraggedMarker(null);
+  }, [draggedMarker]);
+
+  const handleMarkerClick = useCallback((e: React.MouseEvent, marker: TimelineMarker) => {
+    if (!onMarkerSelect) return;
+    e.stopPropagation();
+    onMarkerSelect(marker);
+  }, [onMarkerSelect]);
+
+  /**
+   * Add a marker where the bar was double clicked.
+   *
+   * Double rather than single: a single click seeks, and taking that away would
+   * make the bar unusable as a bar. The first click of the pair still seeks,
+   * which puts the playhead at the marker being made — the right place to be.
+   */
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    if (!canAddMarkers) return;
+    onMarkerAdd?.(calculateTimeFromPosition(e.clientX));
+  }, [canAddMarkers, onMarkerAdd, calculateTimeFromPosition]);
+
   // Keyboard accessibility
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (disabled) return;
+
+    /*
+     * `M`, the key every editing tool uses for this. It is also the whole
+     * keyboard path to authoring: the dots are dragged with a pointer, so
+     * without this there would be no way to place a marker without a mouse.
+     * Arrow to the moment, press M.
+     */
+    if (canAddMarkers && (e.key === 'm' || e.key === 'M')) {
+      e.preventDefault();
+      onMarkerAdd?.(currentTime);
+      return;
+    }
 
     const step = e.shiftKey ? 10 : 5;
     let newTime = currentTime;
@@ -160,7 +272,7 @@ export function ProgressBar({
 
     e.preventDefault();
     onSeek?.(newTime);
-  }, [disabled, currentTime, duration, onSeek]);
+  }, [disabled, currentTime, duration, onSeek, canAddMarkers, onMarkerAdd]);
 
   // Find current chapter for tooltip
   const getChapterAtTime = (time: number): Chapter | undefined => {
@@ -188,7 +300,16 @@ export function ProgressBar({
 
   const hoverMarker = hoverTime > 0 ? getMarkerAtTime(hoverTime) : undefined;
 
-  return (
+  /** Selecting an action seeks to it unless the track opts out. */
+  const handleActionSelect = useCallback(
+    (action: TimelineAction, track: TimelineTrack) => {
+      if (track.seekOnSelect !== false) onSeek?.(action.time);
+      onActionSelect?.(action, track);
+    },
+    [onSeek, onActionSelect]
+  );
+
+  const seekBar = (
     <div
       ref={progressRef}
       role="slider"
@@ -211,6 +332,7 @@ export function ProgressBar({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onDoubleClick={handleDoubleClick}
       onKeyDown={handleKeyDown}
     >
       {/* Track background */}
@@ -259,19 +381,33 @@ export function ProgressBar({
         {/* Marker dots */}
         {markers.map((marker) => {
           const position = duration > 0 ? (marker.time / duration) * 100 : 0;
+          const isDragged = draggedMarker === marker.id;
           return (
             <div
               key={marker.id}
+              data-marker-id={marker.id}
               className={cn(
                 'absolute top-1/2 -translate-y-1/2 -translate-x-1/2',
                 'rounded-full',
                 'transition-all duration-150',
-                isActive ? 'w-2.5 h-2.5' : 'w-2 h-2'
+                isActive ? 'w-2.5 h-2.5' : 'w-2 h-2',
+                canMoveMarkers && 'cursor-ew-resize',
+                // Grown while held, so it is clear which one is moving.
+                isDragged && 'w-3.5 h-3.5',
+                // Nothing to grab, nothing to hit: stay out of the seek gesture.
+                !canMoveMarkers && !onMarkerSelect && 'pointer-events-none'
               )}
               style={{
                 left: `${position}%`,
                 backgroundColor: marker.color || 'var(--fp-color-accent)',
               }}
+              onPointerDown={(e) => handleMarkerPointerDown(e, marker)}
+              onPointerMove={(e) => handleMarkerPointerMove(e, marker)}
+              onPointerUp={(e) => handleMarkerPointerUp(e, marker)}
+              onPointerCancel={(e) => handleMarkerPointerUp(e, marker)}
+              onMouseDown={(e) => { if (canMoveMarkers) e.stopPropagation(); }}
+              onTouchStart={(e) => { if (canMoveMarkers) e.stopPropagation(); }}
+              onClick={(e) => handleMarkerClick(e, marker)}
             />
           );
         })}
@@ -331,6 +467,27 @@ export function ProgressBar({
           </div>
         </div>
       )}
+    </div>
+  );
+
+  // Without lanes the markup is exactly what it always was, so nothing about
+  // existing layout or styling shifts for callers that do not use tracks.
+  if (tracks.length === 0) return seekBar;
+
+  return (
+    <div className="fp-progress-with-tracks flex w-full flex-col">
+      {seekBar}
+      <TimelineTracks
+        tracks={tracks}
+        duration={duration}
+        currentTime={currentTime}
+        selectedActionId={selectedActionId}
+        disabled={disabled}
+        onActionSelect={handleActionSelect}
+        onActionAdd={onActionAdd}
+        onActionMove={onActionMove}
+        onActionResize={onActionResize}
+      />
     </div>
   );
 }

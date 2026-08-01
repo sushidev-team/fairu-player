@@ -1,8 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { useEffect, useRef, useState } from 'react';
 import { ProgressBar } from './ProgressBar';
+import { formatTime } from '@/utils';
 import type { Chapter } from '@/types/player';
-import type { TimelineMarker } from '@/types/markers';
+import type { TimelineAction, TimelineMarker, TimelineTrack } from '@/types/markers';
 import {
   Button,
   EventLog,
@@ -307,6 +308,337 @@ export const Usage: Story = {
   // Live streams and compliance videos disable seeking entirely.
   disabled={config.features?.seekingDisabled}
 />`}
+      />
+    </Stage>
+  ),
+};
+
+/**
+ * The bar as a place markers are made, not only read.
+ *
+ * Authoring is opt-in: the handlers are what switch it on, so a player that
+ * passes none behaves exactly as it always has. Seeking is deliberately left
+ * alone — a single click still scrubs, which is why adding is bound to a double
+ * click and to `M` rather than to the gesture the bar already had.
+ */
+export const Editing: Story = {
+  render: () => {
+    const { entries, log } = useEventLog();
+    const [markers, setMarkers] = useState<TimelineMarker[]>(MARKERS);
+    const [currentTime, setCurrentTime] = useState(90);
+
+    const add = (time: number) => {
+      const marker: TimelineMarker = {
+        id: `m${Date.now()}`,
+        time: Math.round(time),
+        title: `Marker at ${formatTime(time)}`,
+        color: '#f59e0b',
+      };
+      setMarkers((all) => [...all, marker].sort((a, b) => a.time - b.time));
+      log(`add → ${formatTime(time)}`);
+    };
+
+    const move = (id: string, time: number) => {
+      setMarkers((all) => all.map((m) => (m.id === id ? { ...m, time: Math.round(time) } : m)));
+    };
+
+    return (
+      <Stage
+        title="Editing"
+        description="Double click the track to add a marker there, press M to add one at the playhead, and drag any dot to move it. A single click still seeks."
+        maxWidth={640}
+        aside={
+          <Note>
+            The bar is a player control first. Adding is on the double click because the single one
+            was already taken — and the first click of the pair seeks, which puts the playhead at the
+            marker being made.
+          </Note>
+        }
+      >
+        <div className="flex w-full flex-col gap-6">
+          <Track label="Editable (click the bar first, then press M)">
+            <ProgressBar
+              currentTime={currentTime}
+              duration={300}
+              buffered={180}
+              markers={markers}
+              onSeek={setCurrentTime}
+              onMarkerAdd={add}
+              onMarkerMove={move}
+              onMarkerSelect={(marker) => log(`select → ${marker.title ?? marker.id}`)}
+            />
+          </Track>
+
+          <Track label="Read only (no handlers, dots do not take the pointer)">
+            <ProgressBar currentTime={currentTime} duration={300} buffered={180} markers={markers} />
+          </Track>
+
+          <Panel title="Markers">
+            <StateInspector
+              state={{
+                count: markers.length,
+                times: markers.map((m) => formatTime(m.time)).join(', '),
+                playhead: formatTime(currentTime),
+              }}
+            />
+          </Panel>
+
+          <div className="flex gap-2">
+            <Button onClick={() => setMarkers(MARKERS)}>Reset</Button>
+            <Button onClick={() => setMarkers([])}>Clear</Button>
+          </div>
+
+          <EventLog entries={entries} />
+        </div>
+      </Stage>
+    );
+  },
+};
+
+/* -------------------------------------------------------------------------- */
+/*                              Action tracks                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A separate lane below the bar, carrying custom actions.
+ *
+ * The reason this is its own surface rather than more dots on the bar: markers
+ * on the seek track have to fight the scrub gesture. Here a single click can
+ * select, empty space can add, and a drag moves the action — none of which is
+ * possible on a surface whose job is to seek.
+ */
+export const ActionTracks: Story = {
+  render: function Render() {
+    const { entries, log, clear, counts } = useEventLog(40);
+    const duration = 300;
+
+    const [time, setTime] = useState(0);
+    const [selected, setSelected] = useState<string | null>(null);
+    const [cues, setCues] = useState<TimelineAction[]>([
+      { id: 'c1', time: 20, label: 'Kapitelwechsel', color: '#00a99d' },
+      { id: 'c2', time: 140, label: 'Zitat', color: '#8b5cf6' },
+    ]);
+    const [segments, setSegments] = useState<TimelineAction[]>([
+      { id: 's1', time: 45, endTime: 75, label: 'Sponsor', color: '#f59e0b' },
+      { id: 's2', time: 200, endTime: 235, label: 'Eigenwerbung', color: '#f59e0b' },
+    ]);
+
+    const nextId = useRef(0);
+
+    const tracks: TimelineTrack[] = [
+      {
+        id: 'cues',
+        label: 'Cues',
+        actions: cues,
+        editable: true,
+        movable: true,
+        height: 10,
+      },
+      {
+        id: 'segments',
+        label: 'Segmente',
+        actions: segments,
+        movable: true,
+        resizable: true,
+        height: 14,
+        color: '#f59e0b',
+      },
+    ];
+
+    const update = (trackId: string, fn: (list: TimelineAction[]) => TimelineAction[]) =>
+      trackId === 'cues' ? setCues(fn) : setSegments(fn);
+
+    return (
+      <Stage
+        title="Action tracks"
+        description="Two lanes: point cues (click empty space to add, drag to move) and ranges (drag the body to move, the edges to resize). Neither ever moves the playhead — that is what the separate surface buys you."
+        maxWidth={720}
+        aside={
+          <>
+            <Note tone="tip">
+              Ranges are only possible in a lane. A dot on the seek bar cannot express a
+              <em> length</em>, which is what a sponsor segment or a skip-intro region is.
+            </Note>
+            <StateInspector
+              state={{
+                currentTime: formatTime(time),
+                selected: selected ?? '—',
+                cues: cues.length,
+                segments: segments.length,
+              }}
+              highlight={['selected']}
+            />
+            <EventLog entries={entries} counts={counts} onClear={clear} height={200} />
+            <Snippet
+              code={`const tracks: TimelineTrack[] = [
+  {
+    id: 'cues',
+    label: 'Cues',
+    actions: cues,          // { id, time, label, color }
+    editable: true,         // click empty space to add
+    movable: true,          // drag to move
+  },
+  {
+    id: 'segments',
+    label: 'Segmente',
+    actions: segments,      // { id, time, endTime, ... } = a range
+    movable: true,
+    resizable: true,        // edge handles
+  },
+];
+
+<ProgressBar
+  currentTime={time}
+  duration={duration}
+  tracks={tracks}
+  selectedActionId={selected}
+  onSeek={setTime}
+  onActionSelect={(action, track) => setSelected(action.id)}
+  onActionAdd={(at, track) => addCue(at)}
+  onActionMove={(action, at, track) => moveAction(track.id, action.id, at)}
+  onActionResize={(action, start, end, track) => resize(track.id, action.id, start, end)}
+/>`}
+            />
+          </>
+        }
+      >
+        <div className="flex w-full flex-col gap-3">
+          <ProgressBar
+            currentTime={time}
+            duration={duration}
+            buffered={duration}
+            tracks={tracks}
+            selectedActionId={selected}
+            onSeek={setTime}
+            onActionSelect={(action, track) => {
+              setSelected(action.id);
+              log('onActionSelect', `${track.id} · ${action.label}`, 'success');
+            }}
+            onActionAdd={(at, track) => {
+              nextId.current += 1;
+              const action: TimelineAction = {
+                id: `new-${nextId.current}`,
+                time: at,
+                label: `Cue ${nextId.current}`,
+                color: '#22c55e',
+              };
+              update(track.id, (list) => [...list, action]);
+              log('onActionAdd', `${track.id} @ ${formatTime(at)}`, 'ad');
+            }}
+            onActionMove={(action, at, track) => {
+              update(track.id, (list) =>
+                list.map((a) =>
+                  a.id === action.id
+                    ? {
+                        ...a,
+                        time: at,
+                        ...(a.endTime !== undefined
+                          ? { endTime: at + (a.endTime - a.time) }
+                          : {}),
+                      }
+                    : a
+                )
+              );
+            }}
+            onActionResize={(action, start, end, track) => {
+              update(track.id, (list) =>
+                list.map((a) => (a.id === action.id ? { ...a, time: start, endTime: end } : a))
+              );
+            }}
+          />
+
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => setCues([])}>
+              Cues leeren
+            </Button>
+            <Button size="sm" onClick={() => setSelected(null)}>
+              Auswahl aufheben
+            </Button>
+            <Button size="sm" variant="primary" onClick={() => setTime(0)}>
+              Zum Anfang
+            </Button>
+          </div>
+        </div>
+      </Stage>
+    );
+  },
+};
+
+/** A read-only lane — the common case for showing ad breaks or highlights. */
+export const ReadOnlyTrack: Story = {
+  render: () => (
+    <Stage
+      title="Read-only lane"
+      description="Without editable/movable/resizable a lane is purely informational. Actions still seek when clicked, which makes it a navigation strip."
+      maxWidth={640}
+    >
+      <ProgressBar
+        currentTime={95}
+        duration={300}
+        buffered={300}
+        tracks={[
+          {
+            id: 'ads',
+            label: 'Ad breaks',
+            color: '#f59e0b',
+            actions: [
+              { id: 'pre', time: 0, endTime: 15, label: 'Pre-Roll' },
+              { id: 'mid', time: 140, endTime: 170, label: 'Mid-Roll' },
+              { id: 'post', time: 285, endTime: 300, label: 'Post-Roll' },
+            ],
+          },
+          {
+            id: 'highlights',
+            label: 'Highlights',
+            color: '#22c55e',
+            actions: [
+              { id: 'h1', time: 60, label: 'Kernaussage' },
+              { id: 'h2', time: 210, label: 'Demo' },
+            ],
+          },
+        ]}
+      />
+    </Stage>
+  ),
+};
+
+/** Custom rendering for a lane. */
+export const CustomActionRendering: Story = {
+  render: () => (
+    <Stage
+      title="Custom renderer"
+      description="renderAction replaces the default entirely — for labels inside the range, icons, or a shape that matches your own design system."
+      maxWidth={640}
+    >
+      <ProgressBar
+        currentTime={120}
+        duration={300}
+        buffered={300}
+        tracks={[
+          {
+            id: 'custom',
+            label: 'Kapitel',
+            height: 18,
+            actions: [
+              { id: 'k1', time: 0, endTime: 90, label: 'Intro' },
+              { id: 'k2', time: 90, endTime: 200, label: 'Hauptteil' },
+              { id: 'k3', time: 200, endTime: 300, label: 'Fazit' },
+            ],
+            renderAction: (action, ctx) => (
+              <div
+                className="flex h-full items-center justify-center overflow-hidden rounded-sm px-1 text-[9px] font-medium"
+                style={{
+                  background: ctx.active ? 'var(--fp-color-accent)' : 'var(--fp-color-surface)',
+                  color: ctx.active ? '#000' : 'var(--fp-color-text-secondary)',
+                  border: '1px solid var(--fp-border-color)',
+                }}
+                title={action.label}
+              >
+                {action.label}
+              </div>
+            ),
+          },
+        ]}
       />
     </Stage>
   ),

@@ -416,6 +416,8 @@ export interface ReelsPlayerProps extends ReelsCallbacks {
   /** Initial content index. Default `0`. */
   initialIndex?: number;
   className?: string;
+  /** Override the look. Only what you set changes. */
+  theme?: import('./theme').FairuTheme;
   /** Render an extra layer above the active slide (badges, debug HUD, …). */
   renderOverlay?: (slide: ReelSlide, index: number) => React.ReactNode;
 }

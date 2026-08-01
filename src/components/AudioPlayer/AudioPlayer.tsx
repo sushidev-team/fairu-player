@@ -3,6 +3,8 @@ import { cn } from '@/utils/cn';
 import { PlayerProvider } from '@/context/PlayerContext';
 import { AdProvider, useAds } from '@/context/AdContext';
 import { LabelsProvider } from '@/context/LabelsContext';
+import { ThemeProvider } from '@/context/ThemeContext';
+import type { FairuTheme } from '@/types/theme';
 import { usePlayer } from '@/hooks/usePlayer';
 import { PlayerInner } from '@/components/Player/Player';
 import { CompanionAd } from '@/components/ads/CompanionAd';
@@ -17,6 +19,8 @@ export interface AudioPlayerProps {
   /** Ad configuration. Supply `adBreaks` directly or from `useVastAdBreaks`. */
   adConfig?: AdConfig;
   labels?: PartialLabels;
+  /** Override the look. See {@link FairuTheme}. */
+  theme?: FairuTheme;
   showChapters?: boolean;
   showPlaylist?: boolean;
   compact?: boolean;
@@ -65,6 +69,7 @@ export function AudioPlayer({
   playlist,
   adConfig,
   labels,
+  theme,
   showChapters,
   showPlaylist,
   compact,
@@ -85,6 +90,7 @@ export function AudioPlayer({
   };
 
   return (
+    <ThemeProvider theme={theme} className="contents">
     <LabelsProvider labels={labels}>
       <PlayerProvider
         config={playerConfig}
@@ -121,6 +127,7 @@ export function AudioPlayer({
         )}
       </PlayerProvider>
     </LabelsProvider>
+    </ThemeProvider>
   );
 }
 

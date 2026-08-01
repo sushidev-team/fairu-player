@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/utils/cn';
 import { LabelsProvider } from '@/context/LabelsContext';
+import { ThemeProvider } from '@/context/ThemeContext';
 import { useLabels } from '@/context/LabelsContext';
 import { useReelsFeed } from '@/hooks/useReelsFeed';
 import type { Reel, ReelSlide, ReelsPlayerProps } from '@/types/reels';
@@ -48,9 +49,11 @@ const WHEEL_COOLDOWN_MS = 420;
 export function ReelsPlayer(props: ReelsPlayerProps) {
   // Labels have to be available to every child, including the ad slide.
   return (
-    <LabelsProvider labels={props.config?.labels}>
-      <ReelsPlayerInner {...props} />
-    </LabelsProvider>
+    <ThemeProvider theme={props.theme} className="contents">
+      <LabelsProvider labels={props.config?.labels}>
+        <ReelsPlayerInner {...props} />
+      </LabelsProvider>
+    </ThemeProvider>
   );
 }
 
