@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3](https://github.com/sushidev-team/fairu-player/compare/v1.3.2...v1.3.3) (2026-08-03)
+
+
+### Miscellaneous Chores
+
+* release 1.3.3 ([b8ea512](https://github.com/sushidev-team/fairu-player/commit/b8ea512b8c32af92f1f2460e03a048eec7eab3a4))
+
 ## [1.3.2](https://github.com/sushidev-team/fairu-player/compare/v1.3.1...v1.3.2) (2026-08-01)
 
 
