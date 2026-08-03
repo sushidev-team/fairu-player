@@ -40,3 +40,6 @@ yarn-error.log*
 # CDN test files
 test-cdn.html
 test-cdn-light.html
+
+# Separate repository, checked out inside this one
+fairu-player-dart/
