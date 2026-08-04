@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
 import { createRef } from 'react';
 import { VideoPlayer, type VideoPlayerRef } from './VideoPlayer';
-import type { VideoTrack } from '@/types/video';
+import type { VideoAd, VideoAdBreak, VideoTrack } from '@/types/video';
 
 // Sample test data
 const sampleTrack: VideoTrack = {
@@ -347,5 +347,134 @@ describe('VideoPlayer', () => {
         ref.current?.overlayAdControls.resetDismissed();
       }).not.toThrow();
     });
+  });
+});
+
+/**
+ * The ad surfaces the player is responsible for rendering.
+ *
+ * Both were parsed and mapped long before anything displayed them, so these
+ * pin the wiring rather than the conversion — which is covered in
+ * `toVideoAd.test.ts`.
+ */
+describe('VideoPlayer ad surfaces', () => {
+  let beacons: string[];
+
+  beforeEach(() => {
+    beacons = [];
+    vi.stubGlobal('navigator', {
+      ...globalThis.navigator,
+      sendBeacon: (url: string) => {
+        beacons.push(url);
+        return true;
+      },
+    });
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  const spot: VideoAd = {
+    id: 'spot-1',
+    src: 'https://cdn.example.com/spot.mp4',
+    duration: 15,
+    title: 'Nordwind Kaffee',
+    icons: [
+      {
+        program: 'AdChoices',
+        staticResource: 'https://cdn.example.com/adchoices.png',
+        clickThroughUrl: 'https://privacy.example.com',
+        clickTrackingUrls: [],
+        viewTrackingUrls: ['https://t.example.com/icon-view'],
+      },
+    ],
+    companion: {
+      imageUrl: 'https://cdn.example.com/companion.png',
+      clickUrl: 'https://nordwind.example.com',
+      width: 300,
+      height: 250,
+      clickTrackingUrls: [],
+      trackingEvents: { creativeView: ['https://t.example.com/companion-view'] },
+    },
+  };
+
+  const preRoll: VideoAdBreak = { id: 'pre', position: 'pre-roll', ads: [spot] };
+
+  /** Render the player and intercept the first play so the pre-roll starts. */
+  const startPreRoll = (adConfig: Record<string, unknown> = {}) => {
+    const utils = render(
+      <VideoPlayer
+        track={sampleTrack}
+        adConfig={{ enabled: true, adBreaks: [preRoll], ...adConfig }}
+      />
+    );
+
+    // jsdom never loads media, so the overlay would sit on its spinner and the
+    // play button would not exist yet.
+    const video = utils.container.querySelector('video') as HTMLVideoElement;
+    act(() => {
+      video.dispatchEvent(new Event('loadedmetadata'));
+    });
+
+    // The player intercepts the *first play* through its own controls, not
+    // through a native `play` event, so press the big play button.
+    act(() => {
+      screen.getByRole('button', { name: /play video/i }).click();
+    });
+
+    return utils;
+  };
+
+  it('renders the AdChoices badge the creative declared', () => {
+    startPreRoll();
+
+    const badge = screen
+      .getAllByRole('link')
+      .find((el) => el.getAttribute('href') === 'https://privacy.example.com');
+
+    expect(badge).toBeDefined();
+  });
+
+  it('fires the icon view pixel when the badge appears', () => {
+    startPreRoll();
+    expect(beacons.filter((u) => u.includes('icon-view'))).toHaveLength(1);
+  });
+
+  it('does not render a companion unless asked', () => {
+    // The slot adds an element below the player; changing an existing
+    // integration's layout silently would be worse than an explicit flag.
+    startPreRoll();
+    expect(screen.queryByAltText('Nordwind Kaffee')).toBeNull();
+  });
+
+  it('renders the companion when showCompanion is set', () => {
+    startPreRoll({ showCompanion: true });
+
+    const img = screen.getByAltText('Nordwind Kaffee') as HTMLImageElement;
+    expect(img.src).toBe('https://cdn.example.com/companion.png');
+  });
+
+  it('fires the companion creativeView pixel on display', () => {
+    startPreRoll({ showCompanion: true });
+    expect(beacons.filter((u) => u.includes('companion-view'))).toHaveLength(1);
+  });
+
+  it('renders neither surface when the creative declares neither', () => {
+    const bare: VideoAd = { id: 'bare', src: 'https://cdn.example.com/b.mp4', duration: 10 };
+
+    render(
+      <VideoPlayer
+        track={sampleTrack}
+        adConfig={{
+          enabled: true,
+          showCompanion: true,
+          adBreaks: [{ id: 'pre', position: 'pre-roll', ads: [bare] }],
+        }}
+      />
+    );
+
+    expect(
+      screen.queryAllByRole('link').filter((el) => el.getAttribute('href')?.includes('privacy'))
+    ).toHaveLength(0);
+    expect(beacons).toHaveLength(0);
   });
 });

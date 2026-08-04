@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { OverlayAd } from './OverlayAd';
 import type { OverlayAd as OverlayAdType } from '@/types/video';
@@ -418,5 +418,90 @@ describe('OverlayAd', () => {
 
       expect(screen.queryByAltText('Test Advertisement')).not.toBeInTheDocument();
     });
+  });
+});
+
+/**
+ * The pixel path, pinned properly.
+ *
+ * `OverlayAd` was missed when the linear pipeline moved onto the shared beacon,
+ * and kept firing a bare `fetch` with one URL and no macro substitution. The
+ * assertions elsewhere in this file still passed throughout, because `sendBeacon`
+ * falls back to `fetch` in jsdom — so they could not have caught it. These can.
+ */
+describe('OverlayAd tracking pixels', () => {
+  let beacons: string[];
+
+  beforeEach(() => {
+    beacons = [];
+    vi.stubGlobal('navigator', {
+      ...globalThis.navigator,
+      sendBeacon: (url: string) => {
+        beacons.push(url);
+        return true;
+      },
+    });
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  const wrapped: OverlayAdType = {
+    ...sampleAd,
+    trackingUrls: {
+      // What a wrapper chain actually produces: the SSP's pixel on top of the
+      // DSP's. Dropping either is a billing error.
+      impression: ['https://ssp.example.com/imp', 'https://dsp.example.com/imp'],
+      click: ['https://ssp.example.com/click', 'https://dsp.example.com/click'],
+      close: ['https://ssp.example.com/close', 'https://dsp.example.com/close'],
+    },
+  };
+
+  const show = (ad: OverlayAdType = wrapped) =>
+    render(<OverlayAd ad={ad} currentTime={10} visible />);
+
+  it('prefers sendBeacon so pixels survive page teardown', () => {
+    show();
+    expect(beacons).toContain('https://ssp.example.com/imp');
+  });
+
+  it('fires every impression URL, not just the first', () => {
+    show();
+    expect(beacons.filter((u) => u.endsWith('/imp'))).toHaveLength(2);
+  });
+
+  it('fires every click URL', () => {
+    show();
+    fireEvent.click(screen.getByAltText('Test Advertisement'));
+    expect(beacons.filter((u) => u.endsWith('/click'))).toHaveLength(2);
+  });
+
+  it('fires every close URL', () => {
+    show();
+    fireEvent.click(screen.getByRole('button', { name: /close ad/i }));
+    expect(beacons.filter((u) => u.endsWith('/close'))).toHaveLength(2);
+  });
+
+  it('substitutes macros instead of sending the placeholder verbatim', () => {
+    show({
+      ...sampleAd,
+      trackingUrls: { impression: 'https://t.example.com/imp?cb=[CACHEBUSTING]' },
+    });
+
+    const [pixel] = beacons.filter((u) => u.includes('/imp'));
+    expect(pixel).not.toContain('[CACHEBUSTING]');
+    expect(pixel).toMatch(/cb=\d{8}$/);
+  });
+
+  it('fires the impression once, not on every re-render', () => {
+    const { rerender } = show();
+    rerender(<OverlayAd ad={wrapped} currentTime={11} visible />);
+    rerender(<OverlayAd ad={wrapped} currentTime={12} visible />);
+
+    expect(beacons.filter((u) => u.endsWith('/imp'))).toHaveLength(2);
+  });
+
+  it('sends nothing when the ad declares no tracking', () => {
+    show({ ...sampleAd, trackingUrls: undefined });
+    expect(beacons).toHaveLength(0);
   });
 });

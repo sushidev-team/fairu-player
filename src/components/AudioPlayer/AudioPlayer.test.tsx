@@ -249,3 +249,134 @@ describe('AudioPlayer', () => {
     await waitFor(() => expect(count('/imp-')).toBe(2));
   });
 });
+
+describe('AudioPlayer AdChoices badge', () => {
+  const withIcon: Ad = {
+    ...audioAd,
+    icons: [
+      {
+        program: 'AdChoices',
+        staticResource: 'https://cdn.example.com/adchoices.png',
+        clickThroughUrl: 'https://privacy.example.com',
+        clickTrackingUrls: ['https://t.example.com/icon-click'],
+        viewTrackingUrls: ['https://t.example.com/icon-view'],
+      },
+    ],
+  };
+
+  const start = (ad: Ad) => {
+    const utils = render(
+      <AudioPlayer
+        track={track}
+        adConfig={{ enabled: true, adBreaks: [{ id: 'pre', position: 'pre-roll', ads: [ad] }] }}
+      />
+    );
+    const episode = utils.container.querySelector('audio') as HTMLAudioElement;
+    act(() => episode.dispatchEvent(new Event('play')));
+    return utils;
+  };
+
+  it('renders the badge the creative declared', async () => {
+    // Required for identifiable advertising, and contractual with most
+    // networks — a declared icon that never renders is a breach.
+    start(withIcon);
+
+    await waitFor(() => {
+      const badge = screen.getByRole('link', { name: /mehr|learn/i });
+      expect(badge).toHaveAttribute('href', 'https://privacy.example.com');
+    });
+  });
+
+  it('fires the icon view pixel once the badge is on screen', async () => {
+    start(withIcon);
+    await waitFor(() => expect(count('/icon-view')).toBe(1));
+  });
+
+  it('renders nothing when the creative declares no icon', async () => {
+    start(audioAd);
+    await waitFor(() => expect(screen.getByAltText('Nordwind Kaffee')).toBeInTheDocument());
+    expect(count('/icon-view')).toBe(0);
+  });
+});
+
+describe('AudioPlayer load rules', () => {
+  const spot = (id: string): Ad => ({
+    id,
+    src: `https://cdn.example.com/${id}.mp3`,
+    duration: 30,
+    trackingUrls: { impression: [`https://t.example.com/${id}`] },
+  });
+
+  /** Play the episode, then drive it past both mid-roll triggers. */
+  const runTwoMidRolls = (config: Partial<Parameters<typeof AudioPlayer>[0]['adConfig']>) => {
+    const breaks: AdBreak[] = [
+      { id: 'm1', position: 'mid-roll', triggerTime: 60, ads: [spot('one')] },
+      { id: 'm2', position: 'mid-roll', triggerTime: 120, ads: [spot('two')] },
+    ];
+
+    const { container } = render(
+      <AudioPlayer
+        track={track}
+        adConfig={{ enabled: true, adBreaks: breaks, ...config }}
+      />
+    );
+
+    const episode = container.querySelector('audio') as HTMLAudioElement;
+    Object.defineProperty(episode, 'duration', { configurable: true, value: 1800 });
+    act(() => {
+      episode.dispatchEvent(new Event('loadedmetadata'));
+      episode.dispatchEvent(new Event('play'));
+    });
+
+    const advance = (seconds: number) => {
+      Object.defineProperty(episode, 'currentTime', { configurable: true, value: seconds });
+      act(() => episode.dispatchEvent(new Event('timeupdate')));
+    };
+
+    return { advance, container };
+  };
+
+  it('suppresses the second break once the session cap is reached', async () => {
+    const onAdCapped = vi.fn();
+    const { advance, container } = runTwoMidRolls({ maxAdsPerSession: 1, onAdCapped });
+
+    advance(61);
+    await waitFor(() => expect(count('/one')).toBe(1));
+
+    // End the first spot so the player is free to start another.
+    act(() => adAudio(container).dispatchEvent(new Event('ended')));
+    advance(121);
+
+    expect(count('/two')).toBe(0);
+    expect(onAdCapped).toHaveBeenCalledWith(expect.objectContaining({ id: 'm2' }), 'session-cap');
+  });
+
+  it('paces breaks that are too close together', async () => {
+    const onAdCapped = vi.fn();
+    const { advance, container } = runTwoMidRolls({ minSecondsBetweenAds: 900, onAdCapped });
+
+    advance(61);
+    await waitFor(() => expect(count('/one')).toBe(1));
+
+    act(() => adAudio(container).dispatchEvent(new Event('ended')));
+    advance(121);
+
+    // Pacing is wall-clock, not playhead: both triggers fire within the same
+    // test tick, so the second is inside the window however far the playhead
+    // moved.
+    expect(count('/two')).toBe(0);
+    expect(onAdCapped).toHaveBeenCalledWith(expect.objectContaining({ id: 'm2' }), 'pacing');
+  });
+
+  it('plays both breaks when no rules are configured', async () => {
+    const { advance, container } = runTwoMidRolls({});
+
+    advance(61);
+    await waitFor(() => expect(count('/one')).toBe(1));
+
+    act(() => adAudio(container).dispatchEvent(new Event('ended')));
+    advance(121);
+
+    await waitFor(() => expect(count('/two')).toBe(1));
+  });
+});

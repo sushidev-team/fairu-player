@@ -365,3 +365,117 @@ describe('VideoAdContext tracking', () => {
     expect(onMidpoint).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('VideoAdContext load rules', () => {
+  let api: { controls: ReturnType<typeof useVideoAds>['controls']; video: HTMLVideoElement | null };
+
+  const SPOT: VideoAd = {
+    id: 'spot',
+    src: 'https://cdn.example.com/a.mp4',
+    duration: 15,
+    trackingUrls: { impression: ['https://t.example.com/imp'] },
+  };
+
+  const mount = (config: Partial<VideoAdConfig>) => {
+    render(
+      <Harness
+        config={{ enabled: true, ...config }}
+        onReady={(next) => {
+          api = next;
+        }}
+      />
+    );
+  };
+
+  const breakWith = (id: string, ads: VideoAd[]): VideoAdBreak => ({
+    id,
+    position: 'mid-roll',
+    ads,
+  });
+
+  it('stops starting breaks once the session cap is reached', () => {
+    const onAdCapped = vi.fn();
+    mount({ maxAdsPerSession: 1, onAdCapped });
+
+    act(() => api.controls.startAdBreak(breakWith('b1', [SPOT])));
+    expect(count('/imp')).toBe(1);
+
+    act(() => api.controls.stopAds());
+    act(() => api.controls.startAdBreak(breakWith('b2', [SPOT])));
+
+    // The gate has to sit in startAdBreak, or a long video stacks spots freely.
+    expect(count('/imp')).toBe(1);
+    expect(onAdCapped).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'b2' }),
+      'session-cap'
+    );
+  });
+
+  it('paces consecutive breaks', () => {
+    const onAdCapped = vi.fn();
+    mount({ minSecondsBetweenAds: 600, onAdCapped });
+
+    act(() => api.controls.startAdBreak(breakWith('b1', [SPOT])));
+    act(() => api.controls.stopAds());
+    act(() => api.controls.startAdBreak(breakWith('b2', [SPOT])));
+
+    expect(count('/imp')).toBe(1);
+    expect(onAdCapped).toHaveBeenCalledWith(expect.objectContaining({ id: 'b2' }), 'pacing');
+  });
+
+  it('trims a pod to the duration cap instead of dropping it', () => {
+    mount({ maxAdDurationPerBreak: 20 });
+
+    const first = { ...SPOT, id: 'a', trackingUrls: { impression: ['https://t.example.com/a'] } };
+    const second = { ...SPOT, id: 'b', trackingUrls: { impression: ['https://t.example.com/b'] } };
+    const third = { ...SPOT, id: 'c', trackingUrls: { impression: ['https://t.example.com/c'] } };
+
+    act(() => api.controls.startAdBreak(breakWith('pod', [first, second, third])));
+
+    // 15 + 15 exceeds 20, so only the sold first spot plays.
+    expect(count('/a')).toBe(1);
+    expect(count('/b')).toBe(0);
+  });
+
+  it('counts adsRemaining against the trimmed pod, not the original', () => {
+    let remaining = -1;
+    let controls: ReturnType<typeof useVideoAds>['controls'] | null = null;
+
+    // One provider, holding both the ad element and the state probe — reading
+    // state from a second provider would only ever see its initial value.
+    const Probe = () => {
+      const { state, controls: c, adVideoRef } = useVideoAds();
+      remaining = state.adsRemaining;
+      controls = c;
+      return (
+        <video
+          ref={(el) => {
+            (adVideoRef as { current: HTMLVideoElement | null }).current = el;
+          }}
+        />
+      );
+    };
+
+    render(
+      <VideoAdProvider config={{ enabled: true, maxAdDurationPerBreak: 20 }}>
+        <Probe />
+      </VideoAdProvider>
+    );
+
+    act(() => controls!.startAdBreak(breakWith('pod', [SPOT, SPOT, SPOT])));
+
+    // 15 + 15 exceeds 20, so the pod is one ad long. Reporting "ad 1 of 3"
+    // against the untrimmed pod would be a lie the UI then shows.
+    expect(remaining).toBe(0);
+  });
+
+  it('plays normally when no rules are configured', () => {
+    mount({});
+
+    act(() => api.controls.startAdBreak(breakWith('b1', [SPOT])));
+    act(() => api.controls.stopAds());
+    act(() => api.controls.startAdBreak(breakWith('b2', [SPOT])));
+
+    expect(count('/imp')).toBe(2);
+  });
+});
