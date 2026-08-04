@@ -6,22 +6,28 @@ What `@fairu/player` does and does not do with IAB ad tags.
 
 ## Read this first: what shipped when
 
-| | npm `@fairu/player@1.2.0` | this branch |
-|---|---|---|
-| VAST XML parsing | ❌ | ✅ |
-| Wrapper chain resolution | ❌ | ✅ |
-| Tracking pixels | partial¹ | ✅ |
-| VMAP placement | ❌ | ✅ |
-| `VideoPlayer` accepts a tag URL | ❌ | ✅ via `useVastAdBreaks` |
-| Reels feed accepts a tag URL | n/a (no reels) | ✅ |
+| | `@fairu/player` ≤ 1.2.0 | 1.3.x | this branch |
+|---|---|---|---|
+| VAST XML parsing | ❌ | ✅ | ✅ |
+| Wrapper chain resolution | ❌ | ✅ | ✅ |
+| Tracking pixels | partial¹ | ✅ | ✅ |
+| VMAP placement | ❌ | ✅ | ✅ |
+| `VideoPlayer` accepts a tag URL | ❌ | ✅ via `useVastAdBreaks` | ✅ |
+| Reels feed accepts a tag URL | n/a (no reels) | ✅ | ✅ |
+| Audio player accepts a tag URL | ❌ | ✅ | ✅ |
+| Consent macros (TCF / CCPA / GPP) | ❌ | ❌ | ✅ |
+| Just-in-time mid-roll requests | ❌ | ❌ | ✅ opt-in |
+| Frequency capping outside reels | ❌ | ❌ | ✅ |
+| MRC viewability measurement | ❌ | ❌ | ✅ |
+| AdChoices badge outside reels | ❌ | ❌ | ✅ |
+| NonLinear overlays rendered | ❌ | ❌ | ✅ |
+| Companion beside the video player | ❌ | ❌ | ✅ |
 
-¹ 1.2.0 fired **one** URL per event, with no macro substitution — see
-[Corrections](#corrections-to-1.2.0-behaviour).
+¹ ≤ 1.2.0 fired **one** URL per event, with no macro substitution — see
+[Corrections](#corrections-to-120-behaviour).
 
-**None of this is released.** Until the branch is merged and published, an
-integrator working against npm is correct that the player has no VAST parser.
-Providing a `vast_url` per channel in the backend is exactly the right input for
-what is described below — it just cannot be consumed yet by a released build.
+Everything in the first three columns is on npm. The `this branch` column is not
+published yet.
 
 ---
 
@@ -81,15 +87,98 @@ are feed items rather than interruptions.
 
 ---
 
+## Consent
+
+The player never asks. It reads what the page's CMP already published and
+forwards it verbatim, which is the only correct arrangement for an embed: the
+consent belongs to the publisher whose article the player sits in, not to us.
+
+```tsx
+const { adBreaks } = useVastAdBreaks({ preRoll: tag, consent: 'auto' });
+```
+
+`'auto'` queries `__tcfapi`, `__uspapi` and `__gpp` once, before the first ad
+request, and gives up after 1.5 s rather than blocking playback. Pass an
+`AdConsent` object instead when the host already holds the strings.
+
+Signals that are absent produce **no macro at all**. A bare `&gdpr_consent=`
+tells an SSP "asked and refused", which is a different claim from "this page has
+no CMP", and the difference is worth real money.
+
+The player itself stores nothing — no cookies, no `localStorage`, no
+`sessionStorage` — so it is not a service a consent manager needs to list. The
+ad server behind your tag URL is.
+
+**Caveat:** an ad request still goes out when no signal is available. If you need
+"no consent, no request", gate it in the host — the hook does not decide that for
+you.
+
+---
+
+## Requesting ads just before they play
+
+By default every break is requested at mount. For a pre-roll that is right; for
+a mid-roll at twenty minutes it means the bid expired long before the spot runs,
+and every viewer who leaves early has still cost an ad request that never became
+an impression.
+
+```tsx
+const { adBreaks, notifyTime } = useVastAdBreaks({
+  midRolls: [{ at: 1200, tagUrl }],
+  requestStrategy: 'just-in-time',
+  prefetchSeconds: 15,
+});
+
+<VideoPlayer onTimeUpdate={notifyTime} adConfig={{ enabled: true, adBreaks }} />
+```
+
+`notifyTime` is deliberately not React state — it is called several times a
+second, and only an actual fill re-renders.
+
+Placement is still planned up front. A VMAP document *is* the schedule, so it is
+fetched at mount either way; only the ad requests move.
+
+This is opt-in because defaulting to it would silently drop mid- and post-rolls
+for every integration that does not wire `notifyTime`. It should become the
+default in the next major.
+
+---
+
+## Load rules
+
+```tsx
+<VideoPlayer adConfig={{
+  enabled: true,
+  adBreaks,
+  maxAdsPerSession: 4,
+  minSecondsBetweenAds: 600,
+  maxAdDurationPerBreak: 60,
+  onAdCapped: (adBreak, reason) => log(reason), // 'session-cap' | 'pacing'
+}} />
+```
+
+Rules are evaluated when a break is about to play, not when it is planned, so
+pacing follows what the listener actually did. A capped break is skipped, never
+queued — deferring an ad stacks two spots back to back, which is worse than
+dropping one. A pod over `maxAdDurationPerBreak` is trimmed rather than dropped:
+the first spot is the one that was sold.
+
+Log `onAdCapped`. A capped session and a session with no inventory look
+identical from the outside and need very different fixes.
+
+---
+
 ## What is implemented
 
 | Standard | Scope |
 |---|---|
-| **VAST 2.0 – 4.3** | `<InLine>`, `<Wrapper>`, ad pods (`sequence`), `<Linear>` with `<MediaFile>`, `skipoffset`, `<TrackingEvents>` incl. offset-based `progress`, `<VideoClicks>`, `<Icons>` (AdChoices), `<ViewableImpression>`, `<Pricing>`, `<AdVerifications>` (parsed), `<Extensions>` |
+| **VAST 2.0 – 4.3** | `<InLine>`, `<Wrapper>`, ad pods (`sequence`), `<Linear>` with `<MediaFile>`, `skipoffset`, `<TrackingEvents>` incl. offset-based `progress`, `<VideoClicks>`, `<Icons>` (AdChoices, rendered in all three players), `<ViewableImpression>` (measured), `<NonLinearAds>` (rendered as overlays), `<CompanionAds>` (rendered in the audio and video players), `<Pricing>`, `<AdVerifications>` (parsed), `<Extensions>` |
 | **Wrappers** | Full chain resolution, tracking merged into the in-line ad, depth-limited (default 5), `followAdditionalWrappers` and `allowMultipleAds` honoured |
-| **Macros** | `[CACHEBUSTING]`, `[TIMESTAMP]`, `[ADPLAYHEAD]`, `[CONTENTPLAYHEAD]`, `[PLAYERSIZE]`, `[ERRORCODE]`, `[BREAKPOSITION]`, `[PAGEURL]`, `[REFERRER]`, plus the legacy `%%MACRO%%` form. Unknown macros are left verbatim |
+| **Macros** | `[CACHEBUSTING]`, `[TIMESTAMP]`, `[ADPLAYHEAD]`, `[CONTENTPLAYHEAD]`, `[PLAYERSIZE]`, `[ERRORCODE]`, `[BREAKPOSITION]`, `[PAGEURL]`, `[REFERRER]`, `[INVIEW]`, plus the privacy set below and the legacy `%%MACRO%%` form. Unknown macros are left verbatim |
+| **Privacy** | `[GDPR]`, `[GDPRCONSENT]`, `[US_PRIVACY]`, `[GPP]`, `[GPP_SID]`, `[LIMITADTRACKING]`, read from the page's CMP on request |
 | **Error codes** | 100, 101, 102, 200, 302, 303, 400, 403, 405, 900 reported to `<Error>` pixels |
 | **VMAP 1.0** | `<AdBreak>` with `start`/`end`/time/percent/`position` offsets, `<AdSource>` as `<AdTagURI>` or inline `<VASTAdData>`, `repeatAfter`, `breakType` filtering |
+| **Load rules** | Session cap, minimum gap between breaks and pod-duration cap, shared by all three players |
 
 ### Not implemented
 
@@ -99,14 +188,26 @@ are feed items rather than interruptions.
   `<video>` element.
 - **OMID / Open Measurement.** `<AdVerifications>` is parsed and exposed, but no
   verification script is executed. Third-party viewability (IAS, DoubleVerify,
-  Moat) needs the OM SDK.
-- **MRC viewability measurement.** `ViewableImpression` fires when the ad becomes
-  active; there is no 50 %-for-2s intersection measurement.
+  Moat) needs the OM SDK — see [OMID.md](./OMID.md) for what adopting it costs.
 - **SSAI.** Client-side stitching only.
-- **DAAST** (audio ads). The audio `Player` has no VAST path.
+- **TCF inside an iframe embed.** `readConsentFromCmp` reads `__tcfapi` on the
+  current window. That is the publisher's CMP for the inline embed, which is
+  correct — but inside an iframe the spec requires `postMessage` to the
+  `__tcfapiLocator` frame, which is not implemented. An iframe embed therefore
+  gets no consent signal at all.
 - **`position:N` VMAP offsets in `VideoPlayer`.** They count *items*, which is
   meaningless for a single video; they are dropped. The reels feed does honour
   them.
+
+### Implemented since 1.3.x
+
+- **Audio ads.** VAST 4.1 absorbed DAAST, so an audio ad is an ordinary VAST
+  document — `AudioPlayer` takes `adConfig` and the same `useVastAdBreaks`
+  output, with `audioAdMediaOptions()` picking the `audio/*` renditions.
+- **MRC viewability.** 50 % of pixels for 2 continuous seconds, measured by
+  `useAdViewability`, with the clock stopped by pause, scroll-out and a
+  backgrounded tab. Resolves to `Viewable`, `NotViewable` or `ViewUndetermined`
+  and fills `[INVIEW]`.
 
 ---
 
@@ -133,6 +234,10 @@ Plain `fetch` was used; the tracker now prefers `navigator.sendBeacon` with a
 The quartile bookkeeping also moved into `VastTracker`, which means the classic
 player, the reels feed and `AdService` now share one implementation of
 "fire exactly once", instead of three that could drift.
+
+**4. `OverlayAd` was missed by that sweep.** It kept firing pixels with a bare
+`fetch` — the same three defects again — until non-linear support was wired up.
+It is now on the shared beacon path.
 
 ---
 
@@ -162,9 +267,15 @@ useReelsFeed ────┘        │                            │
 | Media-file selection | `src/utils/vast/mediaFile.ts` |
 | Macros | `src/utils/vast/macros.ts` |
 | Pixel firing | `src/utils/vast/VastTracker.ts` |
+| Consent signals | `src/utils/vast/consent.ts` |
+| Load rules | `src/utils/adCaps.ts` |
+| Viewability | `src/hooks/useAdViewability.ts` |
 | → `VideoAd` | `src/utils/vast/toVideoAd.ts` |
 | → `ReelAd` | `src/utils/vast/toReelAd.ts` |
-| `VideoPlayer` hook | `src/hooks/useVastAdBreaks.ts` |
+| → `Ad` (audio) | `src/utils/vast/toAudioAd.ts` |
+| → `OverlayAd` (non-linear) | `src/utils/vast/toOverlayAd.ts` |
+| `VideoPlayer` / `AudioPlayer` hook | `src/hooks/useVastAdBreaks.ts` |
+| AdChoices badge | `src/components/ads/AdChoicesIcon/` |
 
 ---
 

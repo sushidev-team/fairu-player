@@ -204,6 +204,14 @@ export interface VastWrapper {
   viewableUrls: string[];
   notViewableUrls: string[];
   viewUndeterminedUrls: string[];
+  /**
+   * `<AdVerifications>` declared by the wrapper.
+   *
+   * Usually where they actually live: the DSP supplies the creative, the SSP's
+   * wrapper attaches the verification vendor. Reading them only from `<InLine>`
+   * misses the common case entirely.
+   */
+  adVerifications: VastAdVerification[];
   /** Tracking that must be merged into every ad returned by the wrapped tag. */
   trackingEvents: VastTrackingEvents;
   progressTrackings: VastProgressTracking[];

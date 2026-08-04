@@ -492,6 +492,7 @@ export function parseVast(xml: string, wrapperDepth = 0): VastResponse {
         impressionUrls: childTexts(wrapperEl, 'Impression'),
         errorUrls: childTexts(wrapperEl, 'Error'),
         ...viewable,
+        adVerifications: parseAdVerifications(wrapperEl),
         trackingEvents: events,
         progressTrackings: progress,
         clickTrackingUrls: videoClicks ? childTexts(videoClicks, 'ClickTracking') : [],
@@ -556,6 +557,10 @@ export function applyWrapperToAds(wrapper: VastWrapper, ads: VastAd[]): VastAd[]
       viewableUrls: [...wrapper.viewableUrls, ...ad.viewableUrls],
       notViewableUrls: [...wrapper.notViewableUrls, ...ad.notViewableUrls],
       viewUndeterminedUrls: [...wrapper.viewUndeterminedUrls, ...ad.viewUndeterminedUrls],
+      // Every vendor in the chain measures the same impression, so these
+      // accumulate rather than override — dropping the wrapper's would drop the
+      // SSP's verifier, which is the one usually attached.
+      adVerifications: [...wrapper.adVerifications, ...ad.adVerifications],
       creatives,
       extensions: { ...wrapper.extensions, ...ad.extensions },
       wrapperDepth: Math.max(ad.wrapperDepth, wrapper.wrapperDepth + 1),
