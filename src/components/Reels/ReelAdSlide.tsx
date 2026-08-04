@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/utils/cn';
 import { useHLS } from '@/hooks/useHLS';
+import { useAdViewability } from '@/hooks/useAdViewability';
 import { useLabels } from '@/context/LabelsContext';
 import { interpolateLabel } from '@/types/labels';
 import { sanitizeUrl } from '@/utils/security';
@@ -182,6 +183,24 @@ export function ReelAdSlide({
     }
   }, [active]);
 
+  /* ------------------------------ Viewability ----------------------------- */
+
+  /**
+   * The active slide fills the viewport, so it is tempting to assume it is
+   * viewable — but a backgrounded tab, a paused ad and a half-scrolled swipe all
+   * look identical from here without measurement, and the pixel is a claim that
+   * a human could see the ad.
+   */
+  const { finalize: finalizeViewability } = useAdViewability(videoRef, {
+    playing: active && playing,
+    onResolve: (viewState) => tracker?.viewable(viewState),
+  });
+
+  // An ad that is over owes its verdict, whichever way it went.
+  useEffect(() => {
+    if (!active) finalizeViewability();
+  }, [active, finalizeViewability]);
+
   /* ------------------------------ Media events ---------------------------- */
 
   useEffect(() => {
@@ -201,7 +220,6 @@ export function ReelAdSlide({
       if (!startedRef.current && video.currentTime > 0) {
         startedRef.current = true;
         tracker.impression();
-        tracker.viewable('viewable');
         onAdStart?.(ad, slot);
       }
 

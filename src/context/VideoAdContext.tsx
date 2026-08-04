@@ -6,6 +6,7 @@ import { VastErrorCode } from '@/types/vast';
 import { VastTracker } from '@/utils/vast/VastTracker';
 import { videoAdToTrackable } from '@/utils/vast/toVideoAd';
 import { capPodDuration, checkAdCaps, createAdSession, recordAdStarted } from '@/utils/adCaps';
+import { useAdViewability } from '@/hooks/useAdViewability';
 import type { VideoAdConfig, VideoAd, VideoAdBreak, CustomAdComponentProps } from '@/types/video';
 
 export interface VideoAdContextValue {
@@ -157,6 +158,29 @@ export function VideoAdProvider({ children, config: userConfig = {} }: VideoAdPr
   }, []);
 
   useEffect(() => () => trackerRef.current?.dispose(), []);
+
+  /**
+   * MRC viewability for the ad video.
+   *
+   * `<ViewableImpression>` used to fire nowhere in this player, so the pixels an
+   * ad server sent were simply never returned. Measuring is the only honest way
+   * to return them: a player that fires `Viewable` unconditionally is asserting
+   * something it did not check.
+   */
+  const { finalize: finalizeViewability, inView } = useAdViewability(adVideoRef, {
+    playing: state.isPlayingAd && !state.isComponentAd,
+    onResolve: (viewState) => trackerRef.current?.viewable(viewState),
+  });
+
+  // `[INVIEW]` rides along on every later pixel.
+  useEffect(() => {
+    trackerRef.current?.setInView(inView);
+  }, [inView]);
+
+  // A break that is over owes its verdict, whichever way it went.
+  useEffect(() => {
+    if (!state.isPlayingAd) finalizeViewability();
+  }, [state.isPlayingAd, finalizeViewability]);
 
   // Cleanup component ad timer
   const cleanupComponentAdTimer = useCallback(() => {

@@ -219,6 +219,14 @@ export {
 // Reels feed hook
 export { useReelsFeed, type UseReelsFeedOptions, type UseReelsFeedReturn } from './hooks/useReelsFeed';
 
+// MRC viewability measurement
+export {
+  useAdViewability,
+  type AdViewabilityState,
+  type UseAdViewabilityOptions,
+  type UseAdViewabilityReturn,
+} from './hooks/useAdViewability';
+
 // Reels types
 export type {
   Reel,
