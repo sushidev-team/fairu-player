@@ -9,6 +9,7 @@
 import type { HLSConfig, Subtitle } from './video';
 import type { PartialLabels } from './labels';
 import type {
+  AdConsent,
   VastAd,
   VastIcon,
   VastClientOptions,
@@ -205,6 +206,12 @@ export interface ReelsAdConfig {
   vastOptions?: VastClientOptions;
   /** Media-file selection hints. Defaults target a 9:16 viewport. */
   mediaFileOptions?: MediaFileSelectionOptions;
+  /**
+   * Privacy signals forwarded as `[GDPR]`, `[GDPRCONSENT]`, `[US_PRIVACY]`,
+   * `[GPP]`, `[GPP_SID]` and `[LIMITADTRACKING]`. Pass `'auto'` to read them
+   * from the page's CMP. Resolved once per feed and reused for every slot.
+   */
+  consent?: AdConsent | 'auto';
 
   /* --- Callbacks ------------------------------------------------------- */
 

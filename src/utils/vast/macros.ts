@@ -30,6 +30,22 @@ export interface VastMacroContext {
   PAGEURL?: string;
   /** Referrer URL. */
   REFERRER?: string;
+
+  /* --- Privacy signals, see {@link import('./consent').consentMacros} --- */
+
+  /** TCF `gdprApplies`: `1` when GDPR applies, `0` when it does not. */
+  GDPR?: string;
+  /** TCF consent string. */
+  GDPRCONSENT?: string;
+  /** US Privacy / CCPA string, e.g. `1YNN`. */
+  US_PRIVACY?: string;
+  /** GPP string. */
+  GPP?: string;
+  /** Comma-separated GPP section IDs. */
+  GPP_SID?: string;
+  /** Device-level limit-ad-tracking flag: `1` or `0`. */
+  LIMITADTRACKING?: string;
+
   /** Free-form additional macros. */
   [key: string]: string | number | undefined;
 }

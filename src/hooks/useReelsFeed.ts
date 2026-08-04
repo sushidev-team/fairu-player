@@ -21,13 +21,19 @@ import {
   slotHasSource,
 } from '@/utils/reelsAdScheduler';
 import {
+  consentMacros,
+  defaultMacroContext,
   parseVmap,
+  readConsentFromCmp,
   requestWaterfall,
   sendBeacon,
+  substituteMacros,
   VastClient,
   vastAdsToReelAds,
   verticalFeedMediaOptions,
+  type VastMacroContext,
 } from '@/utils/vast';
+import { sanitizeEndpoint } from '@/utils/security';
 
 export interface UseReelsFeedOptions extends ReelsCallbacks {
   reels: Reel[];
@@ -95,6 +101,30 @@ export function useReelsFeed({
   const windowSize = Math.max(0, config.windowSize ?? DEFAULT_WINDOW_SIZE);
   const loadMoreThreshold = config.loadMoreThreshold ?? DEFAULT_LOAD_MORE_THRESHOLD;
 
+  /* ------------------------------- Consent -------------------------------- */
+
+  /**
+   * Privacy macros for every ad request this feed makes.
+   *
+   * Resolved once and memoised in a ref rather than per slot: a CMP round-trip
+   * per slot would repeat work, and — worse — could straddle a consent change,
+   * so two ads in one session would carry different strings.
+   */
+  const consentOption = adConfig?.consent;
+  const consentRef = useRef<Promise<VastMacroContext> | null>(null);
+
+  useEffect(() => {
+    // A new consent option invalidates the cached answer.
+    consentRef.current = null;
+  }, [consentOption]);
+
+  const privacyMacros = useCallback((): Promise<VastMacroContext> => {
+    consentRef.current ??= Promise.resolve(
+      consentOption === 'auto' ? readConsentFromCmp() : consentOption
+    ).then(consentMacros);
+    return consentRef.current;
+  }, [consentOption]);
+
   /* ---------------------------- VMAP resolution --------------------------- */
 
   const [vmapBreaks, setVmapBreaks] = useState<VmapAdBreak[] | undefined>(undefined);
@@ -119,7 +149,14 @@ export function useReelsFeed({
 
     void (async () => {
       try {
-        const response = await fetch(adConfig.vmapUrl!, {
+        // The VMAP URL is an ad request like any other: macros substituted (a
+        // literal `[CACHEBUSTING]` defeats the cache buster) and scheme checked.
+        const url = sanitizeEndpoint(
+          substituteMacros(adConfig.vmapUrl!, defaultMacroContext(await privacyMacros()))
+        );
+        if (!url) throw new Error(`Refusing to fetch VMAP with unsupported URL scheme`);
+
+        const response = await fetch(url, {
           mode: 'cors',
           credentials: 'omit',
           signal: controller?.signal,
@@ -137,7 +174,7 @@ export function useReelsFeed({
       cancelled = true;
       controller?.abort();
     };
-  }, [adConfig?.enabled, adConfig?.vmapUrl, adConfig?.vmapXml, onError]);
+  }, [adConfig?.enabled, adConfig?.vmapUrl, adConfig?.vmapXml, onError, privacyMacros]);
 
   /* ------------------------------ Slide list ------------------------------ */
 
@@ -263,14 +300,18 @@ export function useReelsFeed({
           return;
         }
 
+        const requestMacros = { ...(await privacyMacros()), BREAKPOSITION: 'midroll' };
+
         // 2. Inline VAST XML (house ads, VMAP VASTAdData, Storybook).
         // 3. Tag URL waterfall.
         const result = slot.source.vastXml
-          ? await vastClient.resolve(slot.source.vastXml)
+          ? await vastClient.resolve(slot.source.vastXml, {
+              macros: defaultMacroContext(requestMacros),
+            })
           : await requestWaterfall(
               vastClient,
               slot.source.tagUrl ? [slot.source.tagUrl] : adTagUrls(adConfig),
-              { BREAKPOSITION: 'midroll' }
+              requestMacros
             );
 
         const { ads, errors } = vastAdsToReelAds(result.ads, toOptions);
@@ -319,7 +360,7 @@ export function useReelsFeed({
         resolvingRef.current.delete(slot.id);
       }
     },
-    [adConfig, adSlots, mediaFileOptions, vastClient, onError]
+    [adConfig, adSlots, mediaFileOptions, vastClient, onError, privacyMacros]
   );
 
   // Resolve the active slot plus `prefetch` slots ahead. Prefetching one slot is

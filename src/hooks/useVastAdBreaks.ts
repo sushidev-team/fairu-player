@@ -9,13 +9,19 @@ import type {
 } from '@/types/vast';
 import { VastError, VastErrorCode } from '@/types/vast';
 import {
+  consentMacros,
+  defaultMacroContext,
   parseVmap,
+  readConsentFromCmp,
   requestWaterfall,
   sendBeacon,
+  substituteMacros,
   VastClient,
   vastAdsToVideoAds,
   landscapePlayerMediaOptions,
+  type AdConsent,
 } from '@/utils/vast';
+import { sanitizeEndpoint } from '@/utils/security';
 
 /**
  * Where the ads for one break come from.
@@ -60,6 +66,17 @@ export interface UseVastAdBreaksOptions {
    * without it those breaks are dropped rather than guessed.
    */
   duration?: number;
+
+  /**
+   * Privacy signals forwarded to the ad server as `[GDPR]`, `[GDPRCONSENT]`,
+   * `[US_PRIVACY]`, `[GPP]`, `[GPP_SID]` and `[LIMITADTRACKING]`.
+   *
+   * Pass `'auto'` to read them from the page's CMP (`__tcfapi` / `__uspapi` /
+   * `__gpp`) before the first ad request. Without a consent string an EU SSP
+   * either drops the request or serves it non-personalised, so this is worth
+   * wiring even when the legal side is already handled elsewhere.
+   */
+  consent?: AdConsent | 'auto';
 
   /** Default skip offset when the creative declares none. `null` = non-skippable. */
   defaultSkipOffset?: number | null;
@@ -150,6 +167,7 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
     vmapUrl,
     vmapXml,
     duration,
+    consent,
     defaultSkipOffset,
     vastOptions,
     mediaFileOptions,
@@ -183,8 +201,8 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
   // Serialise the tag configuration so an inline array literal does not
   // retrigger the request on every render.
   const tagKey = useMemo(
-    () => JSON.stringify({ preRoll, midRolls, postRoll, vmapUrl, vmapXml, duration }),
-    [preRoll, midRolls, postRoll, vmapUrl, vmapXml, duration]
+    () => JSON.stringify({ preRoll, midRolls, postRoll, vmapUrl, vmapXml, duration, consent }),
+    [preRoll, midRolls, postRoll, vmapUrl, vmapXml, duration, consent]
   );
 
   useEffect(() => {
@@ -206,6 +224,15 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
     const asList = (value: VastTagSource | VastTagSource[] | undefined): VastTagSource[] =>
       !value ? [] : Array.isArray(value) ? value.filter(Boolean) : [value];
 
+    /**
+     * Privacy macros for every request in this pass.
+     *
+     * Resolved once and shared: querying the CMP per break would send several
+     * identical round-trips and, worse, could straddle a consent change so that
+     * the pre-roll and the mid-roll of one session carry different strings.
+     */
+    let privacyMacros: Record<string, string> = {};
+
     /** Resolve one tag list into a break, or null when it did not fill. */
     const resolveBreak = async (
       id: string,
@@ -223,11 +250,13 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
 
       let result =
         urls.length > 0
-          ? await requestWaterfall(client, urls, { BREAKPOSITION: position })
+          ? await requestWaterfall(client, urls, { ...privacyMacros, BREAKPOSITION: position })
           : { ads: [], errorUrls: [], documentCount: 0 };
 
       if (result.ads.length === 0 && inline) {
-        result = await client.resolve(inline.xml);
+        result = await client.resolve(inline.xml, {
+          macros: defaultMacroContext({ ...privacyMacros, BREAKPOSITION: position }),
+        });
       }
       const { ads, errors } = vastAdsToVideoAds(result.ads, toOptions);
 
@@ -250,12 +279,31 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
 
     void (async () => {
       try {
+        // Ask the CMP before the first request, not after — a tag fired without
+        // the consent string cannot be retroactively made personalisable.
+        const resolvedConsent = consent === 'auto' ? await readConsentFromCmp() : consent;
+        if (cancelled) return;
+        privacyMacros = consentMacros(resolvedConsent) as Record<string, string>;
+
         let breaks: VideoAdBreak[] = [];
 
         if (vmapUrl || vmapXml) {
           let xml = vmapXml;
           if (!xml && vmapUrl) {
-            const response = await fetch(vmapUrl, { mode: 'cors', credentials: 'omit' });
+            // The VMAP URL is an ad request like any other: it needs its macros
+            // substituted (a literal `[CACHEBUSTING]` defeats the cache buster)
+            // and its scheme validated before we fetch it.
+            const resolvedVmapUrl = sanitizeEndpoint(
+              substituteMacros(vmapUrl, defaultMacroContext(privacyMacros))
+            );
+            if (!resolvedVmapUrl) {
+              throw new VastError(
+                `Refusing to fetch VMAP with unsupported URL scheme: ${vmapUrl}`,
+                VastErrorCode.SCHEMA_VALIDATION
+              );
+            }
+
+            const response = await fetch(resolvedVmapUrl, { mode: 'cors', credentials: 'omit' });
             if (!response.ok) {
               throw new VastError(
                 `VMAP request failed with HTTP ${response.status}`,
@@ -276,7 +324,9 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
 
               const source = adBreak.adSource;
               if (source?.vastAdData) {
-                const result = await client.resolve(source.vastAdData);
+                const result = await client.resolve(source.vastAdData, {
+                  macros: defaultMacroContext(privacyMacros),
+                });
                 const { ads } = vastAdsToVideoAds(result.ads, toOptions);
                 if (ads.length === 0) return null;
                 return {

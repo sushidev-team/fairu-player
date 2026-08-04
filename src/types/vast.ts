@@ -326,6 +326,42 @@ export interface VastClientOptions {
 }
 
 /* -------------------------------------------------------------------------- */
+/*                               Privacy signals                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Privacy signals as published by the host page's CMP.
+ *
+ * The player never decides anything about consent — it reads what a CMP already
+ * published and forwards it verbatim. See
+ * {@link import('@/utils/vast/consent').consentMacros} for the mapping onto
+ * VAST macros.
+ *
+ * Every field is optional: a player embedded outside the EU may legitimately
+ * have nothing but a `usPrivacy` string, and one on a page with no CMP has none
+ * of them.
+ */
+export interface AdConsent {
+  /** TCF `gdprApplies`. Maps to `[GDPR]` as `1`/`0`. */
+  gdprApplies?: boolean;
+  /** TCF consent string (`tcString`). Maps to `[GDPRCONSENT]`. */
+  tcString?: string;
+  /** US Privacy / CCPA string, e.g. `1YNN`. Maps to `[US_PRIVACY]`. */
+  usPrivacy?: string;
+  /** GPP string. Maps to `[GPP]`. */
+  gppString?: string;
+  /** GPP section IDs. Maps to `[GPP_SID]` as a comma-separated list. */
+  gppSectionIds?: number[];
+  /**
+   * Platform-level "limit ad tracking" flag. Maps to `[LIMITADTRACKING]`.
+   *
+   * Distinct from `gdprApplies`: this is the device opting out of tracking, not
+   * a jurisdiction deciding that consent is required.
+   */
+  limitAdTracking?: boolean;
+}
+
+/* -------------------------------------------------------------------------- */
 /*                                    VMAP                                    */
 /* -------------------------------------------------------------------------- */
 

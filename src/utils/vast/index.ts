@@ -39,6 +39,8 @@ export {
   type VastMacroContext,
 } from './macros';
 
+export { consentMacros, readConsentFromCmp, type AdConsent } from './consent';
+
 export { vastAdToReelAd, vastAdsToReelAds, type ToReelAdOptions } from './toReelAd';
 
 export {
