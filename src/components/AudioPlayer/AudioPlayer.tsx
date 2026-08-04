@@ -8,6 +8,7 @@ import type { FairuTheme } from '@/types/theme';
 import { usePlayer } from '@/hooks/usePlayer';
 import { PlayerInner } from '@/components/Player/Player';
 import { CompanionAd } from '@/components/ads/CompanionAd';
+import { AdChoicesIcon } from '@/components/ads/AdChoicesIcon';
 import type { AdBreak, AdConfig } from '@/types/ads';
 import type { PlayerConfig, Track } from '@/types/player';
 import type { PartialLabels } from '@/types/labels';
@@ -235,13 +236,20 @@ function AudioPlayerWithAds({
   return (
     <div className={cn('fairu-audio-player', className)}>
       {showCompanion && adState.isPlayingAd && adState.currentAd && (
-        <CompanionAd
-          ad={adState.currentAd}
-          fallbackArtwork={artwork}
-          fallbackAlt={playlistState.currentTrack?.title}
-          onClick={handleCompanionClick}
-          className="mb-4 aspect-square w-full max-w-[240px]"
-        />
+        <div className="relative mb-4 w-full max-w-[240px]">
+          <CompanionAd
+            ad={adState.currentAd}
+            fallbackArtwork={artwork}
+            fallbackAlt={playlistState.currentTrack?.title}
+            onClick={handleCompanionClick}
+            className="aspect-square w-full"
+          />
+          {/* The badge belongs to the spot, so it rides on the artwork that
+              replaced the episode cover for its duration. */}
+          <div className="absolute right-2 top-2">
+            <AdChoicesIcon icons={adState.currentAd.icons} adId={adState.currentAd.id} />
+          </div>
+        </div>
       )}
 
       <PlayerInner

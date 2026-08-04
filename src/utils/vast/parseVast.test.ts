@@ -378,3 +378,65 @@ describe('macros', () => {
     expect(formatPlayhead(-1)).toBe('00:00:00.000');
   });
 });
+
+describe('AdVerifications through a wrapper chain', () => {
+  const verificationXml = (vendor: string) => `<AdVerifications>
+    <Verification vendor="${vendor}">
+      <JavaScriptResource apiFramework="omid" browserOptional="true"><![CDATA[https://${vendor}.example.com/omid.js]]></JavaScriptResource>
+      <VerificationParameters><![CDATA[key=${vendor}]]></VerificationParameters>
+    </Verification>
+  </AdVerifications>`;
+
+  const WRAPPER = `<VAST version="4.2"><Ad id="ssp"><Wrapper>
+    <AdSystem>SSP</AdSystem>
+    <VASTAdTagURI><![CDATA[https://dsp.example.com/vast]]></VASTAdTagURI>
+    ${verificationXml('ias')}
+  </Wrapper></Ad></VAST>`;
+
+  const INLINE_WITH_VERIFICATION = `<VAST version="4.2"><Ad id="dsp"><InLine>
+    <AdSystem>DSP</AdSystem><AdTitle>Spot</AdTitle>
+    ${verificationXml('moat')}
+    <Creatives><Creative><Linear>
+      <Duration>00:00:15</Duration>
+      <MediaFiles><MediaFile type="video/mp4"><![CDATA[https://cdn.example.com/a.mp4]]></MediaFile></MediaFiles>
+    </Linear></Creative></Creatives>
+  </InLine></Ad></VAST>`;
+
+  it('parses the wrapper\'s own verification resources', () => {
+    // The DSP supplies the creative; the SSP wrapper attaches the verifier.
+    // Reading only <InLine> misses the common case entirely.
+    const [wrapper] = parseVast(WRAPPER).wrappers;
+    expect(wrapper.adVerifications).toEqual([
+      {
+        vendor: 'ias',
+        javascriptResource: 'https://ias.example.com/omid.js',
+        verificationParameters: 'key=ias',
+      },
+    ]);
+  });
+
+  it('merges wrapper and in-line verifications rather than overriding', () => {
+    const [wrapper] = parseVast(WRAPPER).wrappers;
+    const inline = parseVast(INLINE_WITH_VERIFICATION).ads;
+
+    const [merged] = applyWrapperToAds(wrapper, inline);
+
+    // Every vendor in the chain measures the same impression.
+    expect(merged.adVerifications.map((v) => v.vendor)).toEqual(['ias', 'moat']);
+  });
+
+  it('carries the wrapper verification onto an in-line ad that declares none', () => {
+    const bare = `<VAST version="4.2"><Ad id="dsp"><InLine>
+      <AdSystem>DSP</AdSystem><AdTitle>Spot</AdTitle>
+      <Creatives><Creative><Linear>
+        <Duration>00:00:15</Duration>
+        <MediaFiles><MediaFile type="video/mp4"><![CDATA[https://cdn.example.com/a.mp4]]></MediaFile></MediaFiles>
+      </Linear></Creative></Creatives>
+    </InLine></Ad></VAST>`;
+
+    const [wrapper] = parseVast(WRAPPER).wrappers;
+    const [merged] = applyWrapperToAds(wrapper, parseVast(bare).ads);
+
+    expect(merged.adVerifications.map((v) => v.vendor)).toEqual(['ias']);
+  });
+});

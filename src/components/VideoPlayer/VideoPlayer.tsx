@@ -15,6 +15,8 @@ import { LogoOverlay } from './LogoOverlay';
 import { EndScreen } from './EndScreen';
 import { OverlayAd } from '@/components/ads/OverlayAd';
 import { InfoCard, InfoCardIcon } from '@/components/ads/InfoCard';
+import { AdChoicesIcon } from '@/components/ads/AdChoicesIcon';
+import { CompanionAd } from '@/components/ads/CompanionAd';
 import { useKeyboardControls } from '@/hooks/useKeyboardControls';
 import type { VideoConfig, VideoPlayerProps, VideoAdConfig, WatchProgress, VideoAdBreak, CustomAdComponentProps, VideoAd, OverlayAd as OverlayAdType, InfoCard as InfoCardType, RecommendedVideo } from '@/types/video';
 
@@ -198,6 +200,15 @@ function VideoPlayerInner({
           {/* Video Ad controls - only show for non-component ads */}
           {!adState.isComponentAd && (
             <>
+              {/* AdChoices badge — a compliance surface, so it sits above the
+                  gradient rather than inside the control bar that fades. */}
+              <div className="absolute right-3 top-3 z-10">
+                <AdChoicesIcon
+                  icons={(adState.currentAd as VideoAd | null)?.icons}
+                  adId={adState.currentAd?.id}
+                />
+              </div>
+
               <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
                 <div className="flex items-center justify-between mb-2">
                   {/* Ad badge */}
@@ -569,7 +580,10 @@ function VideoPlayerWithAds({ className }: { className?: string }) {
     pendingPlay.current = false;
   }, [videoState.duration]);
 
-  return (
+  const companionAd = adState.isPlayingAd ? (adState.currentAd as VideoAd | null) : null;
+  const showCompanion = Boolean(adConfig.showCompanion && companionAd?.companion);
+
+  const player = (
     <VideoPlayerInnerWithAds
       className={className}
       adState={adState}
@@ -578,6 +592,21 @@ function VideoPlayerWithAds({ className }: { className?: string }) {
       onPlayWithAds={handlePlayWithAds}
       componentAdProps={componentAdProps}
     />
+  );
+
+  // Only wrap when there is something to wrap with — an unconditional extra
+  // element would change the layout of every existing integration.
+  if (!showCompanion || !companionAd) return player;
+
+  return (
+    <>
+      {player}
+      <CompanionAd
+        ad={companionAd}
+        onClick={() => adConfig.onAdClick?.(companionAd, adState.currentAdBreak!)}
+        className="mt-3 w-full max-w-[300px]"
+      />
+    </>
   );
 }
 
@@ -758,6 +787,15 @@ function VideoPlayerInnerWithAds({
           {/* Video Ad controls - only show for non-component ads */}
           {!adState.isComponentAd && (
             <>
+              {/* AdChoices badge — a compliance surface, so it sits above the
+                  gradient rather than inside the control bar that fades. */}
+              <div className="absolute right-3 top-3 z-10">
+                <AdChoicesIcon
+                  icons={(adState.currentAd as VideoAd | null)?.icons}
+                  adId={adState.currentAd?.id}
+                />
+              </div>
+
               <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
                 <div className="flex items-center justify-between mb-2">
                   {/* Ad badge */}

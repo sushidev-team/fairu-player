@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/utils/cn';
 import { useHLS } from '@/hooks/useHLS';
+import { useAdViewability } from '@/hooks/useAdViewability';
+import { AdChoicesIcon } from '@/components/ads/AdChoicesIcon';
 import { useLabels } from '@/context/LabelsContext';
 import { interpolateLabel } from '@/types/labels';
 import { sanitizeUrl } from '@/utils/security';
@@ -182,6 +184,24 @@ export function ReelAdSlide({
     }
   }, [active]);
 
+  /* ------------------------------ Viewability ----------------------------- */
+
+  /**
+   * The active slide fills the viewport, so it is tempting to assume it is
+   * viewable — but a backgrounded tab, a paused ad and a half-scrolled swipe all
+   * look identical from here without measurement, and the pixel is a claim that
+   * a human could see the ad.
+   */
+  const { finalize: finalizeViewability } = useAdViewability(videoRef, {
+    playing: active && playing,
+    onResolve: (viewState) => tracker?.viewable(viewState),
+  });
+
+  // An ad that is over owes its verdict, whichever way it went.
+  useEffect(() => {
+    if (!active) finalizeViewability();
+  }, [active, finalizeViewability]);
+
   /* ------------------------------ Media events ---------------------------- */
 
   useEffect(() => {
@@ -201,7 +221,6 @@ export function ReelAdSlide({
       if (!startedRef.current && video.currentTime > 0) {
         startedRef.current = true;
         tracker.impression();
-        tracker.viewable('viewable');
         onAdStart?.(ad, slot);
       }
 
@@ -291,9 +310,6 @@ export function ReelAdSlide({
   }
 
   const remaining = Math.max(0, Math.ceil((duration || ad.duration) - currentTime));
-  const adChoices = ad.icons?.find(
-    (icon) => icon.program?.toLowerCase() === 'adchoices' || !!icon.staticResource
-  );
 
   return (
     <div className={cn('relative h-full w-full overflow-hidden bg-black', className)}>
@@ -333,18 +349,7 @@ export function ReelAdSlide({
         </div>
 
         <div className="flex items-center gap-2">
-          {adChoices?.staticResource && (
-            <a
-              href={sanitizeUrl(adChoices.clickThroughUrl, ['http:', 'https:']) ?? '#'}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(event) => event.stopPropagation()}
-              className="block h-4 w-4 overflow-hidden rounded-sm bg-white/80"
-              aria-label={labels.learnMore}
-            >
-              <img src={adChoices.staticResource} alt="" className="h-full w-full object-contain" />
-            </a>
-          )}
+          <AdChoicesIcon icons={ad.icons} adId={ad.id} />
 
           <button
             type="button"

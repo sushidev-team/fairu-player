@@ -32,6 +32,10 @@ export type VastTrackingEvent =
   | 'rewind'
   | 'skip'
   | 'closeLinear'
+  // NonLinear interaction
+  | 'close'
+  | 'acceptInvitation'
+  | 'collapse'
   | 'fullscreen'
   | 'exitFullscreen'
   | 'playerExpand'
@@ -114,11 +118,16 @@ export interface VastLinearCreative {
   adParameters?: string;
 }
 
-/** A `<NonLinear>` or `<CompanionAds>` creative — parsed, not rendered by the reels feed. */
+/** A `<NonLinear>` or `<CompanionAds>` creative. */
 export interface VastNonLinearCreative {
   type: 'nonlinear' | 'companion';
   width?: number;
   height?: number;
+  /**
+   * `<NonLinear minSuggestedDuration>` in seconds — how long the advertiser
+   * wants the overlay on screen. Advisory, and absent on most creatives.
+   */
+  minSuggestedDuration?: number;
   staticResource?: string;
   staticResourceType?: string;
   iframeResource?: string;
@@ -195,6 +204,14 @@ export interface VastWrapper {
   viewableUrls: string[];
   notViewableUrls: string[];
   viewUndeterminedUrls: string[];
+  /**
+   * `<AdVerifications>` declared by the wrapper.
+   *
+   * Usually where they actually live: the DSP supplies the creative, the SSP's
+   * wrapper attaches the verification vendor. Reading them only from `<InLine>`
+   * misses the common case entirely.
+   */
+  adVerifications: VastAdVerification[];
   /** Tracking that must be merged into every ad returned by the wrapped tag. */
   trackingEvents: VastTrackingEvents;
   progressTrackings: VastProgressTracking[];
@@ -323,6 +340,42 @@ export interface VastClientOptions {
   macros?: Record<string, string | number | undefined>;
   /** Called for every resolved document — useful for debugging waterfalls. */
   onDocument?: (info: { url?: string; depth: number; response: VastResponse }) => void;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               Privacy signals                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Privacy signals as published by the host page's CMP.
+ *
+ * The player never decides anything about consent — it reads what a CMP already
+ * published and forwards it verbatim. See
+ * {@link import('@/utils/vast/consent').consentMacros} for the mapping onto
+ * VAST macros.
+ *
+ * Every field is optional: a player embedded outside the EU may legitimately
+ * have nothing but a `usPrivacy` string, and one on a page with no CMP has none
+ * of them.
+ */
+export interface AdConsent {
+  /** TCF `gdprApplies`. Maps to `[GDPR]` as `1`/`0`. */
+  gdprApplies?: boolean;
+  /** TCF consent string (`tcString`). Maps to `[GDPRCONSENT]`. */
+  tcString?: string;
+  /** US Privacy / CCPA string, e.g. `1YNN`. Maps to `[US_PRIVACY]`. */
+  usPrivacy?: string;
+  /** GPP string. Maps to `[GPP]`. */
+  gppString?: string;
+  /** GPP section IDs. Maps to `[GPP_SID]` as a comma-separated list. */
+  gppSectionIds?: number[];
+  /**
+   * Platform-level "limit ad tracking" flag. Maps to `[LIMITADTRACKING]`.
+   *
+   * Distinct from `gdprApplies`: this is the device opting out of tracking, not
+   * a jurisdiction deciding that consent is required.
+   */
+  limitAdTracking?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */

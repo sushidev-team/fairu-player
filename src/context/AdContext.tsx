@@ -3,6 +3,7 @@ import type { AdConfig, AdContextValue, AdState, Ad, AdBreak, AdProgressInfo } f
 import { VastErrorCode } from '@/types/vast';
 import { VastTracker } from '@/utils/vast/VastTracker';
 import { adToTrackable } from '@/utils/vast/toVideoAd';
+import { capPodDuration, checkAdCaps, createAdSession, recordAdStarted } from '@/utils/adCaps';
 
 const DEFAULT_CONFIG: AdConfig = {
   enabled: false,
@@ -39,6 +40,8 @@ export function AdProvider({ children, config: userConfig = {} }: AdProviderProp
   const adAudioRef = useRef<HTMLAudioElement | null>(null);
   const currentAdIndex = useRef(0);
   const skipTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Session accounting for `maxAdsPerSession` and `minSecondsBetweenAds`. */
+  const sessionRef = useRef(createAdSession());
 
   // Update state helper
   const updateState = useCallback((updates: Partial<AdState>) => {
@@ -154,10 +157,24 @@ export function AdProvider({ children, config: userConfig = {} }: AdProviderProp
   const startAdBreak = useCallback((adBreak: AdBreak) => {
     if (!adBreak.ads || adBreak.ads.length === 0) return;
 
+    // Load rules are checked here rather than at the trigger sites, because
+    // this is the one door every break goes through — pre-roll, mid-roll and
+    // post-roll alike.
+    const capped = checkAdCaps(config, sessionRef.current, Date.now());
+    if (capped) {
+      config.onAdCapped?.(adBreak, capped);
+      return;
+    }
+
+    const ads = capPodDuration(adBreak.ads, config.maxAdDurationPerBreak);
+    // The trimmed pod is what plays, so `adsRemaining` and the "ad 2 of 3"
+    // labels have to count against it rather than the original.
+    const cappedBreak = ads.length === adBreak.ads.length ? adBreak : { ...adBreak, ads };
+
+    sessionRef.current = recordAdStarted(sessionRef.current, Date.now());
     currentAdIndex.current = 0;
-    const firstAd = adBreak.ads[0];
-    playAd(firstAd, adBreak, adBreak.ads.length - 1);
-  }, [playAd]);
+    playAd(ads[0], cappedBreak, ads.length - 1);
+  }, [config, playAd]);
 
   // Stop ads
   const stopAds = useCallback(() => {

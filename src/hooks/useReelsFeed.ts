@@ -21,13 +21,21 @@ import {
   slotHasSource,
 } from '@/utils/reelsAdScheduler';
 import {
+  consentAllowsAdRequest,
+  consentMacros,
+  defaultMacroContext,
   parseVmap,
+  readConsentFromCmp,
   requestWaterfall,
   sendBeacon,
+  substituteMacros,
   VastClient,
   vastAdsToReelAds,
   verticalFeedMediaOptions,
+  type AdConsent,
+  type VastMacroContext,
 } from '@/utils/vast';
+import { sanitizeEndpoint } from '@/utils/security';
 
 export interface UseReelsFeedOptions extends ReelsCallbacks {
   reels: Reel[];
@@ -95,6 +103,35 @@ export function useReelsFeed({
   const windowSize = Math.max(0, config.windowSize ?? DEFAULT_WINDOW_SIZE);
   const loadMoreThreshold = config.loadMoreThreshold ?? DEFAULT_LOAD_MORE_THRESHOLD;
 
+  /* ------------------------------- Consent -------------------------------- */
+
+  /**
+   * Privacy macros for every ad request this feed makes.
+   *
+   * Resolved once and memoised in a ref rather than per slot: a CMP round-trip
+   * per slot would repeat work, and — worse — could straddle a consent change,
+   * so two ads in one session would carry different strings.
+   */
+  const consentOption = adConfig?.consent;
+  const consentRef = useRef<Promise<AdConsent | undefined> | null>(null);
+
+  useEffect(() => {
+    // A new consent option invalidates the cached answer.
+    consentRef.current = null;
+  }, [consentOption]);
+
+  const readConsent = useCallback((): Promise<AdConsent | undefined> => {
+    consentRef.current ??= Promise.resolve(
+      consentOption === 'auto' ? readConsentFromCmp() : consentOption
+    );
+    return consentRef.current;
+  }, [consentOption]);
+
+  const privacyMacros = useCallback(
+    (): Promise<VastMacroContext> => readConsent().then(consentMacros),
+    [readConsent]
+  );
+
   /* ---------------------------- VMAP resolution --------------------------- */
 
   const [vmapBreaks, setVmapBreaks] = useState<VmapAdBreak[] | undefined>(undefined);
@@ -119,7 +156,20 @@ export function useReelsFeed({
 
     void (async () => {
       try {
-        const response = await fetch(adConfig.vmapUrl!, {
+        // The VMAP document is an ad request like any other, so the same gate
+        // applies before it is fetched at all.
+        if ((adConfig.requireConsent ?? true) && !consentAllowsAdRequest(await readConsent())) {
+          return;
+        }
+
+        // Macros substituted (a literal `[CACHEBUSTING]` defeats the cache
+        // buster) and scheme checked.
+        const url = sanitizeEndpoint(
+          substituteMacros(adConfig.vmapUrl!, defaultMacroContext(await privacyMacros()))
+        );
+        if (!url) throw new Error(`Refusing to fetch VMAP with unsupported URL scheme`);
+
+        const response = await fetch(url, {
           mode: 'cors',
           credentials: 'omit',
           signal: controller?.signal,
@@ -137,7 +187,15 @@ export function useReelsFeed({
       cancelled = true;
       controller?.abort();
     };
-  }, [adConfig?.enabled, adConfig?.vmapUrl, adConfig?.vmapXml, onError]);
+  }, [
+    adConfig?.enabled,
+    adConfig?.vmapUrl,
+    adConfig?.vmapXml,
+    adConfig?.requireConsent,
+    onError,
+    privacyMacros,
+    readConsent,
+  ]);
 
   /* ------------------------------ Slide list ------------------------------ */
 
@@ -229,6 +287,20 @@ export function useReelsFeed({
       const existing = adSlots[slot.id];
       if (existing && existing.status !== 'idle') return;
 
+      // No consent where consent is required is treated exactly like a capped
+      // slot: it stays in the list and resolves to `empty`, so the feed scrolls
+      // through it instead of shifting every index behind it.
+      const consent = await readConsent();
+      if ((adConfig.requireConsent ?? true) && !consentAllowsAdRequest(consent)) {
+        setAdSlots((prev) => ({
+          ...prev,
+          [slot.id]: { status: 'empty', ads: [], podIndex: 0 },
+        }));
+        adConfig.onConsentBlocked?.(consent);
+        adConfig.onSlotEmpty?.(slot);
+        return;
+      }
+
       // Caps are evaluated at resolve time, not at plan time, so pacing follows
       // real viewing behaviour rather than list position.
       const capped = checkAdCaps(adConfig, sessionRef.current, Date.now());
@@ -263,14 +335,18 @@ export function useReelsFeed({
           return;
         }
 
+        const requestMacros = { ...(await privacyMacros()), BREAKPOSITION: 'midroll' };
+
         // 2. Inline VAST XML (house ads, VMAP VASTAdData, Storybook).
         // 3. Tag URL waterfall.
         const result = slot.source.vastXml
-          ? await vastClient.resolve(slot.source.vastXml)
+          ? await vastClient.resolve(slot.source.vastXml, {
+              macros: defaultMacroContext(requestMacros),
+            })
           : await requestWaterfall(
               vastClient,
               slot.source.tagUrl ? [slot.source.tagUrl] : adTagUrls(adConfig),
-              { BREAKPOSITION: 'midroll' }
+              requestMacros
             );
 
         const { ads, errors } = vastAdsToReelAds(result.ads, toOptions);
@@ -319,7 +395,7 @@ export function useReelsFeed({
         resolvingRef.current.delete(slot.id);
       }
     },
-    [adConfig, adSlots, mediaFileOptions, vastClient, onError]
+    [adConfig, adSlots, mediaFileOptions, vastClient, onError, privacyMacros, readConsent]
   );
 
   // Resolve the active slot plus `prefetch` slots ahead. Prefetching one slot is

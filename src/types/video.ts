@@ -244,6 +244,17 @@ export interface VideoAd {
   description?: string;
   poster?: string;
   trackingUrls?: import('./ads').AdTrackingUrls;
+  /** `<Icons>` — the AdChoices / privacy badge. */
+  icons?: import('./vast').VastIcon[];
+  /**
+   * `<Companion>` creative — a banner shown beside the player for the length of
+   * the spot.
+   *
+   * Companion inventory is often sold alongside the video at a separate rate,
+   * and it is the part that survives a muted autoplay, so dropping it loses
+   * revenue that was already booked.
+   */
+  companion?: import('./ads').Ad['companion'];
   /** Custom React component to render instead of video */
   component?: React.ComponentType<CustomAdComponentProps>;
   /** Ad type - 'bumper' for 6s non-skippable ads (default: 'standard') */
@@ -269,11 +280,17 @@ export interface OverlayAd {
   closeable?: boolean;
   /** Alt text for the banner image */
   altText?: string;
-  /** Tracking URLs */
+  /**
+   * Tracking URLs.
+   *
+   * The array form matters for VAST-sourced overlays: a wrapper chain
+   * contributes an SSP pixel on top of the DSP's, and dropping either is a
+   * billing error. Single strings keep working.
+   */
   trackingUrls?: {
-    impression?: string;
-    click?: string;
-    close?: string;
+    impression?: import('./ads').AdTrackingUrl;
+    click?: import('./ads').AdTrackingUrl;
+    close?: import('./ads').AdTrackingUrl;
   };
 }
 
@@ -398,6 +415,15 @@ export interface VideoAdConfig extends Omit<AdConfig, 'adBreaks'> {
   onBumperStart?: (ad: VideoAd) => void;
   /** Callback when a bumper ad completes */
   onBumperComplete?: (ad: VideoAd) => void;
+  /**
+   * Render the `<Companion>` banner underneath the player while an ad runs.
+   *
+   * Off by default: it adds an element below the player, and silently changing
+   * an existing integration's layout is worse than making the slot opt-in. Hosts
+   * that want the banner elsewhere can read `ad.companion` in `onAdStart` and
+   * place `<CompanionAd>` themselves.
+   */
+  showCompanion?: boolean;
 }
 
 /**

@@ -39,6 +39,20 @@ export {
   type VastMacroContext,
 } from './macros';
 
+export {
+  consentMacros,
+  consentAllowsAdRequest,
+  readConsentFromCmp,
+  type AdConsent,
+} from './consent';
+
+export {
+  vastAdToOverlayAds,
+  vastAdsToOverlayAds,
+  getNonLinears,
+  type ToOverlayAdOptions,
+} from './toOverlayAd';
+
 export { vastAdToReelAd, vastAdsToReelAds, type ToReelAdOptions } from './toReelAd';
 
 export {

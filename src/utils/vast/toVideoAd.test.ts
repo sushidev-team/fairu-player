@@ -221,3 +221,67 @@ describe('toUrlList', () => {
     expect(toUrlList([])).toEqual([]);
   });
 });
+
+describe('vastAdToVideoAd — companion and icons', () => {
+  /** A linear spot that also ships a companion banner and an AdChoices icon. */
+  const WITH_EXTRAS = `<VAST version="4.2"><Ad id="x"><InLine>
+    <AdSystem>DSP</AdSystem><AdTitle>Spot</AdTitle>
+    <Creatives>
+      <Creative><Linear>
+        <Duration>00:00:15</Duration>
+        <Icons>
+          <Icon program="AdChoices" width="16" height="16">
+            <StaticResource creativeType="image/png"><![CDATA[https://cdn.example.com/ac.png]]></StaticResource>
+            <IconClicks><IconClickThrough><![CDATA[https://privacy.example.com]]></IconClickThrough></IconClicks>
+          </Icon>
+        </Icons>
+        <VideoClicks><ClickThrough><![CDATA[https://acme.example.com]]></ClickThrough></VideoClicks>
+        <MediaFiles>
+          <MediaFile type="video/mp4" width="1280" height="720"><![CDATA[https://cdn.example.com/a.mp4]]></MediaFile>
+        </MediaFiles>
+      </Linear></Creative>
+      <Creative><CompanionAds>
+        <Companion width="728" height="90">
+          <StaticResource creativeType="image/png"><![CDATA[https://cdn.example.com/leaderboard.png]]></StaticResource>
+        </Companion>
+        <Companion width="300" height="250">
+          <StaticResource creativeType="image/png"><![CDATA[https://cdn.example.com/mrec.png]]></StaticResource>
+          <CompanionClickThrough><![CDATA[https://acme.example.com/companion]]></CompanionClickThrough>
+          <CompanionClickTracking><![CDATA[https://t.example.com/compclick]]></CompanionClickTracking>
+        </Companion>
+      </CompanionAds></Creative>
+    </Creatives>
+  </InLine></Ad></VAST>`;
+
+  const convert = () => vastAdToVideoAd(parseVast(WITH_EXTRAS).ads[0]);
+
+  it('prefers the 300x250 companion over a larger leaderboard', () => {
+    // 300x250 is the IAB standard video companion; more pixels in the wrong
+    // shape is not a better fit for the slot beside a player.
+    expect(convert().companion?.imageUrl).toBe('https://cdn.example.com/mrec.png');
+  });
+
+  it('carries the companion click destination and its tracking', () => {
+    expect(convert().companion).toMatchObject({
+      clickUrl: 'https://acme.example.com/companion',
+      clickTrackingUrls: ['https://t.example.com/compclick'],
+      width: 300,
+      height: 250,
+    });
+  });
+
+  it('passes the AdChoices icon through to the player', () => {
+    // Parsed but dropped before, so a declared badge never reached the UI.
+    expect(convert().icons?.[0]).toMatchObject({
+      program: 'AdChoices',
+      staticResource: 'https://cdn.example.com/ac.png',
+      clickThroughUrl: 'https://privacy.example.com',
+    });
+  });
+
+  it('omits both fields when the creative declares neither', () => {
+    const ad = vastAdToVideoAd(parseVast(INLINE).ads[0]);
+    expect(ad.companion).toBeUndefined();
+    expect(ad.icons).toBeUndefined();
+  });
+});

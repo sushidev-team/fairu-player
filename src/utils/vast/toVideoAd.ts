@@ -24,6 +24,10 @@ import {
 } from '@/types/vast';
 import { getLinearCreative } from './parseVast';
 import { selectMediaFile } from './mediaFile';
+import { getCompanions, selectCompanion } from './toAudioAd';
+
+/** IAB standard video companion: 300×250. */
+const VIDEO_COMPANION_ASPECT = 300 / 250;
 
 export interface ToVideoAdOptions {
   /**
@@ -128,6 +132,10 @@ export function vastAdToVideoAd(ad: VastAd, options: ToVideoAdOptions = {}): Vid
   // confused with a missing one.
   const skipOffset = linear.skipOffset ?? options.defaultSkipOffset ?? null;
 
+  // 300×250 is the IAB standard video companion, so a banner close to that
+  // shape beats one with more pixels but the wrong proportions.
+  const companion = selectCompanion(getCompanions(ad), VIDEO_COMPANION_ASPECT);
+
   return {
     id: ad.id,
     src: mediaFile.url,
@@ -137,6 +145,19 @@ export function vastAdToVideoAd(ad: VastAd, options: ToVideoAdOptions = {}): Vid
     title: ad.adTitle,
     description: ad.description,
     trackingUrls,
+    ...(linear.icons.length > 0 ? { icons: linear.icons } : {}),
+    ...(companion?.staticResource
+      ? {
+          companion: {
+            imageUrl: companion.staticResource,
+            clickUrl: companion.clickThroughUrl ?? linear.videoClicks.clickThroughUrl ?? '',
+            width: companion.width ?? 0,
+            height: companion.height ?? 0,
+            clickTrackingUrls: companion.clickTrackingUrls,
+            trackingEvents: companion.trackingEvents,
+          },
+        }
+      : {}),
     // A 6s non-skippable spot is a bumper by IAB convention; surfacing it lets
     // the player fire its bumper callbacks.
     type: linear.duration > 0 && linear.duration <= 6 && skipOffset === null ? 'bumper' : 'standard',

@@ -79,6 +79,8 @@ export class VastTracker {
   private readonly firedProgressOffsets = new Set<number>();
   private lastPlayhead = 0;
   private disposed = false;
+  /** `null` until something actually measures visibility. */
+  private inView: boolean | null = null;
 
   constructor(ad: TrackableAd, options: VastTrackerOptions = {}) {
     this.ad = ad;
@@ -197,6 +199,17 @@ export class VastTracker {
     this.emit('error', this.ad.errorUrls ?? [], { ERRORCODE: code });
   }
 
+  /**
+   * Report current visibility, which fills the `[INVIEW]` macro on every
+   * subsequent pixel.
+   *
+   * Left unset the macro is omitted rather than guessed: `[INVIEW]=1` from a
+   * player that never measured is a claim, not a default.
+   */
+  setInView(inView: boolean): void {
+    this.inView = inView;
+  }
+
   /** Fire the viewable-impression pixel matching the measured state. */
   viewable(state: 'viewable' | 'notViewable' | 'undetermined'): void {
     if (this.disposed || !this.ad.vast) return;
@@ -227,6 +240,7 @@ export class VastTracker {
       ...this.options.macros,
       ADPLAYHEAD: formatPlayhead(this.lastPlayhead),
       CONTENTPLAYHEAD: formatPlayhead(this.lastPlayhead),
+      ...(this.inView === null ? {} : { INVIEW: this.inView ? '1' : '0' }),
       ...extraMacros,
     });
 

@@ -5,6 +5,8 @@ import type { AdState, AdControls, AdProgressInfo } from '@/types/ads';
 import { VastErrorCode } from '@/types/vast';
 import { VastTracker } from '@/utils/vast/VastTracker';
 import { videoAdToTrackable } from '@/utils/vast/toVideoAd';
+import { capPodDuration, checkAdCaps, createAdSession, recordAdStarted } from '@/utils/adCaps';
+import { useAdViewability } from '@/hooks/useAdViewability';
 import type { VideoAdConfig, VideoAd, VideoAdBreak, CustomAdComponentProps } from '@/types/video';
 
 export interface VideoAdContextValue {
@@ -58,6 +60,8 @@ export function VideoAdProvider({ children, config: userConfig = {} }: VideoAdPr
   const adHlsRef = useRef<Hls | null>(null);
   const currentAdIndex = useRef(0);
   const skipTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Session accounting for `maxAdsPerSession` and `minSecondsBetweenAds`. */
+  const sessionRef = useRef(createAdSession());
 
   // Cleanup HLS instance
   const cleanupAdHls = useCallback(() => {
@@ -154,6 +158,29 @@ export function VideoAdProvider({ children, config: userConfig = {} }: VideoAdPr
   }, []);
 
   useEffect(() => () => trackerRef.current?.dispose(), []);
+
+  /**
+   * MRC viewability for the ad video.
+   *
+   * `<ViewableImpression>` used to fire nowhere in this player, so the pixels an
+   * ad server sent were simply never returned. Measuring is the only honest way
+   * to return them: a player that fires `Viewable` unconditionally is asserting
+   * something it did not check.
+   */
+  const { finalize: finalizeViewability, inView } = useAdViewability(adVideoRef, {
+    playing: state.isPlayingAd && !state.isComponentAd,
+    onResolve: (viewState) => trackerRef.current?.viewable(viewState),
+  });
+
+  // `[INVIEW]` rides along on every later pixel.
+  useEffect(() => {
+    trackerRef.current?.setInView(inView);
+  }, [inView]);
+
+  // A break that is over owes its verdict, whichever way it went.
+  useEffect(() => {
+    if (!state.isPlayingAd) finalizeViewability();
+  }, [state.isPlayingAd, finalizeViewability]);
 
   // Cleanup component ad timer
   const cleanupComponentAdTimer = useCallback(() => {
@@ -308,10 +335,24 @@ export function VideoAdProvider({ children, config: userConfig = {} }: VideoAdPr
   const startAdBreak = useCallback((adBreak: VideoAdBreak) => {
     if (!adBreak.ads || adBreak.ads.length === 0) return;
 
+    // Load rules are checked here rather than at the trigger sites, because
+    // this is the one door every break goes through — pre-roll, mid-roll and
+    // post-roll alike.
+    const capped = checkAdCaps(config, sessionRef.current, Date.now());
+    if (capped) {
+      config.onAdCapped?.(adBreak, capped);
+      return;
+    }
+
+    const ads = capPodDuration(adBreak.ads, config.maxAdDurationPerBreak);
+    // The trimmed pod is what plays, so `adsRemaining` and the "ad 2 of 3"
+    // labels have to count against it rather than the original.
+    const cappedBreak = ads.length === adBreak.ads.length ? adBreak : { ...adBreak, ads };
+
+    sessionRef.current = recordAdStarted(sessionRef.current, Date.now());
     currentAdIndex.current = 0;
-    const firstAd = adBreak.ads[0] as VideoAd;
-    playAd(firstAd, adBreak, adBreak.ads.length - 1);
-  }, [playAd]);
+    playAd(ads[0] as VideoAd, cappedBreak, ads.length - 1);
+  }, [config, playAd]);
 
   // Stop ads
   const stopAds = useCallback(() => {

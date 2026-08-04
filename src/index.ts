@@ -73,12 +73,16 @@ export {
   InfoCard,
   InfoCardIcon,
   CompanionAd,
+  AdChoicesIcon,
+  selectAdChoicesIcon,
   type AdOverlayProps,
   type AdSkipButtonProps,
   type OverlayAdProps,
   type InfoCardProps,
   type InfoCardIconProps,
   type CompanionAdProps,
+  type CompanionCapableAd,
+  type AdChoicesIconProps,
 } from './components/ads';
 export {
   Rating,
@@ -212,10 +216,20 @@ export {
   type UseVastAdBreaksOptions,
   type UseVastAdBreaksReturn,
   type MidRollTag,
+  type AdRequestStrategy,
+  type VastTagSource,
 } from './hooks/useVastAdBreaks';
 
 // Reels feed hook
 export { useReelsFeed, type UseReelsFeedOptions, type UseReelsFeedReturn } from './hooks/useReelsFeed';
+
+// MRC viewability measurement
+export {
+  useAdViewability,
+  type AdViewabilityState,
+  type UseAdViewabilityOptions,
+  type UseAdViewabilityReturn,
+} from './hooks/useAdViewability';
 
 // Reels types
 export type {
@@ -249,11 +263,9 @@ export {
   interleaveSlides,
   planFrequencySlots,
   planVmapSlots,
-  checkAdCaps,
   slotHasSource,
   adTagUrls,
-  type AdCapReason,
-  type AdSessionState,
+  type ReelsAdCapReason,
 } from './utils/reelsAdScheduler';
 
 // VAST / VMAP
@@ -295,9 +307,17 @@ export {
   formatPlayhead,
   cacheBuster,
   sendBeacon,
+  consentMacros,
+  consentAllowsAdRequest,
+  readConsentFromCmp,
+  vastAdToOverlayAds,
+  vastAdsToOverlayAds,
+  getNonLinears,
+  type ToOverlayAdOptions,
   type VastRequestResult,
   type VastTrackerOptions,
   type VastMacroContext,
+  type AdConsent,
   type ToReelAdOptions,
   type ToVideoAdOptions,
   type ToAudioAdOptions,
@@ -305,6 +325,15 @@ export {
 
 export { VastError, VastErrorCode } from './types/vast';
 export { toUrlList } from './types/ads';
+
+// Ad load rules, shared by all three players
+export {
+  checkAdCaps,
+  capPodDuration,
+  createAdSession,
+  recordAdStarted,
+  type AdCapRules,
+} from './utils/adCaps';
 export type {
   VastAd,
   VastAdVerification,

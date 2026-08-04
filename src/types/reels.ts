@@ -9,6 +9,7 @@
 import type { HLSConfig, Subtitle } from './video';
 import type { PartialLabels } from './labels';
 import type {
+  AdConsent,
   VastAd,
   VastIcon,
   VastClientOptions,
@@ -205,6 +206,20 @@ export interface ReelsAdConfig {
   vastOptions?: VastClientOptions;
   /** Media-file selection hints. Defaults target a 9:16 viewport. */
   mediaFileOptions?: MediaFileSelectionOptions;
+  /**
+   * Privacy signals forwarded as `[GDPR]`, `[GDPRCONSENT]`, `[US_PRIVACY]`,
+   * `[GPP]`, `[GPP_SID]` and `[LIMITADTRACKING]`. Pass `'auto'` to read them
+   * from the page's CMP. Resolved once per feed and reused for every slot.
+   */
+  consent?: AdConsent | 'auto';
+  /**
+   * Suppress ad requests when a CMP says GDPR applies and produced no consent
+   * string. Default `true`. A suppressed slot resolves to `empty`, so the feed
+   * scrolls straight through it exactly as it does for an unfilled auction.
+   */
+  requireConsent?: boolean;
+  /** Called once when {@link requireConsent} suppressed a slot. */
+  onConsentBlocked?: (consent: AdConsent | undefined) => void;
 
   /* --- Callbacks ------------------------------------------------------- */
 
