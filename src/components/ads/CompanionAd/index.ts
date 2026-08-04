@@ -1,1 +1,5 @@
-export { CompanionAd, type CompanionAdProps } from './CompanionAd';
+export {
+  CompanionAd,
+  type CompanionAdProps,
+  type CompanionCapableAd,
+} from './CompanionAd';

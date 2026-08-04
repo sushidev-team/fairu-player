@@ -81,6 +81,7 @@ export {
   type InfoCardProps,
   type InfoCardIconProps,
   type CompanionAdProps,
+  type CompanionCapableAd,
   type AdChoicesIconProps,
 } from './components/ads';
 export {

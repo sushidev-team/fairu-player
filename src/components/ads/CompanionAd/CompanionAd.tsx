@@ -5,9 +5,18 @@ import { sanitizeUrl } from '@/utils/security';
 import { sendBeacon, substituteMacros, defaultMacroContext } from '@/utils/vast';
 import type { Ad } from '@/types/ads';
 
+/**
+ * The parts of an ad this component reads.
+ *
+ * Structural rather than `Ad`, so the video player's `VideoAd` — a separate
+ * type that also carries a companion — can use the same component instead of
+ * growing a near-identical copy.
+ */
+export type CompanionCapableAd = Pick<Ad, 'id' | 'title' | 'companion'>;
+
 export interface CompanionAdProps {
   /** The ad whose `companion` should be rendered. */
-  ad: Ad;
+  ad: CompanionCapableAd;
   /**
    * Fallback artwork shown when the ad carries no companion — normally the
    * episode cover, so the slot never collapses mid-ad.
@@ -16,17 +25,18 @@ export interface CompanionAdProps {
   /** Alt text for the fallback. */
   fallbackAlt?: string;
   /** Called after the click pixels have been sent. */
-  onClick?: (ad: Ad) => void;
+  onClick?: (ad: CompanionCapableAd) => void;
   /** Rendered over the artwork, e.g. a skip control. */
   children?: React.ReactNode;
   className?: string;
 }
 
 /**
- * The `<Companion>` slot for an audio ad.
+ * The `<Companion>` slot for an audio or video ad.
  *
- * In a podcast player this is the only visual the advertiser gets, which makes
- * it the part worth getting right:
+ * In a podcast player this is the only visual the advertiser gets; beside a
+ * video it is separately sold inventory that also survives a muted autoplay.
+ * Either way it is worth getting right:
  *
  * - **`creativeView` fires on display, not on load.** The companion counts as
  *   seen when it is actually on screen; firing when the image object is created
