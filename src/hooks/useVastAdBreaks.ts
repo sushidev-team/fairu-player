@@ -20,6 +20,7 @@ import {
   vastAdsToVideoAds,
   landscapePlayerMediaOptions,
   type AdConsent,
+  type VastMacroContext,
 } from '@/utils/vast';
 import { sanitizeEndpoint } from '@/utils/security';
 
@@ -42,6 +43,23 @@ export interface MidRollTag {
   tagUrl: VastTagSource | VastTagSource[];
 }
 
+/**
+ * When the ad tags are actually requested.
+ *
+ * - `eager` — every break is requested at mount. Simple, and the only option
+ *   that needs no wiring, but a mid-roll at 20 minutes is then requested twenty
+ *   minutes before it plays: the bids have long expired, the creative may be
+ *   stale, and every viewer who leaves early has still cost an ad request that
+ *   never became an impression.
+ * - `just-in-time` — each break is requested shortly before it is due, driven by
+ *   {@link UseVastAdBreaksReturn.notifyTime}. Requires the host to feed the
+ *   playhead back; breaks the viewer never reaches are never requested.
+ */
+export type AdRequestStrategy = 'eager' | 'just-in-time';
+
+/** Default lead time for a just-in-time request. */
+const DEFAULT_PREFETCH_SECONDS = 15;
+
 export interface UseVastAdBreaksOptions {
   /** Turn the whole thing off without unmounting. Default `true`. */
   enabled?: boolean;
@@ -63,9 +81,26 @@ export interface UseVastAdBreaksOptions {
 
   /**
    * Content duration in seconds. Required to resolve VMAP `percent` offsets;
-   * without it those breaks are dropped rather than guessed.
+   * without it those breaks are dropped rather than guessed. Also used to time
+   * the post-roll request under `just-in-time`.
    */
   duration?: number;
+
+  /**
+   * When to request the tags. Default `'eager'`.
+   *
+   * `'just-in-time'` is the better behaviour but needs
+   * {@link UseVastAdBreaksReturn.notifyTime} wired to the player's
+   * `onTimeUpdate`; defaulting to it would silently drop mid- and post-rolls for
+   * every existing integration that does not.
+   */
+  requestStrategy?: AdRequestStrategy;
+  /**
+   * How many seconds before its trigger a break is requested under
+   * `just-in-time`. Default `15` — long enough to hide the round-trip and any
+   * wrapper chain, short enough that the bid is still fresh.
+   */
+  prefetchSeconds?: number;
 
   /**
    * Privacy signals forwarded to the ad server as `[GDPR]`, `[GDPRCONSENT]`,
@@ -86,7 +121,10 @@ export interface UseVastAdBreaksOptions {
   mediaFileOptions?: MediaFileSelectionOptions;
 
   onError?: (error: Error) => void;
-  /** Called once the breaks are ready. */
+  /**
+   * Called whenever the set of ready breaks changes. Under `just-in-time` this
+   * fires more than once: after planning, then again as each break fills.
+   */
   onResolved?: (adBreaks: VideoAdBreak[]) => void;
 }
 
@@ -97,6 +135,30 @@ export interface UseVastAdBreaksReturn {
   error: Error | null;
   /** Re-request every tag. Use when the content changes. */
   reload: () => void;
+  /**
+   * Feed the content playhead back so `just-in-time` knows when to request the
+   * next break. Wire it straight to the player:
+   *
+   * ```tsx
+   * <VideoPlayer onTimeUpdate={notifyTime} adConfig={{ enabled: true, adBreaks }} />
+   * ```
+   *
+   * Deliberately not React state: it is called on every time update, and a
+   * `setState` there would re-render the host app several times a second. Only
+   * an actual fill updates state.
+   *
+   * A no-op under `eager`.
+   */
+  notifyTime: (currentTime: number, duration?: number) => void;
+}
+
+/** A break whose placement is known but whose ads have not been requested yet. */
+interface PlannedBreak {
+  id: string;
+  position: AdPosition;
+  triggerTime?: number;
+  /** Tag URLs and/or inline documents, tried in order. */
+  tags: VastTagSource[];
 }
 
 /** Map a VMAP offset onto the player's three positions. */
@@ -124,6 +186,23 @@ function positionFor(
       return null;
   }
 }
+
+/** Ranking used to keep the break list in playback order. */
+const POSITION_RANK: Record<AdPosition, number> = {
+  'pre-roll': 0,
+  'mid-roll': 1,
+  'post-roll': 2,
+};
+
+function byPlaybackOrder(a: VideoAdBreak, b: VideoAdBreak): number {
+  return (
+    POSITION_RANK[a.position] - POSITION_RANK[b.position] ||
+    (a.triggerTime ?? 0) - (b.triggerTime ?? 0)
+  );
+}
+
+const asList = (value: VastTagSource | VastTagSource[] | undefined): VastTagSource[] =>
+  !value ? [] : Array.isArray(value) ? value.filter(Boolean) : [value];
 
 /**
  * Fetches VAST/VMAP tags and turns them into `VideoAdBreak[]` for
@@ -154,9 +233,21 @@ function positionFor(
  * });
  * ```
  *
- * Tags are requested once per mount (and on {@link UseVastAdBreaksReturn.reload}).
- * Creatives that cannot be played are dropped individually, with their `<Error>`
- * pixel fired, so one bad rendition does not lose the whole break.
+ * Request each break shortly before it plays instead of all of them at mount:
+ *
+ * ```tsx
+ * const { adBreaks, notifyTime } = useVastAdBreaks({
+ *   midRolls: [{ at: 1200, tagUrl }],
+ *   requestStrategy: 'just-in-time',
+ * });
+ *
+ * <VideoPlayer onTimeUpdate={notifyTime} adConfig={{ enabled: true, adBreaks }} />
+ * ```
+ *
+ * Placement is always planned up front — for VMAP that means the document is
+ * still fetched at mount, because it *is* the schedule. Only the ad requests
+ * move. Creatives that cannot be played are dropped individually, with their
+ * `<Error>` pixel fired, so one bad rendition does not lose the whole break.
  */
 export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAdBreaksReturn {
   const {
@@ -167,6 +258,8 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
     vmapUrl,
     vmapXml,
     duration,
+    requestStrategy = 'eager',
+    prefetchSeconds = DEFAULT_PREFETCH_SECONDS,
     consent,
     defaultSkipOffset,
     vastOptions,
@@ -198,6 +291,27 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
   onErrorRef.current = onError;
   onResolvedRef.current = onResolved;
 
+  /**
+   * Everything `notifyTime` needs, kept in one ref.
+   *
+   * `notifyTime` is called from the player on every time update and must not be
+   * re-created on each render — so it reads a mutable box rather than closing
+   * over state. `generation` guards against a fill from a previous config
+   * landing after a reload.
+   */
+  const pendingRef = useRef({
+    generation: 0,
+    strategy: 'eager' as AdRequestStrategy,
+    prefetch: DEFAULT_PREFETCH_SECONDS,
+    duration: undefined as number | undefined,
+    planned: [] as PlannedBreak[],
+    /** Ids already requested — a no-fill must not be retried on every tick. */
+    attempted: new Set<string>(),
+    filled: new Map<string, VideoAdBreak>(),
+    macros: {} as VastMacroContext,
+    fill: (_planned: PlannedBreak) => {},
+  });
+
   // Serialise the tag configuration so an inline array literal does not
   // retrigger the request on every render.
   const tagKey = useMemo(
@@ -206,6 +320,18 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
   );
 
   useEffect(() => {
+    const pending = pendingRef.current;
+    const generation = pending.generation + 1;
+
+    pending.generation = generation;
+    pending.strategy = requestStrategy;
+    pending.prefetch = prefetchSeconds;
+    pending.duration = duration;
+    pending.planned = [];
+    pending.attempted = new Set();
+    pending.filled = new Map();
+    pending.macros = {};
+
     if (!enabled) {
       setAdBreaks([]);
       return;
@@ -217,47 +343,46 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
       return;
     }
 
-    let cancelled = false;
+    const live = () => pendingRef.current.generation === generation;
+
     setLoading(true);
     setError(null);
 
-    const asList = (value: VastTagSource | VastTagSource[] | undefined): VastTagSource[] =>
-      !value ? [] : Array.isArray(value) ? value.filter(Boolean) : [value];
+    /** Publish the current fill set, in playback order. */
+    const publish = () => {
+      const next = [...pending.filled.values()].sort(byPlaybackOrder);
+      setAdBreaks(next);
+      onResolvedRef.current?.(next);
+    };
 
-    /**
-     * Privacy macros for every request in this pass.
-     *
-     * Resolved once and shared: querying the CMP per break would send several
-     * identical round-trips and, worse, could straddle a consent change so that
-     * the pre-roll and the mid-roll of one session carry different strings.
-     */
-    let privacyMacros: Record<string, string> = {};
+    /** Request one planned break and publish it if it filled. */
+    const fill = async (planned: PlannedBreak): Promise<void> => {
+      if (!live() || pending.attempted.has(planned.id)) return;
+      pending.attempted.add(planned.id);
 
-    /** Resolve one tag list into a break, or null when it did not fill. */
-    const resolveBreak = async (
-      id: string,
-      position: AdPosition,
-      tags: VastTagSource[],
-      triggerTime?: number
-    ): Promise<VideoAdBreak | null> => {
-      if (tags.length === 0) return null;
+      const { id, position, triggerTime, tags } = planned;
+      if (tags.length === 0) return;
 
       // Inline documents resolve without a network round-trip; URLs go through
       // the waterfall. Mixing both in one list is allowed, with inline entries
       // acting as the guaranteed-fill fallback at the end.
       const inline = tags.find((t): t is { xml: string } => typeof t !== 'string');
       const urls = tags.filter((t): t is string => typeof t === 'string');
+      const requestMacros = { ...pending.macros, BREAKPOSITION: position };
 
       let result =
         urls.length > 0
-          ? await requestWaterfall(client, urls, { ...privacyMacros, BREAKPOSITION: position })
+          ? await requestWaterfall(client, urls, requestMacros)
           : { ads: [], errorUrls: [], documentCount: 0 };
 
       if (result.ads.length === 0 && inline) {
         result = await client.resolve(inline.xml, {
-          macros: defaultMacroContext({ ...privacyMacros, BREAKPOSITION: position }),
+          macros: defaultMacroContext(requestMacros),
         });
       }
+
+      if (!live()) return;
+
       const { ads, errors } = vastAdsToVideoAds(result.ads, toOptions);
 
       // Unplayable creatives still owe the ad server an error pixel.
@@ -271,10 +396,96 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
         for (const url of result.errorUrls) {
           sendBeacon(url.replace(/\[ERRORCODE\]/g, String(VastErrorCode.WRAPPER_NO_ADS)));
         }
-        return null;
+        return;
       }
 
-      return { id, position, ...(triggerTime !== undefined ? { triggerTime } : {}), ads };
+      pending.filled.set(id, {
+        id,
+        position,
+        ...(triggerTime !== undefined ? { triggerTime } : {}),
+        ads,
+      });
+      publish();
+    };
+
+    pending.fill = (planned) => {
+      void fill(planned).catch((caught) => {
+        if (!live()) return;
+        onErrorRef.current?.(
+          caught instanceof Error ? caught : new Error('Failed to resolve ad break')
+        );
+      });
+    };
+
+    /** Work out where the breaks go, without requesting any of them yet. */
+    const plan = async (): Promise<PlannedBreak[]> => {
+      if (!vmapUrl && !vmapXml) {
+        return [
+          { id: 'vast-preroll', position: 'pre-roll' as const, tags: asList(preRoll) },
+          ...(midRolls ?? []).map((mid, index) => ({
+            id: `vast-midroll-${index}`,
+            position: 'mid-roll' as const,
+            triggerTime: mid.at,
+            tags: asList(mid.tagUrl),
+          })),
+          { id: 'vast-postroll', position: 'post-roll' as const, tags: asList(postRoll) },
+        ].filter((b) => b.tags.length > 0);
+      }
+
+      // The VMAP document *is* the schedule, so it is fetched up front even
+      // under `just-in-time` — deferring it would mean not knowing where the
+      // breaks are until it is too late to request them.
+      let xml = vmapXml;
+      if (!xml && vmapUrl) {
+        // The VMAP URL is an ad request like any other: it needs its macros
+        // substituted (a literal `[CACHEBUSTING]` defeats the cache buster)
+        // and its scheme validated before we fetch it.
+        const resolvedVmapUrl = sanitizeEndpoint(
+          substituteMacros(vmapUrl, defaultMacroContext(pending.macros))
+        );
+        if (!resolvedVmapUrl) {
+          throw new VastError(
+            `Refusing to fetch VMAP with unsupported URL scheme: ${vmapUrl}`,
+            VastErrorCode.SCHEMA_VALIDATION
+          );
+        }
+
+        const response = await fetch(resolvedVmapUrl, { mode: 'cors', credentials: 'omit' });
+        if (!response.ok) {
+          throw new VastError(
+            `VMAP request failed with HTTP ${response.status}`,
+            VastErrorCode.WRAPPER_NO_ADS
+          );
+        }
+        xml = await response.text();
+      }
+
+      const vmapBreaks: VmapAdBreak[] = parseVmap(xml!).adBreaks.filter((b) =>
+        b.breakTypes.includes('linear')
+      );
+
+      const planned: PlannedBreak[] = [];
+      for (const adBreak of vmapBreaks) {
+        const placement = positionFor(adBreak.timeOffset, duration);
+        if (!placement) continue;
+
+        const source = adBreak.adSource;
+        // Inline `<VASTAdData>` and `<AdTagURI>` differ only in where the
+        // document comes from, so both become ordinary tag sources.
+        const tags: VastTagSource[] = source?.vastAdData
+          ? [{ xml: source.vastAdData }]
+          : asList(source?.adTagUrl);
+        if (tags.length === 0) continue;
+
+        planned.push({
+          id: adBreak.id,
+          position: placement.position,
+          ...(placement.triggerTime !== undefined ? { triggerTime: placement.triggerTime } : {}),
+          tags,
+        });
+      }
+
+      return planned;
     };
 
     void (async () => {
@@ -282,118 +493,75 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
         // Ask the CMP before the first request, not after — a tag fired without
         // the consent string cannot be retroactively made personalisable.
         const resolvedConsent = consent === 'auto' ? await readConsentFromCmp() : consent;
-        if (cancelled) return;
-        privacyMacros = consentMacros(resolvedConsent) as Record<string, string>;
+        if (!live()) return;
+        pending.macros = consentMacros(resolvedConsent);
 
-        let breaks: VideoAdBreak[] = [];
+        const planned = await plan();
+        if (!live()) return;
+        pending.planned = planned;
 
-        if (vmapUrl || vmapXml) {
-          let xml = vmapXml;
-          if (!xml && vmapUrl) {
-            // The VMAP URL is an ad request like any other: it needs its macros
-            // substituted (a literal `[CACHEBUSTING]` defeats the cache buster)
-            // and its scheme validated before we fetch it.
-            const resolvedVmapUrl = sanitizeEndpoint(
-              substituteMacros(vmapUrl, defaultMacroContext(privacyMacros))
-            );
-            if (!resolvedVmapUrl) {
-              throw new VastError(
-                `Refusing to fetch VMAP with unsupported URL scheme: ${vmapUrl}`,
-                VastErrorCode.SCHEMA_VALIDATION
-              );
-            }
-
-            const response = await fetch(resolvedVmapUrl, { mode: 'cors', credentials: 'omit' });
-            if (!response.ok) {
-              throw new VastError(
-                `VMAP request failed with HTTP ${response.status}`,
-                VastErrorCode.WRAPPER_NO_ADS
-              );
-            }
-            xml = await response.text();
-          }
-
-          const vmapBreaks: VmapAdBreak[] = parseVmap(xml!).adBreaks.filter((b) =>
-            b.breakTypes.includes('linear')
-          );
-
-          const resolved = await Promise.all(
-            vmapBreaks.map(async (adBreak) => {
-              const placement = positionFor(adBreak.timeOffset, duration);
-              if (!placement) return null;
-
-              const source = adBreak.adSource;
-              if (source?.vastAdData) {
-                const result = await client.resolve(source.vastAdData, {
-                  macros: defaultMacroContext(privacyMacros),
-                });
-                const { ads } = vastAdsToVideoAds(result.ads, toOptions);
-                if (ads.length === 0) return null;
-                return {
-                  id: adBreak.id,
-                  position: placement.position,
-                  ...(placement.triggerTime !== undefined
-                    ? { triggerTime: placement.triggerTime }
-                    : {}),
-                  ads,
-                } satisfies VideoAdBreak;
-              }
-
-              return resolveBreak(
-                adBreak.id,
-                placement.position,
-                asList(source?.adTagUrl),
-                placement.triggerTime
-              );
-            })
-          );
-
-          breaks = resolved.filter((b): b is VideoAdBreak => b !== null);
+        if (requestStrategy === 'eager') {
+          await Promise.all(planned.map((b) => fill(b)));
         } else {
-          const requests: Array<Promise<VideoAdBreak | null>> = [
-            resolveBreak('vast-preroll', 'pre-roll', asList(preRoll)),
-            ...(midRolls ?? []).map((mid, index) =>
-              resolveBreak(`vast-midroll-${index}`, 'mid-roll', asList(mid.tagUrl), mid.at)
-            ),
-            resolveBreak('vast-postroll', 'post-roll', asList(postRoll)),
-          ];
+          // The pre-roll is due immediately, so there is nothing to defer.
+          const preRollBreaks = planned.filter((b) => b.position === 'pre-roll');
+          await Promise.all(preRollBreaks.map((b) => fill(b)));
 
-          breaks = (await Promise.all(requests)).filter((b): b is VideoAdBreak => b !== null);
+          // Nothing to time a post-roll against without a duration; requesting
+          // it up front beats never requesting it at all.
+          if (!duration || duration <= 0) {
+            await Promise.all(planned.filter((b) => b.position === 'post-roll').map((b) => fill(b)));
+          }
         }
 
-        if (cancelled) return;
-
-        // Order by position, then by trigger time. The player selects breaks by
-        // position so cross-position order is not load-bearing, but mid-rolls
-        // must be ascending for the trigger scan, and a predictable array is
-        // much easier to assert against and to read in a debugger.
-        const rank: Record<AdPosition, number> = { 'pre-roll': 0, 'mid-roll': 1, 'post-roll': 2 };
-        breaks.sort(
-          (a, b) => rank[a.position] - rank[b.position] || (a.triggerTime ?? 0) - (b.triggerTime ?? 0)
-        );
-
-        setAdBreaks(breaks);
-        onResolvedRef.current?.(breaks);
+        if (!live()) return;
+        // Publish even when nothing filled, so `onResolved` always fires once.
+        if (pending.filled.size === 0) publish();
       } catch (caught) {
-        if (cancelled) return;
+        if (!live()) return;
         const err =
           caught instanceof Error ? caught : new Error('Failed to resolve VAST ad breaks');
         setError(err);
         setAdBreaks([]);
         onErrorRef.current?.(err);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (live()) setLoading(false);
       }
     })();
 
     return () => {
-      cancelled = true;
+      // Bumping the generation is what cancels in-flight work: a fill that
+      // lands afterwards finds a stale generation and drops its result.
+      pendingRef.current.generation += 1;
     };
     // `tagKey` collapses the tag configuration into one stable dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, tagKey, nonce, client, toOptions]);
+  }, [enabled, tagKey, nonce, client, toOptions, requestStrategy, prefetchSeconds]);
 
-  return { adBreaks, loading, error, reload };
+  const notifyTime = useCallback((currentTime: number, contentDuration?: number) => {
+    const pending = pendingRef.current;
+    if (pending.strategy !== 'just-in-time') return;
+    if (!Number.isFinite(currentTime)) return;
+
+    const total = contentDuration ?? pending.duration;
+
+    for (const planned of pending.planned) {
+      if (pending.attempted.has(planned.id)) continue;
+
+      if (planned.position === 'mid-roll') {
+        if (planned.triggerTime === undefined) continue;
+        if (currentTime >= planned.triggerTime - pending.prefetch) pending.fill(planned);
+        continue;
+      }
+
+      if (planned.position === 'post-roll') {
+        if (!total || total <= 0) continue;
+        if (currentTime >= total - pending.prefetch) pending.fill(planned);
+      }
+    }
+  }, []);
+
+  return { adBreaks, loading, error, reload, notifyTime };
 }
 
 export default useVastAdBreaks;

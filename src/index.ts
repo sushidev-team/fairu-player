@@ -212,6 +212,8 @@ export {
   type UseVastAdBreaksOptions,
   type UseVastAdBreaksReturn,
   type MidRollTag,
+  type AdRequestStrategy,
+  type VastTagSource,
 } from './hooks/useVastAdBreaks';
 
 // Reels feed hook
