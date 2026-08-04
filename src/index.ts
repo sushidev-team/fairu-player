@@ -308,6 +308,7 @@ export {
   cacheBuster,
   sendBeacon,
   consentMacros,
+  consentAllowsAdRequest,
   readConsentFromCmp,
   vastAdToOverlayAds,
   vastAdsToOverlayAds,

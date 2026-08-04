@@ -9,6 +9,7 @@ import type {
 } from '@/types/vast';
 import { VastError, VastErrorCode } from '@/types/vast';
 import {
+  consentAllowsAdRequest,
   consentMacros,
   defaultMacroContext,
   parseVmap,
@@ -113,6 +114,29 @@ export interface UseVastAdBreaksOptions {
    */
   consent?: AdConsent | 'auto';
 
+  /**
+   * Suppress ad requests when a CMP says GDPR applies and produced no consent
+   * string. Default `true`.
+   *
+   * Narrow on purpose. It blocks exactly one case — consent was required and no
+   * answer exists — and leaves the ambiguous ones alone: a page with no CMP is
+   * silence, not refusal, and a user who was asked and declined still produces a
+   * `tcString` encoding that refusal.
+   *
+   * Defaulting to `true` changes nothing for integrations that pass no
+   * `consent`, because without a CMP reading there is no `gdprApplies` to act
+   * on. It only ever bites once you have opted into reading consent at all.
+   */
+  requireConsent?: boolean;
+
+  /**
+   * Called when {@link requireConsent} suppressed the requests.
+   *
+   * Worth wiring: a blocked session and a session with no inventory look
+   * identical in a fill-rate report and need completely different fixes.
+   */
+  onConsentBlocked?: (consent: AdConsent | undefined) => void;
+
   /** Default skip offset when the creative declares none. `null` = non-skippable. */
   defaultSkipOffset?: number | null;
   /** Forwarded to the VAST client (wrapper depth, timeout, macros). */
@@ -133,6 +157,12 @@ export interface UseVastAdBreaksReturn {
   adBreaks: VideoAdBreak[];
   loading: boolean;
   error: Error | null;
+  /**
+   * `true` when {@link UseVastAdBreaksOptions.requireConsent} suppressed the
+   * requests. Distinguishes "not allowed to ask" from "asked, nothing came
+   * back", which otherwise look the same from `adBreaks: []`.
+   */
+  consentBlocked: boolean;
   /** Re-request every tag. Use when the content changes. */
   reload: () => void;
   /**
@@ -261,6 +291,8 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
     requestStrategy = 'eager',
     prefetchSeconds = DEFAULT_PREFETCH_SECONDS,
     consent,
+    requireConsent = true,
+    onConsentBlocked,
     defaultSkipOffset,
     vastOptions,
     mediaFileOptions,
@@ -271,6 +303,7 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
   const [adBreaks, setAdBreaks] = useState<VideoAdBreak[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [consentBlocked, setConsentBlocked] = useState(false);
   const [nonce, setNonce] = useState(0);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
@@ -288,8 +321,10 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
   // not re-request every ad tag on each render — which would double-count.
   const onErrorRef = useRef(onError);
   const onResolvedRef = useRef(onResolved);
+  const onConsentBlockedRef = useRef(onConsentBlocked);
   onErrorRef.current = onError;
   onResolvedRef.current = onResolved;
+  onConsentBlockedRef.current = onConsentBlocked;
 
   /**
    * Everything `notifyTime` needs, kept in one ref.
@@ -331,6 +366,8 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
     pending.attempted = new Set();
     pending.filled = new Map();
     pending.macros = {};
+
+    setConsentBlocked(false);
 
     if (!enabled) {
       setAdBreaks([]);
@@ -494,6 +531,16 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
         // the consent string cannot be retroactively made personalisable.
         const resolvedConsent = consent === 'auto' ? await readConsentFromCmp() : consent;
         if (!live()) return;
+
+        // Checked before planning, so a VMAP document — itself an ad request —
+        // is not fetched either.
+        if (requireConsent && !consentAllowsAdRequest(resolvedConsent)) {
+          setConsentBlocked(true);
+          setAdBreaks([]);
+          onConsentBlockedRef.current?.(resolvedConsent);
+          return;
+        }
+
         pending.macros = consentMacros(resolvedConsent);
 
         const planned = await plan();
@@ -536,7 +583,7 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
     };
     // `tagKey` collapses the tag configuration into one stable dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, tagKey, nonce, client, toOptions, requestStrategy, prefetchSeconds]);
+  }, [enabled, tagKey, nonce, client, toOptions, requestStrategy, prefetchSeconds, requireConsent]);
 
   const notifyTime = useCallback((currentTime: number, contentDuration?: number) => {
     const pending = pendingRef.current;
@@ -561,7 +608,7 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
     }
   }, []);
 
-  return { adBreaks, loading, error, reload, notifyTime };
+  return { adBreaks, loading, error, consentBlocked, reload, notifyTime };
 }
 
 export default useVastAdBreaks;

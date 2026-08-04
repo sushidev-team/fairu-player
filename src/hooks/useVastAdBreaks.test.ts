@@ -216,6 +216,110 @@ describe('useVastAdBreaks', () => {
     expect(onError).toHaveBeenCalled();
   });
 
+  describe('consent gate', () => {
+    const PRE = 'https://ads.example.com/pre';
+
+    it('sends no request when GDPR applies and no consent string exists', async () => {
+      const { calls } = stubFetch({ [PRE]: inlineVast('pre') });
+      const onConsentBlocked = vi.fn();
+
+      const { result } = renderHook(() =>
+        useVastAdBreaks({
+          preRoll: PRE,
+          consent: { gdprApplies: true },
+          onConsentBlocked,
+        })
+      );
+
+      await waitFor(() => expect(result.current.consentBlocked).toBe(true));
+
+      expect(calls).toHaveLength(0);
+      expect(result.current.adBreaks).toHaveLength(0);
+      expect(onConsentBlocked).toHaveBeenCalledWith({ gdprApplies: true });
+      vi.unstubAllGlobals();
+    });
+
+    it('requests once a consent string is present, and forwards it', async () => {
+      const { calls } = stubFetch({ [PRE]: inlineVast('pre') });
+
+      const { result } = renderHook(() =>
+        useVastAdBreaks({
+          preRoll: `${PRE}?gdpr=[GDPR]&gdpr_consent=[GDPRCONSENT]`,
+          consent: { gdprApplies: true, tcString: 'CPtc' },
+        })
+      );
+
+      await waitFor(() => expect(result.current.adBreaks).toHaveLength(1));
+
+      expect(calls).toHaveLength(1);
+      expect(result.current.consentBlocked).toBe(false);
+      // The string is forwarded, not merely used as a permission slip.
+      expect(calls[0]).toBe(`${PRE}?gdpr=1&gdpr_consent=CPtc`);
+      vi.unstubAllGlobals();
+    });
+
+    it('leaves a page with no CMP alone', async () => {
+      // Silence is not refusal — this is the default for every existing
+      // integration, which passes no consent at all.
+      const { calls } = stubFetch({ [PRE]: inlineVast('pre') });
+
+      const { result } = renderHook(() => useVastAdBreaks({ preRoll: PRE }));
+
+      await waitFor(() => expect(result.current.adBreaks).toHaveLength(1));
+      expect(calls).toHaveLength(1);
+      expect(result.current.consentBlocked).toBe(false);
+      vi.unstubAllGlobals();
+    });
+
+    it('can be turned off explicitly', async () => {
+      const { calls } = stubFetch({ [PRE]: inlineVast('pre') });
+
+      const { result } = renderHook(() =>
+        useVastAdBreaks({ preRoll: PRE, consent: { gdprApplies: true }, requireConsent: false })
+      );
+
+      await waitFor(() => expect(result.current.adBreaks).toHaveLength(1));
+      expect(calls).toHaveLength(1);
+      vi.unstubAllGlobals();
+    });
+
+    it('does not fetch the VMAP document either', async () => {
+      // VMAP is an ad request too, so the gate has to sit before planning.
+      const { calls } = stubFetch({ 'https://ads.example.com/vmap': '<vmap:VMAP/>' });
+
+      const { result } = renderHook(() =>
+        useVastAdBreaks({
+          vmapUrl: 'https://ads.example.com/vmap',
+          consent: { gdprApplies: true },
+        })
+      );
+
+      await waitFor(() => expect(result.current.consentBlocked).toBe(true));
+      expect(calls).toHaveLength(0);
+      vi.unstubAllGlobals();
+    });
+
+    it('blocks deferred mid-rolls, not just the pre-roll', async () => {
+      const MID = 'https://ads.example.com/mid';
+      const { calls } = stubFetch({ [MID]: inlineVast('mid') });
+
+      const { result } = renderHook(() =>
+        useVastAdBreaks({
+          requestStrategy: 'just-in-time',
+          midRolls: [{ at: 100, tagUrl: MID }],
+          consent: { gdprApplies: true },
+        })
+      );
+
+      await waitFor(() => expect(result.current.consentBlocked).toBe(true));
+      act(() => result.current.notifyTime(95));
+      act(() => result.current.notifyTime(120));
+
+      expect(calls).toHaveLength(0);
+      vi.unstubAllGlobals();
+    });
+  });
+
   describe('just-in-time requests', () => {
     const MID = 'https://ads.example.com/mid';
     const PRE = 'https://ads.example.com/pre';

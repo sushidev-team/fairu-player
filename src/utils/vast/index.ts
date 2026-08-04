@@ -39,7 +39,12 @@ export {
   type VastMacroContext,
 } from './macros';
 
-export { consentMacros, readConsentFromCmp, type AdConsent } from './consent';
+export {
+  consentMacros,
+  consentAllowsAdRequest,
+  readConsentFromCmp,
+  type AdConsent,
+} from './consent';
 
 export {
   vastAdToOverlayAds,

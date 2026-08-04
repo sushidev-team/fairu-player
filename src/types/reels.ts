@@ -212,6 +212,14 @@ export interface ReelsAdConfig {
    * from the page's CMP. Resolved once per feed and reused for every slot.
    */
   consent?: AdConsent | 'auto';
+  /**
+   * Suppress ad requests when a CMP says GDPR applies and produced no consent
+   * string. Default `true`. A suppressed slot resolves to `empty`, so the feed
+   * scrolls straight through it exactly as it does for an unfilled auction.
+   */
+  requireConsent?: boolean;
+  /** Called once when {@link requireConsent} suppressed a slot. */
+  onConsentBlocked?: (consent: AdConsent | undefined) => void;
 
   /* --- Callbacks ------------------------------------------------------- */
 

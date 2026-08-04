@@ -16,6 +16,8 @@ What `@fairu/player` does and does not do with IAB ad tags.
 | Reels feed accepts a tag URL | n/a (no reels) | ✅ | ✅ |
 | Audio player accepts a tag URL | ❌ | ✅ | ✅ |
 | Consent macros (TCF / CCPA / GPP) | ❌ | ❌ | ✅ |
+| Consent in an iframe embed (locator) | ❌ | ❌ | ✅ |
+| No request without required consent | ❌ | ❌ | ✅ default on |
 | Just-in-time mid-roll requests | ❌ | ❌ | ✅ opt-in |
 | Frequency capping outside reels | ❌ | ❌ | ✅ |
 | MRC viewability measurement | ❌ | ❌ | ✅ |
@@ -89,29 +91,118 @@ are feed items rather than interruptions.
 
 ## Consent
 
-The player never asks. It reads what the page's CMP already published and
-forwards it verbatim, which is the only correct arrangement for an embed: the
-consent belongs to the publisher whose article the player sits in, not to us.
+### The two rules this follows
+
+**1. The player reads consent; it never asks for it.** There is no code path
+that renders a consent banner, and there will not be one. In an embed the
+consent belongs to the publisher whose article the player sits in — showing our
+own banner inside someone else's page would be claiming an authority we do not
+have.
+
+**2. The player stores nothing.** No cookies, no `localStorage`, no
+`sessionStorage` — `grep` the source. It is therefore not a service that a
+consent manager needs to list, and adding the player to a site does not require
+a `CONSENT_VERSION` bump. The **ad server behind your tag URL** is the service
+that needs declaring, and that is true whether or not this player is involved.
+
+### Reading the signals
 
 ```tsx
-const { adBreaks } = useVastAdBreaks({ preRoll: tag, consent: 'auto' });
+const { adBreaks, consentBlocked } = useVastAdBreaks({
+  preRoll: tag,
+  consent: 'auto',
+});
 ```
 
-`'auto'` queries `__tcfapi`, `__uspapi` and `__gpp` once, before the first ad
-request, and gives up after 1.5 s rather than blocking playback. Pass an
-`AdConsent` object instead when the host already holds the strings.
+`'auto'` queries all three frameworks once, before the first ad request, and
+gives up after 1.5 s rather than holding up playback. Pass an `AdConsent` object
+instead when the host already holds the strings:
 
-Signals that are absent produce **no macro at all**. A bare `&gdpr_consent=`
-tells an SSP "asked and refused", which is a different claim from "this page has
-no CMP", and the difference is worth real money.
+```tsx
+consent: { gdprApplies: true, tcString, usPrivacy: '1YNN' }
+```
 
-The player itself stores nothing — no cookies, no `localStorage`, no
-`sessionStorage` — so it is not a service a consent manager needs to list. The
-ad server behind your tag URL is.
+Two lookups happen per framework, in this order:
 
-**Caveat:** an ad request still goes out when no signal is available. If you need
-"no consent, no request", gate it in the host — the hook does not decide that for
-you.
+| | Where the CMP is | How it is reached |
+|---|---|---|
+| Inline embed, or the player on your own page | same window | `window.__tcfapi` / `__uspapi` / `__gpp` |
+| **iframe embed** | publisher's page, an ancestor frame | `postMessage` to `__tcfapiLocator` / `__uspapiLocator` / `__gppLocator` |
+
+The second row matters more than it looks. Inside an iframe there is no
+`window.__tcfapi` at all, so a player that only checks the local window silently
+concludes "no CMP" on every publisher — the one place where getting it wrong is
+least visible. The ancestor chain is walked up to 20 frames; cross-origin
+ancestors throw on property access, which is expected and simply means "keep
+walking".
+
+A `tcString` is only accepted once it is final. While `eventStatus` is
+`cmpuishown` the banner is still open and the string is provisional; sending it
+would claim a decision the user has not made.
+
+### What gets sent
+
+Signals that are absent produce **no macro at all**:
+
+| Signal | Macro |
+|---|---|
+| `gdprApplies` | `[GDPR]` — `1` / `0` |
+| `tcString` | `[GDPRCONSENT]` |
+| `usPrivacy` | `[US_PRIVACY]` |
+| `gppString` | `[GPP]` |
+| `gppSectionIds` | `[GPP_SID]` — comma separated |
+| `limitAdTracking` | `[LIMITADTRACKING]` — `1` / `0` |
+
+A bare `&gdpr_consent=` tells an SSP "asked and refused", which is a different
+claim from "this page has no CMP". Omitting is the honest encoding of "unknown",
+and the difference is worth real money.
+
+### When no request is sent at all
+
+`requireConsent` defaults to **`true`** and blocks exactly one case:
+
+> A CMP said **GDPR applies**, and produced **no consent string**.
+
+That is the only situation where we positively know consent was required and
+does not exist. Everything ambiguous is deliberately left alone:
+
+| Situation | Request sent? | Why |
+|---|---|---|
+| `gdprApplies: true`, no `tcString` | **no** | Consent required, no answer exists |
+| `gdprApplies: true`, `tcString` present | yes | Even a refusal is encoded *in* the string — honouring it is the ad server's job |
+| `gdprApplies: false` | yes | The CMP explicitly said the regime does not apply |
+| No CMP at all | yes | Silence is not refusal. A publisher outside the EU has no reason to run one |
+| `limitAdTracking: true` | yes | Forwarded as a macro; it governs personalisation, not whether a request may be made |
+
+The gate sits **before planning**, so a VMAP document — itself an ad request —
+is not fetched either, and it applies to deferred mid-rolls under
+`just-in-time`, not only to the pre-roll.
+
+Turning it on by default changes nothing for existing integrations: without a
+`consent` option there is no `gdprApplies` to act on, so the gate never fires.
+It only ever bites once you have opted into reading consent at all.
+
+```tsx
+const { adBreaks, consentBlocked } = useVastAdBreaks({
+  preRoll: tag,
+  consent: 'auto',
+  onConsentBlocked: (consent) => analytics.track('ad_blocked_no_consent', consent),
+});
+```
+
+Wire `onConsentBlocked`, or read `consentBlocked`. A blocked session and a
+session with no inventory both look like `adBreaks: []` in a fill-rate report
+and need completely different fixes.
+
+`requireConsent: false` restores the previous behaviour — request anyway, let
+the SSP decide. That is a defensible position if every publisher you serve is
+known to be set up correctly; it is not the default because that assumption
+fails quietly.
+
+The reels feed takes the same two options on `ReelsAdConfig`. A blocked slot
+resolves to `empty`, so the feed scrolls straight through it exactly as it does
+for an unfilled auction — the slot is never removed, because removing it would
+shift every index behind it under a scrolling viewer.
 
 ---
 
@@ -190,11 +281,6 @@ identical from the outside and need very different fixes.
   verification script is executed. Third-party viewability (IAS, DoubleVerify,
   Moat) needs the OM SDK — see [OMID.md](./OMID.md) for what adopting it costs.
 - **SSAI.** Client-side stitching only.
-- **TCF inside an iframe embed.** `readConsentFromCmp` reads `__tcfapi` on the
-  current window. That is the publisher's CMP for the inline embed, which is
-  correct — but inside an iframe the spec requires `postMessage` to the
-  `__tcfapiLocator` frame, which is not implemented. An iframe embed therefore
-  gets no consent signal at all.
 - **`position:N` VMAP offsets in `VideoPlayer`.** They count *items*, which is
   meaningless for a single video; they are dropped. The reels feed does honour
   them.

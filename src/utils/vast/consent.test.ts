@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { consentMacros, readConsentFromCmp, type AdConsent } from './consent';
+import {
+  consentAllowsAdRequest,
+  consentMacros,
+  readConsentFromCmp,
+  type AdConsent,
+} from './consent';
 import { substituteMacros } from './macros';
 
 describe('consentMacros', () => {
@@ -128,5 +133,141 @@ describe('readConsentFromCmp', () => {
 
     // One broken framework must not take the others down with it.
     expect(consent).toEqual({ usPrivacy: '1YNN' });
+  });
+});
+
+describe('consentAllowsAdRequest', () => {
+  it('blocks when GDPR applies and no consent string exists', () => {
+    // The one case where we positively know consent was required and absent.
+    expect(consentAllowsAdRequest({ gdprApplies: true })).toBe(false);
+    expect(consentAllowsAdRequest({ gdprApplies: true, tcString: '' })).toBe(false);
+  });
+
+  it('allows once a consent string exists, whatever it encodes', () => {
+    // A user who was asked and refused still produces a string — one encoding
+    // the refusal. Honouring it is the ad server's job, not the gate's.
+    expect(consentAllowsAdRequest({ gdprApplies: true, tcString: 'CPrefused' })).toBe(true);
+  });
+
+  it('allows when the CMP says GDPR does not apply', () => {
+    expect(consentAllowsAdRequest({ gdprApplies: false })).toBe(true);
+  });
+
+  it('allows when there is no CMP at all', () => {
+    // Silence is not refusal. A publisher outside the EU has no reason to run
+    // one, and blocking there drops inventory to satisfy a rule that does not
+    // apply.
+    expect(consentAllowsAdRequest({})).toBe(true);
+    expect(consentAllowsAdRequest(undefined)).toBe(true);
+  });
+
+  it('does not block on limitAdTracking alone', () => {
+    // Forwarded as [LIMITADTRACKING]; it governs personalisation, not whether a
+    // request may be made.
+    expect(consentAllowsAdRequest({ limitAdTracking: true })).toBe(true);
+  });
+
+  it('allows a US-Privacy-only page', () => {
+    expect(consentAllowsAdRequest({ usPrivacy: '1YNN' })).toBe(true);
+  });
+});
+
+describe('readConsentFromCmp inside an iframe', () => {
+  /**
+   * A window whose CMP lives in an ancestor frame, reachable only over
+   * postMessage — which is the situation for every iframe embed.
+   */
+  function iframeWindow(reply: (call: Record<string, unknown>) => unknown) {
+    const listeners: Array<(event: MessageEvent) => void> = [];
+
+    const locatorHost = {
+      frames: { __tcfapiLocator: {}, __uspapiLocator: {}, __gppLocator: {} },
+      postMessage: (message: unknown) => {
+        const payload = message as Record<string, Record<string, unknown>>;
+        const call = payload.__tcfapiCall ?? payload.__uspapiCall ?? payload.__gppCall;
+        const key = payload.__tcfapiCall
+          ? '__tcfapiReturn'
+          : payload.__uspapiCall
+            ? '__uspapiReturn'
+            : '__gppReturn';
+
+        const returnValue = reply(call);
+        if (returnValue === undefined) return;
+
+        const event = {
+          data: { [key]: { callId: call.callId, returnValue, success: true } },
+        } as MessageEvent;
+        for (const listener of [...listeners]) listener(event);
+      },
+    };
+
+    const win = {
+      // No __tcfapi of our own: we are in the iframe.
+      frames: {},
+      addEventListener: (_type: string, listener: (event: MessageEvent) => void) => {
+        listeners.push(listener);
+      },
+      removeEventListener: (_type: string, listener: (event: MessageEvent) => void) => {
+        const i = listeners.indexOf(listener);
+        if (i >= 0) listeners.splice(i, 1);
+      },
+    } as Record<string, unknown>;
+
+    win.parent = locatorHost;
+    (locatorHost as Record<string, unknown>).parent = locatorHost;
+    return win;
+  }
+
+  it('reads the publisher CMP through the locator frame', async () => {
+    const consent = await readConsentFromCmp({
+      timeout: 50,
+      window: iframeWindow((call) => {
+        if (call.command === 'getTCData') {
+          return { gdprApplies: true, tcString: 'CPiframe', eventStatus: 'tcloaded' };
+        }
+        if (call.command === 'getUSPData') return { uspString: '1YNN' };
+        return undefined;
+      }),
+    });
+
+    expect(consent).toMatchObject({
+      gdprApplies: true,
+      tcString: 'CPiframe',
+      usPrivacy: '1YNN',
+    });
+  });
+
+  it('still rejects a provisional string received over postMessage', async () => {
+    const consent = await readConsentFromCmp({
+      timeout: 50,
+      window: iframeWindow((call) =>
+        call.command === 'getTCData'
+          ? { gdprApplies: true, tcString: 'PROVISIONAL', eventStatus: 'cmpuishown' }
+          : undefined
+      ),
+    });
+
+    expect(consent).toEqual({});
+  });
+
+  it('gives up when no ancestor answers', async () => {
+    // Without this the iframe embed would hang on every ad request.
+    const consent = await readConsentFromCmp({
+      timeout: 20,
+      window: iframeWindow(() => undefined),
+    });
+
+    expect(consent).toEqual({});
+  });
+
+  it('returns nothing when there is no locator frame anywhere', async () => {
+    const orphan: Record<string, unknown> = {
+      frames: {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    };
+    orphan.parent = orphan;
+
+    await expect(readConsentFromCmp({ timeout: 20, window: orphan })).resolves.toEqual({});
   });
 });
