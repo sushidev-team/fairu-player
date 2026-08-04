@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/sushidev-team/fairu-player/compare/v1.3.3...v1.4.0) (2026-08-04)
+
+
+### Features
+
+* **ads:** consent, capping, viewability and the unrendered creatives ([#23](https://github.com/sushidev-team/fairu-player/issues/23)) ([8a637ae](https://github.com/sushidev-team/fairu-player/commit/8a637ae771774fe26cfda57d0cbf301730f840e4))
+
 ## [1.3.3](https://github.com/sushidev-team/fairu-player/compare/v1.3.2...v1.3.3) (2026-08-03)
 
 
