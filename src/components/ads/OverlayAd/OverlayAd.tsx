@@ -1,6 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { cn } from '@/utils/cn';
+import { toUrlList, type AdTrackingUrl } from '@/types/ads';
+import { defaultMacroContext, sendBeacon, substituteMacros } from '@/utils/vast';
 import type { OverlayAd as OverlayAdType } from '@/types/video';
+
+/**
+ * Fire every pixel declared for one overlay event.
+ *
+ * A plain `fetch` used to be good enough here, which cost this component the
+ * three defects the linear pipeline already fixed: only the first URL of a
+ * wrapper chain was sent, `[CACHEBUSTING]` went out verbatim, and pixels were
+ * dropped when the page was being torn down.
+ */
+function fireOverlayPixels(urls: AdTrackingUrl | undefined): void {
+  const list = toUrlList(urls);
+  if (list.length === 0) return;
+
+  const macros = defaultMacroContext();
+  for (const url of list) sendBeacon(substituteMacros(url, macros));
+}
 
 export interface OverlayAdProps {
   /** The overlay ad configuration */
@@ -58,10 +76,7 @@ export function OverlayAd({
       setImpressionFired(true);
       onImpression?.(ad);
 
-      // Track impression URL
-      if (ad.trackingUrls?.impression) {
-        fetch(ad.trackingUrls.impression, { method: 'GET', mode: 'no-cors' }).catch(() => {});
-      }
+      fireOverlayPixels(ad.trackingUrls?.impression);
     }
   }, [currentTime, ad, duration, visible, forceShow, wasClosed, impressionFired, onImpression]);
 
@@ -72,20 +87,14 @@ export function OverlayAd({
     setIsShowing(false);
     onClose?.(ad);
 
-    // Track close URL
-    if (ad.trackingUrls?.close) {
-      fetch(ad.trackingUrls.close, { method: 'GET', mode: 'no-cors' }).catch(() => {});
-    }
+    fireOverlayPixels(ad.trackingUrls?.close);
   }, [ad, onClose]);
 
   // Handle click
   const handleClick = useCallback(() => {
     onClick?.(ad);
 
-    // Track click URL
-    if (ad.trackingUrls?.click) {
-      fetch(ad.trackingUrls.click, { method: 'GET', mode: 'no-cors' }).catch(() => {});
-    }
+    fireOverlayPixels(ad.trackingUrls?.click);
 
     // Open click-through URL
     if (ad.clickThroughUrl) {

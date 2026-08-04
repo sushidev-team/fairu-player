@@ -271,11 +271,17 @@ export interface OverlayAd {
   closeable?: boolean;
   /** Alt text for the banner image */
   altText?: string;
-  /** Tracking URLs */
+  /**
+   * Tracking URLs.
+   *
+   * The array form matters for VAST-sourced overlays: a wrapper chain
+   * contributes an SSP pixel on top of the DSP's, and dropping either is a
+   * billing error. Single strings keep working.
+   */
   trackingUrls?: {
-    impression?: string;
-    click?: string;
-    close?: string;
+    impression?: import('./ads').AdTrackingUrl;
+    click?: import('./ads').AdTrackingUrl;
+    close?: import('./ads').AdTrackingUrl;
   };
 }
 

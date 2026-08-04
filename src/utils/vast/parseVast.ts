@@ -293,6 +293,7 @@ function parseNonLinearLike(
     type: kind,
     width: numAttr(el, 'width'),
     height: numAttr(el, 'height'),
+    minSuggestedDuration: parseDuration(attr(el, 'minSuggestedDuration')),
     staticResource: text(staticResource),
     staticResourceType: attr(staticResource, 'creativeType'),
     iframeResource: childText(el, 'IFrameResource'),

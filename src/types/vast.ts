@@ -32,6 +32,10 @@ export type VastTrackingEvent =
   | 'rewind'
   | 'skip'
   | 'closeLinear'
+  // NonLinear interaction
+  | 'close'
+  | 'acceptInvitation'
+  | 'collapse'
   | 'fullscreen'
   | 'exitFullscreen'
   | 'playerExpand'
@@ -114,11 +118,16 @@ export interface VastLinearCreative {
   adParameters?: string;
 }
 
-/** A `<NonLinear>` or `<CompanionAds>` creative — parsed, not rendered by the reels feed. */
+/** A `<NonLinear>` or `<CompanionAds>` creative. */
 export interface VastNonLinearCreative {
   type: 'nonlinear' | 'companion';
   width?: number;
   height?: number;
+  /**
+   * `<NonLinear minSuggestedDuration>` in seconds — how long the advertiser
+   * wants the overlay on screen. Advisory, and absent on most creatives.
+   */
+  minSuggestedDuration?: number;
   staticResource?: string;
   staticResourceType?: string;
   iframeResource?: string;
