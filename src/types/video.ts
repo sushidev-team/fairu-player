@@ -244,6 +244,8 @@ export interface VideoAd {
   description?: string;
   poster?: string;
   trackingUrls?: import('./ads').AdTrackingUrls;
+  /** `<Icons>` — the AdChoices / privacy badge. */
+  icons?: import('./vast').VastIcon[];
   /** Custom React component to render instead of video */
   component?: React.ComponentType<CustomAdComponentProps>;
   /** Ad type - 'bumper' for 6s non-skippable ads (default: 'standard') */

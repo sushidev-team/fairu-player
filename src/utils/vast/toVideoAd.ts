@@ -137,6 +137,7 @@ export function vastAdToVideoAd(ad: VastAd, options: ToVideoAdOptions = {}): Vid
     title: ad.adTitle,
     description: ad.description,
     trackingUrls,
+    ...(linear.icons.length > 0 ? { icons: linear.icons } : {}),
     // A 6s non-skippable spot is a bumper by IAB convention; surfacing it lets
     // the player fire its bumper callbacks.
     type: linear.duration > 0 && linear.duration <= 6 && skipOffset === null ? 'bumper' : 'standard',

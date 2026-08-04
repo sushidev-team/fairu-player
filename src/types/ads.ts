@@ -102,6 +102,14 @@ export interface Ad {
     trackingEvents?: import('./vast').VastTrackingEvents;
   };
   trackingUrls?: AdTrackingUrls;
+  /**
+   * `<Icons>` — the AdChoices / privacy badge.
+   *
+   * Not decoration: EU rules require advertising to be identifiable, and most
+   * networks require the badge contractually. A creative that declares one and
+   * does not get it rendered is a breach on the publisher's side.
+   */
+  icons?: import('./vast').VastIcon[];
 }
 
 export interface AdBreak {

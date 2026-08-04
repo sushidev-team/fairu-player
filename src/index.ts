@@ -73,12 +73,15 @@ export {
   InfoCard,
   InfoCardIcon,
   CompanionAd,
+  AdChoicesIcon,
+  selectAdChoicesIcon,
   type AdOverlayProps,
   type AdSkipButtonProps,
   type OverlayAdProps,
   type InfoCardProps,
   type InfoCardIconProps,
   type CompanionAdProps,
+  type AdChoicesIconProps,
 } from './components/ads';
 export {
   Rating,

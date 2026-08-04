@@ -3,3 +3,8 @@ export { AdSkipButton, type AdSkipButtonProps } from './AdSkipButton';
 export { OverlayAd, type OverlayAdProps } from './OverlayAd';
 export { InfoCard, InfoCardIcon, type InfoCardProps, type InfoCardIconProps } from './InfoCard';
 export { CompanionAd, type CompanionAdProps } from './CompanionAd';
+export {
+  AdChoicesIcon,
+  selectAdChoicesIcon,
+  type AdChoicesIconProps,
+} from './AdChoicesIcon';

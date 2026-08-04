@@ -15,6 +15,7 @@ import { LogoOverlay } from './LogoOverlay';
 import { EndScreen } from './EndScreen';
 import { OverlayAd } from '@/components/ads/OverlayAd';
 import { InfoCard, InfoCardIcon } from '@/components/ads/InfoCard';
+import { AdChoicesIcon } from '@/components/ads/AdChoicesIcon';
 import { useKeyboardControls } from '@/hooks/useKeyboardControls';
 import type { VideoConfig, VideoPlayerProps, VideoAdConfig, WatchProgress, VideoAdBreak, CustomAdComponentProps, VideoAd, OverlayAd as OverlayAdType, InfoCard as InfoCardType, RecommendedVideo } from '@/types/video';
 
@@ -198,6 +199,15 @@ function VideoPlayerInner({
           {/* Video Ad controls - only show for non-component ads */}
           {!adState.isComponentAd && (
             <>
+              {/* AdChoices badge — a compliance surface, so it sits above the
+                  gradient rather than inside the control bar that fades. */}
+              <div className="absolute right-3 top-3 z-10">
+                <AdChoicesIcon
+                  icons={(adState.currentAd as VideoAd | null)?.icons}
+                  adId={adState.currentAd?.id}
+                />
+              </div>
+
               <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
                 <div className="flex items-center justify-between mb-2">
                   {/* Ad badge */}
@@ -758,6 +768,15 @@ function VideoPlayerInnerWithAds({
           {/* Video Ad controls - only show for non-component ads */}
           {!adState.isComponentAd && (
             <>
+              {/* AdChoices badge — a compliance surface, so it sits above the
+                  gradient rather than inside the control bar that fades. */}
+              <div className="absolute right-3 top-3 z-10">
+                <AdChoicesIcon
+                  icons={(adState.currentAd as VideoAd | null)?.icons}
+                  adId={adState.currentAd?.id}
+                />
+              </div>
+
               <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
                 <div className="flex items-center justify-between mb-2">
                   {/* Ad badge */}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/utils/cn';
 import { useHLS } from '@/hooks/useHLS';
 import { useAdViewability } from '@/hooks/useAdViewability';
+import { AdChoicesIcon } from '@/components/ads/AdChoicesIcon';
 import { useLabels } from '@/context/LabelsContext';
 import { interpolateLabel } from '@/types/labels';
 import { sanitizeUrl } from '@/utils/security';
@@ -309,9 +310,6 @@ export function ReelAdSlide({
   }
 
   const remaining = Math.max(0, Math.ceil((duration || ad.duration) - currentTime));
-  const adChoices = ad.icons?.find(
-    (icon) => icon.program?.toLowerCase() === 'adchoices' || !!icon.staticResource
-  );
 
   return (
     <div className={cn('relative h-full w-full overflow-hidden bg-black', className)}>
@@ -351,18 +349,7 @@ export function ReelAdSlide({
         </div>
 
         <div className="flex items-center gap-2">
-          {adChoices?.staticResource && (
-            <a
-              href={sanitizeUrl(adChoices.clickThroughUrl, ['http:', 'https:']) ?? '#'}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(event) => event.stopPropagation()}
-              className="block h-4 w-4 overflow-hidden rounded-sm bg-white/80"
-              aria-label={labels.learnMore}
-            >
-              <img src={adChoices.staticResource} alt="" className="h-full w-full object-contain" />
-            </a>
-          )}
+          <AdChoicesIcon icons={ad.icons} adId={ad.id} />
 
           <button
             type="button"

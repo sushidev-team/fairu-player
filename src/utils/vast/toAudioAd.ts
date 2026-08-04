@@ -128,6 +128,7 @@ export function vastAdToAudioAd(ad: VastAd, options: ToAudioAdOptions = {}): Ad 
     title: ad.adTitle,
     description: ad.description,
     trackingUrls,
+    ...(linear.icons.length > 0 ? { icons: linear.icons } : {}),
     ...(companion?.staticResource
       ? {
           companion: {
