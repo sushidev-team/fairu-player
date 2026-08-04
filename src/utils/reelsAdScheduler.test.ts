@@ -204,12 +204,12 @@ describe('planVmapSlots', () => {
 
 describe('checkAdCaps', () => {
   it('allows a fill when nothing is capped', () => {
-    expect(checkAdCaps({ enabled: true }, { adsShown: 0, lastAdStartedAt: 0 }, 1000)).toBeNull();
+    expect(checkAdCaps({}, { adsShown: 0, lastAdStartedAt: 0 }, 1000)).toBeNull();
   });
 
   it('reports the session cap', () => {
     expect(
-      checkAdCaps({ enabled: true, maxAdsPerSession: 2 }, { adsShown: 2, lastAdStartedAt: 0 }, 1000)
+      checkAdCaps({ maxAdsPerSession: 2 }, { adsShown: 2, lastAdStartedAt: 0 }, 1000)
     ).toBe('session-cap');
   });
 
@@ -217,7 +217,7 @@ describe('checkAdCaps', () => {
     const now = 100_000;
     expect(
       checkAdCaps(
-        { enabled: true, minSecondsBetweenAds: 60 },
+        { minSecondsBetweenAds: 60 },
         { adsShown: 1, lastAdStartedAt: now - 30_000 },
         now
       )
@@ -228,7 +228,7 @@ describe('checkAdCaps', () => {
     const now = 100_000;
     expect(
       checkAdCaps(
-        { enabled: true, minSecondsBetweenAds: 60 },
+        { minSecondsBetweenAds: 60 },
         { adsShown: 1, lastAdStartedAt: now - 61_000 },
         now
       )
@@ -238,7 +238,7 @@ describe('checkAdCaps', () => {
   it('does not apply pacing to the first ad of a session', () => {
     expect(
       checkAdCaps(
-        { enabled: true, minSecondsBetweenAds: 300 },
+        { minSecondsBetweenAds: 300 },
         { adsShown: 0, lastAdStartedAt: 0 },
         1000
       )

@@ -251,11 +251,9 @@ export {
   interleaveSlides,
   planFrequencySlots,
   planVmapSlots,
-  checkAdCaps,
   slotHasSource,
   adTagUrls,
-  type AdCapReason,
-  type AdSessionState,
+  type ReelsAdCapReason,
 } from './utils/reelsAdScheduler';
 
 // VAST / VMAP
@@ -310,6 +308,15 @@ export {
 
 export { VastError, VastErrorCode } from './types/vast';
 export { toUrlList } from './types/ads';
+
+// Ad load rules, shared by all three players
+export {
+  checkAdCaps,
+  capPodDuration,
+  createAdSession,
+  recordAdStarted,
+  type AdCapRules,
+} from './utils/adCaps';
 export type {
   VastAd,
   VastAdVerification,

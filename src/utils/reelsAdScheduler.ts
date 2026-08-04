@@ -19,6 +19,7 @@ import type {
 } from '@/types/reels';
 import type { VmapAdBreak } from '@/types/vast';
 import { isLinearBreak, offsetToContentCount } from './vast/parseVmap';
+import { checkAdCaps, type AdCapReason, type AdSessionState } from './adCaps';
 
 const DEFAULT_FREQUENCY = 4;
 const DEFAULT_START_AFTER = 2;
@@ -205,38 +206,18 @@ export function buildSlides(
   return interleaveSlides(reels, slots);
 }
 
-/** Reason a slot was not filled. */
-export type AdCapReason = 'session-cap' | 'pacing' | 'no-inventory';
-
-/** Runtime accounting used to decide whether a slot may be filled. */
-export interface AdSessionState {
-  /** Ads already shown this session. */
-  adsShown: number;
-  /** `Date.now()` of the last ad start, or `0` when none has played. */
-  lastAdStartedAt: number;
-}
-
 /**
- * Decide whether a slot may request an ad right now.
+ * Reason a slot was not filled.
  *
- * @returns `null` when the slot may be filled, or the capping reason
+ * `no-inventory` is specific to the feed: a slot exists in the list but has no
+ * ad source behind it. The capping reasons themselves are shared with the audio
+ * and video players — see {@link import('./adCaps').checkAdCaps}, which is the
+ * one implementation all three use.
  */
-export function checkAdCaps(
-  config: ReelsAdConfig,
-  session: AdSessionState,
-  now: number
-): AdCapReason | null {
-  const max = config.maxAdsPerSession ?? Infinity;
-  if (session.adsShown >= max) return 'session-cap';
+export type ReelsAdCapReason = AdCapReason | 'no-inventory';
 
-  const minGap = config.minSecondsBetweenAds ?? 0;
-  if (minGap > 0 && session.lastAdStartedAt > 0) {
-    const elapsed = (now - session.lastAdStartedAt) / 1000;
-    if (elapsed < minGap) return 'pacing';
-  }
-
-  return null;
-}
+export { checkAdCaps };
+export type { AdCapReason, AdSessionState };
 
 /** Whether a slot has any inventory source configured at all. */
 export function slotHasSource(slot: ReelAdSlot, config: ReelsAdConfig): boolean {
