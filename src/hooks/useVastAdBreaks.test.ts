@@ -584,6 +584,58 @@ describe('useVastAdBreaks', () => {
       expect(calls.some((url) => url.includes('/noad'))).toBe(false);
     });
 
+    it('renders a banner a VMAP declared as a non-linear break', async () => {
+      /*
+       * The break used to be filtered out during planning, so its document was
+       * never even fetched — trafficked inventory that stayed invisible under
+       * exactly the scheduling model that sells it.
+       */
+      const vmap = `<vmap:VMAP xmlns:vmap="http://www.iab.net/videosuite/vmap" version="1.0">
+        <vmap:AdBreak timeOffset="00:02:00" breakType="nonlinear" breakId="banner">
+          <vmap:AdSource><vmap:VASTAdData>${nonLinearVast('banner', true)}</vmap:VASTAdData></vmap:AdSource>
+        </vmap:AdBreak>
+      </vmap:VMAP>`;
+
+      stubFetch({ 'https://ads.example.com/vmap': vmap });
+
+      const { result } = renderHook(() =>
+        useVastAdBreaks({ vmapUrl: 'https://ads.example.com/vmap', duration: 600 })
+      );
+
+      await waitFor(() => expect(result.current.overlayAds).toHaveLength(1));
+
+      expect(result.current.overlayAds[0].displayAt).toBe(120);
+      /*
+       * And nothing interrupts: the document said this placement is
+       * non-linear, so the spot riding along in the same response is not a
+       * break the viewer agreed to.
+       */
+      expect(result.current.adBreaks).toHaveLength(0);
+    });
+
+    it('does not leave a previous generation’s banners on screen', async () => {
+      stubFetch({
+        'https://ads.example.com/one': nonLinearVast('one'),
+        'https://ads.example.com/two': NO_ADS,
+      });
+
+      const { result, rerender } = renderHook(
+        ({ tag }: { tag: string }) => useVastAdBreaks({ preRoll: tag }),
+        { initialProps: { tag: 'https://ads.example.com/one' } }
+      );
+
+      await waitFor(() => expect(result.current.overlayAds).toHaveLength(1));
+
+      rerender({ tag: 'https://ads.example.com/two' });
+
+      /*
+       * Banners are published as each response yields one, so a generation that
+       * yields none would otherwise keep showing the last one — over content it
+       * was never sold against.
+       */
+      await waitFor(() => expect(result.current.overlayAds).toHaveLength(0));
+    });
+
     it('still reports a genuine no-fill', async () => {
       const { calls } = stubFetch({ 'https://ads.example.com/pre': NO_ADS });
 

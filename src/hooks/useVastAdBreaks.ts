@@ -207,6 +207,15 @@ interface PlannedBreak {
   triggerTime?: number;
   /** Tag URLs and/or inline documents, tried in order. */
   tags: VastTagSource[];
+  /**
+   * A VMAP break declared `nonlinear` and not `linear`.
+   *
+   * Its response is requested like any other and read only for banners: the
+   * document said this placement does not interrupt, so a linear creative that
+   * happens to ride along must not become a break. Nor does an absent one owe
+   * an error — nothing was expecting a spot here.
+   */
+  overlayOnly?: boolean;
 }
 
 /** Map a VMAP offset onto the player's three positions. */
@@ -431,7 +440,7 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
       if (!live() || pending.attempted.has(planned.id)) return;
       pending.attempted.add(planned.id);
 
-      const { id, position, triggerTime, tags } = planned;
+      const { id, position, triggerTime, tags, overlayOnly } = planned;
       if (tags.length === 0) return;
 
       // Inline documents resolve without a network round-trip; URLs go through
@@ -483,6 +492,14 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
         pending.overlays.set(id, overlays);
         publishOverlays();
       }
+
+      /*
+       * A break the VMAP declared non-linear is a placement, not an
+       * interruption. Its banners are already published above; a linear
+       * creative in the same response is not what the document asked for, and
+       * an absent one owes no error pixel.
+       */
+      if (overlayOnly) return;
 
       if (ads.length === 0) {
         /*
@@ -561,8 +578,15 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
         xml = await response.text();
       }
 
-      const vmapBreaks: VmapAdBreak[] = parseVmap(xml!).adBreaks.filter((b) =>
-        b.breakTypes.includes('linear')
+      /*
+       * Non-linear breaks are planned too.
+       *
+       * Filtering them out here is what kept trafficked banner inventory
+       * invisible under VMAP even once the player could render it: the break
+       * was discarded before its document was ever fetched.
+       */
+      const vmapBreaks: VmapAdBreak[] = parseVmap(xml!).adBreaks.filter(
+        (b) => b.breakTypes.includes('linear') || b.breakTypes.includes('nonlinear')
       );
 
       const planned: PlannedBreak[] = [];
@@ -583,6 +607,7 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
           position: placement.position,
           ...(placement.triggerTime !== undefined ? { triggerTime: placement.triggerTime } : {}),
           tags,
+          ...(adBreak.breakTypes.includes('linear') ? {} : { overlayOnly: true }),
         });
       }
 
@@ -601,6 +626,7 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
         if (requireConsent && !consentAllowsAdRequest(resolvedConsent)) {
           setConsentBlocked(true);
           setAdBreaks([]);
+          setOverlayAds([]);
           onConsentBlockedRef.current?.(resolvedConsent);
           return;
         }
@@ -628,12 +654,22 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
         if (!live()) return;
         // Publish even when nothing filled, so `onResolved` always fires once.
         if (pending.filled.size === 0) publish();
+        /*
+         * And the banners, unconditionally.
+         *
+         * They are published as each response yields one, so without this a
+         * generation that produced none would leave the previous content's
+         * banners on screen — over an episode they were never sold against.
+         * `adBreaks` is spared that by the line above; this is its counterpart.
+         */
+        if (pending.overlays.size === 0) publishOverlays();
       } catch (caught) {
         if (!live()) return;
         const err =
           caught instanceof Error ? caught : new Error('Failed to resolve VAST ad breaks');
         setError(err);
         setAdBreaks([]);
+        setOverlayAds([]);
         onErrorRef.current?.(err);
       } finally {
         if (live()) setLoading(false);
