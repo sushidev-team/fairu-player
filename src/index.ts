@@ -193,6 +193,15 @@ export {
   useChapters,
   useMarkers,
   useKeyboardControls,
+  // Documented in the README but missing from this barrel until now, so
+  // `import { useHLS } from '@fairu/player'` failed for anyone following it.
+  useHLS,
+  isHLSSource,
+  supportsNativeHLS,
+  useMediaSession,
+  isMediaSessionSupported,
+  usePersistentPreferences,
+  useResumePosition,
   type UseAudioOptions,
   type UseAudioReturn,
   type UseVideoOptions,
@@ -208,7 +217,35 @@ export {
   type UsePlaylistOptions,
   type UsePlaylistReturn,
   type UseKeyboardControlsOptions,
+  type UseHLSOptions,
+  type UseHLSReturn,
+  type UseMediaSessionOptions,
+  type UsePersistentPreferencesOptions,
+  type UsePersistentPreferencesReturn,
+  type UseResumePositionOptions,
+  type UseResumePositionReturn,
 } from './hooks';
+
+// Persistence + Media Session
+export {
+  isStorageAvailable,
+  readStored,
+  writeStored,
+  removeStored,
+  clearStored,
+  type StorageKind,
+} from './utils/storage';
+export type {
+  PersistedPreferences,
+  PersistenceConfig,
+  ResumePosition,
+  ResumeConfig,
+} from './types/persistence';
+export type {
+  MediaSessionArtwork,
+  MediaSessionMetadata,
+  MediaSessionConfig,
+} from './types/mediaSession';
 
 // VAST ad breaks for the classic VideoPlayer
 export {

@@ -1,6 +1,9 @@
-import React, { createContext, useContext, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useVideo } from '@/hooks/useVideo';
 import { usePlaylist } from '@/hooks/usePlaylist';
+import { useMediaSession } from '@/hooks/useMediaSession';
+import { usePersistentPreferences } from '@/hooks/usePersistentPreferences';
+import { useResumePosition } from '@/hooks/useResumePosition';
 import { LabelsProvider } from './LabelsContext';
 import type { VideoConfig, VideoContextValue, VideoTrack, WatchProgress } from '@/types/video';
 import type { Track } from '@/types/player';
@@ -124,11 +127,28 @@ export function VideoProvider({
   const currentTrack = playlistReturn.state.currentTrack as VideoTrack | null;
   const currentSrc = currentTrack?.src;
 
+  // Remembered volume / mute / rate — see the same block in PlayerContext.
+  const { preferences, update: updatePreferences, isHydrated: prefsHydrated } =
+    usePersistentPreferences({
+      ...config.persistence,
+      defaults: {
+        volume: config.volume,
+        muted: config.muted,
+        playbackRate: 1,
+      },
+    });
+
+  const resume = useResumePosition({
+    trackId: currentTrack?.id,
+    ...config.persistence,
+    ...config.resume,
+  });
+
   // Initialize video with current track
   const videoReturn = useVideo({
     src: currentSrc,
-    volume: config.volume,
-    muted: config.muted,
+    volume: preferences.volume ?? config.volume,
+    muted: preferences.muted ?? config.muted,
     autoPlay: config.autoPlay,
     skipForwardSeconds: config.skipForwardSeconds,
     skipBackwardSeconds: config.skipBackwardSeconds,
@@ -150,6 +170,88 @@ export function VideoProvider({
     onFullscreenChange,
     onPictureInPictureChange,
     onTabVisibilityChange,
+  });
+
+  const { volume, isMuted, playbackRate, currentTime, duration, isPlaying } = videoReturn.state;
+
+  // Persist preference changes, once the stored values have been read.
+  useEffect(() => {
+    if (!prefsHydrated) return;
+    if (
+      preferences.volume === volume &&
+      preferences.muted === isMuted &&
+      preferences.playbackRate === playbackRate
+    ) {
+      return;
+    }
+    updatePreferences({ volume, muted: isMuted, playbackRate });
+  }, [
+    prefsHydrated,
+    volume,
+    isMuted,
+    playbackRate,
+    preferences.volume,
+    preferences.muted,
+    preferences.playbackRate,
+    updatePreferences,
+  ]);
+
+  // Restore the stored position once per track — opt-in, see PlayerContext.
+  const autoResume = config.resume?.autoResume ?? false;
+  const restoredForRef = useRef<string | null>(null);
+  useEffect(() => {
+    const trackId = currentTrack?.id;
+    if (!autoResume || !trackId || !resume.isHydrated) return;
+    if (restoredForRef.current === trackId) return;
+    if (!Number.isFinite(duration) || duration <= 0) return;
+
+    restoredForRef.current = trackId;
+    if (resume.resumeAt !== null && resume.resumeAt < duration) {
+      videoReturn.controls.seek(resume.resumeAt);
+    }
+  }, [
+    autoResume,
+    currentTrack?.id,
+    resume.isHydrated,
+    resume.resumeAt,
+    duration,
+    videoReturn.controls,
+  ]);
+
+  // Record the position as it advances. `save` throttles internally.
+  useEffect(() => {
+    if (!isPlaying) return;
+    resume.save(currentTime, duration);
+  }, [isPlaying, currentTime, duration, resume]);
+
+  // Publish to the OS lock screen / Now Playing UI.
+  useMediaSession({
+    ...config.mediaSession,
+    metadata: currentTrack
+      ? {
+          title: currentTrack.title,
+          artist: currentTrack.artist,
+          album: currentTrack.album,
+          artwork: currentTrack.poster
+            ? [{ src: currentTrack.poster, sizes: '1280x720' }]
+            : currentTrack.artwork
+              ? [{ src: currentTrack.artwork, sizes: '512x512' }]
+              : undefined,
+        }
+      : null,
+    isPlaying,
+    position: currentTime,
+    duration,
+    playbackRate,
+    seekOffset: config.skipForwardSeconds,
+    onPlay: videoReturn.controls.play,
+    onPause: videoReturn.controls.pause,
+    onStop: videoReturn.controls.stop,
+    onNextTrack: playlistReturn.controls.next,
+    onPreviousTrack: playlistReturn.controls.previous,
+    onSeekTo: videoReturn.controls.seek,
+    onSeekForward: videoReturn.controls.skipForward,
+    onSeekBackward: videoReturn.controls.skipBackward,
   });
 
   const contextValue = useMemo<VideoContextValue>(() => ({

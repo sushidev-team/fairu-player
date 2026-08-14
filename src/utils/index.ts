@@ -1,6 +1,17 @@
 export { formatTime, formatDuration, parseTime, calculatePercentage } from './formatTime';
 export { cn } from './cn';
 export {
+  isStorageAvailable,
+  resetStorageAvailability,
+  readStored,
+  writeStored,
+  removeStored,
+  clearStored,
+  type StorageKind,
+  type StoredEnvelope,
+  type ReadOptions,
+} from './storage';
+export {
   createAdEventBus,
   getGlobalAdEventBus,
   resetGlobalAdEventBus,

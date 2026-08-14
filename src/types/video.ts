@@ -187,6 +187,15 @@ export interface VideoConfig {
   endScreen?: EndScreenConfig;
   /** Tab visibility behavior configuration */
   tabVisibility?: TabVisibilityConfig;
+  /**
+   * Remembering volume, mute and playback rate across sessions.
+   * Persistence is on by default; set `enabled: false` to opt out.
+   */
+  persistence?: import('./persistence').PersistenceConfig;
+  /** Remembering where playback stopped, per track. */
+  resume?: import('./persistence').ResumeConfig;
+  /** OS lock-screen / Now Playing integration. On by default. */
+  mediaSession?: import('./mediaSession').MediaSessionConfig;
   /** Timeline markers */
   markers?: TimelineMarker[];
 }

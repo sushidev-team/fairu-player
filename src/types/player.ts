@@ -44,6 +44,15 @@ export interface PlayerConfig {
   autoPlay?: boolean;
   /** Custom labels for text localization */
   labels?: import('./labels').PartialLabels;
+  /**
+   * Remembering volume, mute and playback rate across sessions.
+   * Persistence is on by default; set `enabled: false` to opt out.
+   */
+  persistence?: import('./persistence').PersistenceConfig;
+  /** Remembering where playback stopped, per track. */
+  resume?: import('./persistence').ResumeConfig;
+  /** OS lock-screen / Now Playing integration. On by default. */
+  mediaSession?: import('./mediaSession').MediaSessionConfig;
 }
 
 export interface PlayerState {
