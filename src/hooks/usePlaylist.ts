@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Track, RepeatMode, PlaylistState, PlaylistControls } from '@/types/player';
 
 export interface UsePlaylistOptions {
@@ -43,15 +43,21 @@ export function usePlaylist(options: UsePlaylistOptions = {}): UsePlaylistReturn
   const [history, setHistory] = useState<Track[]>([]);
   const [shuffledOrder, setShuffledOrder] = useState<number[]>([]);
 
-  // Update tracks when initialTracks changes
-  useMemo(() => {
+  // Adopt tracks that arrive after mount (async playlist fetch, for instance).
+  //
+  // Both of these were `useMemo` calling setState. A memo may be re-run or
+  // discarded at React's discretion and runs during render, so setState from
+  // inside one is a documented infinite-loop hazard — and under StrictMode it
+  // fired twice, reshuffling the order on every render pass. An effect is the
+  // correct place for a state sync: it runs after commit, exactly once.
+  useEffect(() => {
     if (initialTracks.length > 0 && tracks.length === 0) {
       setTracks(initialTracks);
     }
   }, [initialTracks, tracks.length]);
 
   // Generate shuffled order when shuffle is enabled
-  useMemo(() => {
+  useEffect(() => {
     if (shuffle && tracks.length > 0) {
       const indices = tracks.map((_, i) => i);
       setShuffledOrder(shuffleArray(indices));

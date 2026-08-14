@@ -80,12 +80,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # NOTE: `npm run lint` currently cannot pass — eslint and its plugins are
-      # not in devDependencies, so the binary is missing. `continue-on-error`
-      # keeps CI green while that is outstanding; see docs/DEPENDENCIES.md.
+      # Blocking. Zero errors, and a warning budget that only ever ratchets
+      # down — see the `lint` script in package.json and Phase 0 of ROADMAP.md.
       - name: Run ESLint
         run: npm run lint
-        continue-on-error: true
 
   storybook:
     runs-on: ubuntu-latest

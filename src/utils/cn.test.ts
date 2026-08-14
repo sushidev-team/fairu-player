@@ -7,8 +7,13 @@ describe('cn', () => {
   });
 
   it('handles conditional classes', () => {
-    expect(cn('foo', true && 'bar')).toBe('foo bar');
-    expect(cn('foo', false && 'bar')).toBe('foo');
+    // Held in variables so the condition is opaque to the compiler. Inlining
+    // `true && 'bar'` folds to a constant before `cn` ever sees it, which tests
+    // nothing.
+    const on = Boolean(1);
+    const off = Boolean(0);
+    expect(cn('foo', on && 'bar')).toBe('foo bar');
+    expect(cn('foo', off && 'bar')).toBe('foo');
   });
 
   it('handles undefined and null', () => {

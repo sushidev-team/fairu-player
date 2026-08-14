@@ -251,7 +251,9 @@ export function ProgressBar({
     }
 
     const step = e.shiftKey ? 10 : 5;
-    let newTime = currentTime;
+    // No initialiser: every branch that falls through to the seek below assigns,
+    // and `default` returns. Seeding it with `currentTime` only hid that.
+    let newTime: number;
 
     switch (e.key) {
       case 'ArrowLeft':
