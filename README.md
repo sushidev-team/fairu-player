@@ -340,33 +340,45 @@ import { useHLS, isHLSSource } from '@fairu/player';
 function HLSPlayer() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const {
-    isReady,
-    availableQualities,
-    currentQuality,
-    setQuality,
+    isHLS,
+    isUsingHlsJs,
+    levels,
+    currentLevel,
+    setLevel,
     isAutoQuality,
-    setAutoQuality
-  } = useHLS(videoRef, {
+    setAutoQuality,
+    attachHLS,
+    detachHLS,
+    hlsInstance,
+  } = useHLS({
     src: 'https://example.com/video.m3u8',
-    autoQuality: true,
+    videoRef,
+    config: { autoQuality: true, lowLatencyMode: false },
+    onQualityLevelsLoaded: (parsed) => console.log(parsed.length, 'levels'),
+    onError: (error) => console.error(error),
   });
 
   return (
     <>
       <video ref={videoRef} />
       <select
-        value={currentQuality}
-        onChange={(e) => setQuality(e.target.value)}
+        value={currentLevel}
+        onChange={(e) => setLevel(Number(e.target.value))}
       >
-        <option value="auto">Auto</option>
-        {availableQualities.map(q => (
-          <option key={q.label} value={q.label}>{q.label}</option>
+        <option value={-1}>Auto</option>
+        {levels.map((level, i) => (
+          <option key={level.label} value={i}>{level.label}</option>
         ))}
       </select>
     </>
   );
 }
 ```
+
+`levels` comes from the manifest, so it is empty until it has been parsed.
+`currentLevel` is an index into it, with `-1` meaning adaptive — which is why
+`setLevel` takes a number rather than a label. Safari plays HLS natively, so
+`isUsingHlsJs` is false there and `hlsInstance` is `null`.
 
 ### `useFullscreen`
 
@@ -397,35 +409,45 @@ Playlist management with shuffle and repeat.
 import { usePlaylist } from '@fairu/player';
 
 function PlaylistManager() {
-  const {
-    tracks,
-    currentIndex,
-    currentTrack,
-    shuffle,
-    repeat,
-    hasNext,
-    hasPrevious,
-    playTrack,
-    next,
-    previous,
-    toggleShuffle,
-    setRepeat,
-  } = usePlaylist({
+  const { state, controls } = usePlaylist({
     tracks: [...],
     initialIndex: 0,
+    onTrackChange: (track, index) => console.log('now playing', track.title, index),
+    onQueueEnd: () => console.log('reached the end'),
   });
 
   return (
     <div>
-      {tracks.map((track, i) => (
-        <div key={track.id} onClick={() => playTrack(i)}>
-          {currentIndex === i && '▶'} {track.title}
+      {state.tracks.map((track, i) => (
+        <div key={track.id} onClick={() => controls.goToTrack(i)}>
+          {state.currentIndex === i && '▶'} {track.title}
         </div>
       ))}
+      <button onClick={controls.previous}>Previous</button>
+      <button onClick={controls.next}>Next</button>
+      <button onClick={controls.toggleShuffle}>
+        Shuffle {state.shuffle ? 'on' : 'off'}
+      </button>
     </div>
   );
 }
 ```
+
+**`state`:** `tracks`, `currentIndex`, `currentTrack`, `shuffle`, `repeat`,
+`queue`, `history`.
+
+**`controls`:** `next`, `previous`, `goToTrack`, `setRepeat`, `toggleShuffle`,
+`addToQueue`, `removeFromQueue`, `clearQueue`.
+
+Two behaviours worth knowing:
+
+- **Shuffle keeps the current track playing** and reorders what comes after it,
+  so switching it on never jumps elsewhere and every remaining track is visited
+  before `onQueueEnd` fires.
+- **A new track list is adopted when its ids differ.** Re-passing the same
+  tracks — which happens on every render with an inline array — leaves the
+  position alone; a genuinely different list resets the cursor, history and
+  queue.
 
 ### `useChapters`
 
@@ -1201,12 +1223,19 @@ payload is on `event.detail`.
 | `fairu:trackchange` | `{ track, index }` |
 | `fairu:error` | `{ message, error }` |
 
-### Known limitation
+### Changing media
 
-Replacing `config.track` after mount does **not** switch the playing track — the
-playlist only adopts incoming tracks while it has none, so that a late-arriving
-fetch cannot reset a listener's position. Use the `playlist` property to change
-media, or remove and re-insert the element.
+Rebinding `config` or `playlist` swaps what is playing — the ordinary Vue and
+Angular pattern works:
+
+```vue
+<fairu-player :config="{ track: currentEpisode }" />
+```
+
+The list is compared by track id, not by array identity, so re-passing the same
+tracks (which happens on every render with an inline object) does **not** reset
+the listener's position. A genuinely different list resets the cursor, history
+and queue, as you would expect from switching playlists.
 
 ## Media Session (lock screen & OS controls)
 
