@@ -65,7 +65,7 @@ describe('usePlaylist', () => {
       expect(result.current.state.currentTrack?.id).toBe('a');
     });
 
-    it('does not clobber tracks it already has', () => {
+    it('adopts a genuinely different list and resets the cursor', () => {
       const { result, rerender } = renderHook(
         ({ tracks }) => usePlaylist({ tracks }),
         { initialProps: { tracks: TRACKS } }
@@ -74,9 +74,40 @@ describe('usePlaylist', () => {
       act(() => result.current.controls.goToTrack(2));
       rerender({ tracks: [EXTRA] });
 
-      // Only adopted while empty, so the cursor is not reset under the user.
-      expect(result.current.state.tracks).toHaveLength(3);
+      // Swapping the playlist invalidates the cursor and everything derived
+      // from it, so history and queue go too.
+      expect(result.current.state.tracks.map((t) => t.id)).toEqual(['d']);
+      expect(result.current.state.currentIndex).toBe(0);
+      expect(result.current.state.history).toEqual([]);
+      expect(result.current.state.queue).toEqual([]);
+    });
+
+    it('ignores a re-passed list with the same ids', () => {
+      // Callers build the array inline, so it is a new reference every render.
+      // Resyncing on that would reset the listener's position continuously.
+      const { result, rerender } = renderHook(
+        ({ tracks }) => usePlaylist({ tracks }),
+        { initialProps: { tracks: TRACKS } }
+      );
+
+      act(() => result.current.controls.goToTrack(2));
+      rerender({ tracks: [...TRACKS] });
+      rerender({ tracks: TRACKS.map((t) => ({ ...t })) });
+
       expect(result.current.state.currentIndex).toBe(2);
+    });
+
+    it('keeps initialIndex when a late list fills an empty one', () => {
+      const { result, rerender } = renderHook(
+        ({ tracks }) => usePlaylist({ tracks, initialIndex: 1 }),
+        { initialProps: { tracks: [] as Track[] } }
+      );
+
+      rerender({ tracks: TRACKS });
+
+      // Filling an empty list is the late-fetch case, not a swap — the caller's
+      // requested starting point still stands.
+      expect(result.current.state.currentIndex).toBe(1);
     });
   });
 
@@ -342,34 +373,85 @@ describe('usePlaylist', () => {
     });
 
     /**
-     * KNOWN DEFECT — pinned, not endorsed.
+     * Regression cover for the traversal defect.
      *
-     * Enabling shuffle builds a shuffled order but leaves the cursor on
-     * `currentIndex`, which is still 0. `next()` then looks 0 up *inside* the
-     * shuffled order — so when the permutation happens to place index 0 last,
-     * the very first `next()` is already at the end and ends the queue after a
-     * single track.
+     * The order used to be a plain permutation, so `next()` looked the current
+     * index up inside it and, whenever the shuffle happened to place that index
+     * last, ended the queue after a single track — a 1-in-N chance per session,
+     * and the reason an earlier version of these tests was flaky.
      *
-     * With three tracks that is a 1-in-3 chance per session. It is why the
-     * earlier version of this test was flaky.
-     *
-     * The fix is for shuffle to start traversal at `shuffledOrder[0]` rather
-     * than at whatever index was current, but that changes which track plays
-     * when a listener hits shuffle — a behaviour change that belongs in its own
-     * commit. Until then this test documents the real behaviour so the fix is a
-     * deliberate, visible edit here.
+     * The current track is now moved to the front of the order.
      */
-    it('ends the queue immediately when the shuffled order puts the current track last', () => {
-      forcePermutation(); // [0,1,2] -> [1,2,0]; index 0 is last
+    it('plays every remaining track before ending, whatever the permutation', () => {
+      forcePermutation(); // would place index 0 last without the fix
       const onQueueEnd = vi.fn();
       const { result } = renderHook(() =>
         usePlaylist({ tracks: TRACKS, shuffle: true, onQueueEnd })
       );
 
-      act(() => result.current.controls.next());
+      const visited = [result.current.state.currentIndex];
+      for (let i = 0; i < TRACKS.length - 1; i++) {
+        act(() => result.current.controls.next());
+        visited.push(result.current.state.currentIndex);
+      }
 
+      expect([...new Set(visited)].sort()).toEqual([0, 1, 2]);
+      expect(onQueueEnd).not.toHaveBeenCalled();
+
+      // Only now, with the list exhausted, is the queue actually over.
+      act(() => result.current.controls.next());
       expect(onQueueEnd).toHaveBeenCalledOnce();
-      expect(result.current.state.currentIndex).toBe(0);
+    });
+
+    it('steps back through the shuffled order once history is exhausted', () => {
+      forcePermutation();
+      const { result } = renderHook(() =>
+        usePlaylist({ tracks: TRACKS, shuffle: true, repeat: 'all' })
+      );
+
+      // Advance twice, then rewind past both history entries so the third
+      // `previous()` has to fall through to the shuffled order itself.
+      act(() => result.current.controls.next());
+      act(() => result.current.controls.next());
+      act(() => result.current.controls.previous());
+      act(() => result.current.controls.previous());
+      act(() => result.current.controls.previous());
+
+      expect(result.current.state.history).toEqual([]);
+      expect(result.current.state.currentIndex).toBeGreaterThanOrEqual(0);
+      expect(result.current.state.currentIndex).toBeLessThan(TRACKS.length);
+    });
+
+    it('wraps to the end of the shuffled order with repeat "all"', () => {
+      forcePermutation();
+      const { result } = renderHook(() =>
+        usePlaylist({ tracks: TRACKS, shuffle: true, repeat: 'all' })
+      );
+
+      // At the front of the shuffled order with no history, previous() wraps.
+      act(() => result.current.controls.previous());
+
+      expect(result.current.state.currentIndex).toBeGreaterThanOrEqual(0);
+    });
+
+    it('stays put at the front of the shuffled order without repeat', () => {
+      forcePermutation();
+      const { result } = renderHook(() => usePlaylist({ tracks: TRACKS, shuffle: true }));
+
+      const start = result.current.state.currentIndex;
+      act(() => result.current.controls.previous());
+
+      expect(result.current.state.currentIndex).toBe(start);
+    });
+
+    it('keeps the current track playing when shuffle is switched on', () => {
+      // Hitting shuffle reorders what comes next; it does not jump elsewhere.
+      forcePermutation();
+      const { result } = renderHook(() => usePlaylist({ tracks: TRACKS, initialIndex: 1 }));
+
+      act(() => result.current.controls.toggleShuffle());
+
+      expect(result.current.state.currentIndex).toBe(1);
     });
   });
 

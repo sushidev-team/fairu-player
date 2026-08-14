@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Track, RepeatMode, PlaylistState, PlaylistControls } from '@/types/player';
 
 export interface UsePlaylistOptions {
@@ -25,6 +25,42 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled;
 }
 
+/**
+ * Shuffle the indices, then bring `current` to the front.
+ *
+ * Traversal follows this array, and the cursor stays on whatever was already
+ * playing when shuffle was switched on. If the permutation left that index at
+ * the end, the very next `next()` would already be at the end of the order and
+ * would end the queue after a single track — a one-in-N chance per session.
+ *
+ * Putting the current track first is also what listeners expect: hitting
+ * shuffle keeps the current track playing and reorders what comes after it.
+ */
+function shuffleWithCurrentFirst(indices: number[], current: number): number[] {
+  const shuffled = shuffleArray(indices);
+  const position = shuffled.indexOf(current);
+  if (position <= 0) return shuffled;
+
+  const reordered = [...shuffled];
+  reordered.splice(position, 1);
+  reordered.unshift(current);
+  return reordered;
+}
+
+/**
+ * A content-based identity for a track list.
+ *
+ * Callers build the array inline (`[config.track]`), so it is a new reference
+ * on every render and comparing by identity would resync endlessly. The ids are
+ * what actually determine whether this is a different playlist.
+ *
+ * NUL separates them: it is the one character that cannot legitimately appear
+ * in an id, so `['a', 'b']` and `['a b']` cannot collapse into one signature.
+ */
+function trackListSignature(tracks: Track[]): string {
+  return tracks.map((track) => track.id).join('\u0000');
+}
+
 export function usePlaylist(options: UsePlaylistOptions = {}): UsePlaylistReturn {
   const {
     tracks: initialTracks = [],
@@ -43,24 +79,56 @@ export function usePlaylist(options: UsePlaylistOptions = {}): UsePlaylistReturn
   const [history, setHistory] = useState<Track[]>([]);
   const [shuffledOrder, setShuffledOrder] = useState<number[]>([]);
 
-  // Adopt tracks that arrive after mount (async playlist fetch, for instance).
-  //
-  // Both of these were `useMemo` calling setState. A memo may be re-run or
-  // discarded at React's discretion and runs during render, so setState from
-  // inside one is a documented infinite-loop hazard — and under StrictMode it
-  // fired twice, reshuffling the order on every render pass. An effect is the
-  // correct place for a state sync: it runs after commit, exactly once.
+  // `currentIndex` mirrored into a ref so the shuffle effect can read it
+  // without listing it as a dependency — depending on it would reshuffle the
+  // whole order every time the track advances.
+  const currentIndexRef = useRef(currentIndex);
   useEffect(() => {
-    if (initialTracks.length > 0 && tracks.length === 0) {
-      setTracks(initialTracks);
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
+
+  // Adopt a genuinely different track list.
+  //
+  // This used to adopt only while `tracks` was empty, which handled the
+  // async-fetch case but silently ignored a later playlist swap — changing
+  // `config.track` did nothing. That is a sharp edge for the custom element in
+  // particular, where rebinding `:config` / `[config]` is the ordinary way to
+  // change media.
+  //
+  // Compared by content, not identity: callers build the array inline, so it is
+  // a new reference on every render and an identity check would resync forever.
+  //
+  // (Both of these were `useMemo` calling setState. A memo runs during render
+  // and may be discarded, so setState from inside one is an infinite-loop
+  // hazard — and under StrictMode it fired twice, reshuffling on every pass.)
+  const incomingSignature = useMemo(
+    () => trackListSignature(initialTracks),
+    [initialTracks]
+  );
+  const adoptedSignatureRef = useRef(incomingSignature);
+
+  useEffect(() => {
+    if (adoptedSignatureRef.current === incomingSignature) return;
+    adoptedSignatureRef.current = incomingSignature;
+
+    // Replacing a list that was already playing invalidates the cursor and
+    // everything derived from it. Filling an empty list does not — that is the
+    // late-fetch case, where `initialIndex` should still stand.
+    const hadTracks = tracks.length > 0;
+    setTracks(initialTracks);
+
+    if (hadTracks) {
+      setCurrentIndex(0);
+      setHistory([]);
+      setQueue([]);
     }
-  }, [initialTracks, tracks.length]);
+  }, [incomingSignature, initialTracks, tracks.length]);
 
   // Generate shuffled order when shuffle is enabled
   useEffect(() => {
     if (shuffle && tracks.length > 0) {
       const indices = tracks.map((_, i) => i);
-      setShuffledOrder(shuffleArray(indices));
+      setShuffledOrder(shuffleWithCurrentFirst(indices, currentIndexRef.current));
     }
   }, [shuffle, tracks.length]);
 
@@ -114,8 +182,12 @@ export function usePlaylist(options: UsePlaylistOptions = {}): UsePlaylistReturn
       const nextShuffleIndex = currentShuffleIndex + 1;
       if (nextShuffleIndex >= shuffledOrder.length) {
         if (repeat === 'all') {
-          setShuffledOrder(shuffleArray([...shuffledOrder]));
-          nextIndex = shuffledOrder[0];
+          // Read the index off the *new* order. It used to reshuffle and then
+          // take `shuffledOrder[0]` from the old array, so the track that
+          // played was not the one the fresh order started with.
+          const reshuffled = shuffleArray(shuffledOrder);
+          setShuffledOrder(reshuffled);
+          nextIndex = reshuffled[0];
         } else {
           onQueueEnd?.();
           return;
