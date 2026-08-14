@@ -38,9 +38,12 @@ export function useTabVisibility(
         setIsTabVisible(false);
         onHiddenRef.current?.();
       } else {
-        const hiddenDuration = hiddenSinceRef.current
-          ? (Date.now() - hiddenSinceRef.current) / 1000
-          : 0;
+        // Compared against null rather than tested for truthiness: the ref is
+        // `number | null`, and a timestamp of 0 is a value, not an absence.
+        const hiddenDuration =
+          hiddenSinceRef.current !== null
+            ? (Date.now() - hiddenSinceRef.current) / 1000
+            : 0;
         hiddenSinceRef.current = null;
         setIsTabVisible(true);
         onVisibleRef.current?.(hiddenDuration);
