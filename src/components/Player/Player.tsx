@@ -58,6 +58,9 @@ export function PlayerInner({
   useKeyboardControls({
     controls,
     enabled: true,
+    // The arrow-key volume steps are relative, so the hook needs the level to
+    // step from.
+    volume: state.volume,
   });
 
   // Playlist handling

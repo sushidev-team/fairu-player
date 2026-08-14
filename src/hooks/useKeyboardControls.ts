@@ -6,6 +6,17 @@ export interface UseKeyboardControlsOptions {
   enabled?: boolean;
   skipAmount?: number;
   volumeStep?: number;
+  /**
+   * Current volume, 0–1.
+   *
+   * The arrow-key volume steps are relative, so they need to know where they
+   * are starting from. `PlayerControls` is write-only — it has `setVolume` but
+   * no way to read the current value — so the caller has to supply it from
+   * player state.
+   *
+   * Without it the up/down arrows do nothing rather than guessing.
+   */
+  volume?: number;
   containerRef?: React.RefObject<HTMLElement | null>;
 }
 
@@ -15,6 +26,7 @@ export function useKeyboardControls(options: UseKeyboardControlsOptions): void {
     enabled = true,
     skipAmount = 5,
     volumeStep = 0.1,
+    volume,
     containerRef,
   } = options;
 
@@ -64,14 +76,24 @@ export function useKeyboardControls(options: UseKeyboardControlsOptions): void {
         }
         break;
 
+      // Both arms used to read `controls.volume`, which does not exist —
+      // `PlayerControls` carries no state. It was always `undefined`, and `??`
+      // binds looser than `+`, so the expressions collapsed to
+      // `Math.min(1, 1 + step)` and `Math.max(0, 1 - step)`: volume-up jumped
+      // straight to 100 % and volume-down always landed on 90 %, whatever the
+      // level was. The current volume now comes in as an option.
       case 'ArrowUp':
         event.preventDefault();
-        controls.setVolume(Math.min(1, (controls as unknown as { volume?: number }).volume ?? 1 + volumeStep));
+        if (volume !== undefined) {
+          controls.setVolume(Math.min(1, volume + volumeStep));
+        }
         break;
 
       case 'ArrowDown':
         event.preventDefault();
-        controls.setVolume(Math.max(0, (controls as unknown as { volume?: number }).volume ?? 1 - volumeStep));
+        if (volume !== undefined) {
+          controls.setVolume(Math.max(0, volume - volumeStep));
+        }
         break;
 
       case 'm':
@@ -109,7 +131,7 @@ export function useKeyboardControls(options: UseKeyboardControlsOptions): void {
         }
         break;
     }
-  }, [controls, skipAmount, volumeStep, containerRef]);
+  }, [controls, skipAmount, volumeStep, volume, containerRef]);
 
   useEffect(() => {
     if (!enabled || !hasControls) return;

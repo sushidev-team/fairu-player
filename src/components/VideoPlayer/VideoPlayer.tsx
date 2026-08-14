@@ -127,6 +127,9 @@ function VideoPlayerInner({
   useKeyboardControls({
     controls: isAdPlaying ? undefined : controls,
     enabled: !isAdPlaying,
+    // The arrow-key volume steps are relative, so the hook needs the level to
+    // step from.
+    volume: state.volume,
   });
 
   return (
@@ -714,6 +717,7 @@ function VideoPlayerInnerWithAds({
   useKeyboardControls({
     controls: isAdPlaying ? undefined : wrappedControls,
     enabled: !isAdPlaying,
+    volume: state.volume,
   });
 
   return (
