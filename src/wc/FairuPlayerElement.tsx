@@ -1,6 +1,5 @@
 import { createRoot, type Root } from 'react-dom/client';
 import { PlayerProvider } from '@/context/PlayerContext';
-import { VideoProvider } from '@/context/VideoContext';
 import { Player } from '@/components/Player';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import type { PlayerConfig, Track } from '@/types/player';
@@ -246,16 +245,18 @@ export class FairuPlayerElement extends HTMLElement {
         this.#emit(FAIRU_EVENTS.error, { message: error.message, error }),
     };
 
+    // `VideoPlayer` brings its own `VideoProvider`. Wrapping it in another one
+    // silently detaches everything: the inner provider wins, so an outer
+    // provider's config and callbacks are simply never consulted. The video
+    // path therefore configures the component directly.
     const tree = this.isVideo ? (
-      <VideoProvider
+      <VideoPlayer
         config={config as VideoConfig}
         {...handlers}
         onTrackChange={(track: VideoTrack, index: number) =>
           this.#emit(FAIRU_EVENTS.trackchange, { track, index })
         }
-      >
-        <VideoPlayer />
-      </VideoProvider>
+      />
     ) : (
       <PlayerProvider
         config={config as PlayerConfig}

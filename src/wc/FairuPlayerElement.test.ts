@@ -244,25 +244,9 @@ describe('<fairu-player>', () => {
       expect(element.querySelector('audio')).not.toBeNull();
     });
 
-    /**
-     * KNOWN LIMITATION — pinned, not endorsed.
-     *
-     * Swapping `config.track` after mount does not change what is playing.
-     * `usePlaylist` only adopts incoming tracks while it has none, so that a
-     * late-arriving fetch cannot reset a listener's position — see
-     * "does not clobber tracks it already has" in usePlaylist.test.ts.
-     *
-     * That trade-off is defensible in React, where the config is usually
-     * static. It is a sharper edge here: rebinding `:config` / `[config]` is
-     * the ordinary way to change media in Vue and Angular, and it silently does
-     * nothing.
-     *
-     * The documented workaround is `.playlist`, or removing and re-inserting
-     * the element. A real fix means letting the playlist adopt a genuinely new
-     * track list, which changes React behaviour too and belongs in its own
-     * commit.
-     */
-    it('does NOT switch the playing track when config.track is replaced', async () => {
+    it('switches the playing track when config.track is replaced', async () => {
+      // Rebinding `:config` / `[config]` is the ordinary way to change media in
+      // Vue and Angular, so this has to actually swap the source.
       const element = await mount((el) => {
         el.config = { track: TRACK };
       });
@@ -270,7 +254,18 @@ describe('<fairu-player>', () => {
       element.config = { track: { id: 'ep-2', src: 'https://example.test/ep-2.mp3' } };
       await settle();
 
-      expect(element.querySelector('audio')?.src).toContain('ep-1.mp3');
+      expect(element.querySelector('audio')?.src).toContain('ep-2.mp3');
+    });
+
+    it('switches media when the playlist property is replaced', async () => {
+      const element = await mount((el) => {
+        el.playlist = [TRACK];
+      });
+
+      element.playlist = [{ id: 'ep-9', src: 'https://example.test/ep-9.mp3' }];
+      await settle();
+
+      expect(element.querySelector('audio')?.src).toContain('ep-9.mp3');
     });
 
     it('tolerates the config being cleared', async () => {
@@ -373,6 +368,51 @@ describe('<fairu-player>', () => {
       await settle();
 
       expect(onEnded).toHaveBeenCalled();
+    });
+
+    it('emits error with a readable message', async () => {
+      const onError = vi.fn();
+      const element = await mount((el) => el.setAttribute('src', TRACK.src));
+      element.addEventListener(FAIRU_EVENTS.error, onError);
+
+      element.querySelector('audio')!.dispatchEvent(new Event('error'));
+      await settle();
+
+      expect(onError).toHaveBeenCalled();
+      // A framework listener should not have to dig into a MediaError code.
+      expect(typeof onError.mock.calls[0][0].detail.message).toBe('string');
+      expect(onError.mock.calls[0][0].detail.error).toBeInstanceOf(Error);
+    });
+
+    it('emits trackchange with the track and its index', async () => {
+      const onTrackChange = vi.fn();
+      const element = await mount((el) => {
+        el.playlist = [TRACK, { id: 'ep-2', src: 'https://example.test/ep-2.mp3' }];
+      });
+      element.addEventListener(FAIRU_EVENTS.trackchange, onTrackChange);
+
+      element.querySelector('audio')!.dispatchEvent(new Event('ended'));
+      await settle();
+
+      expect(onTrackChange).toHaveBeenCalled();
+      expect(onTrackChange.mock.calls[0][0].detail).toMatchObject({
+        track: { id: 'ep-2' },
+        index: 1,
+      });
+    });
+
+    it('emits from the video path too', async () => {
+      const onPlay = vi.fn();
+      const element = await mount((el) => {
+        el.setAttribute('type', 'video');
+        el.setAttribute('src', 'https://example.test/v.mp4');
+      });
+      element.addEventListener(FAIRU_EVENTS.play, onPlay);
+
+      element.querySelector('video')!.dispatchEvent(new Event('play'));
+      await settle();
+
+      expect(onPlay).toHaveBeenCalled();
     });
 
     it('bubbles, so a parent can listen', async () => {
