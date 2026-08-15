@@ -61,6 +61,7 @@
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
+    "@angular/compiler": "^21.2.20",
     "@chromatic-com/storybook": "^5.2.1",
     "@eslint/js": "^10.0.1",
     "@storybook/addon-links": "^10.5.5",

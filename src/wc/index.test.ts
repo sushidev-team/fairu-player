@@ -21,16 +21,17 @@ describe('@fairu/player/wc entry point', () => {
   });
 
   it('re-exports the event names consumers bind to', () => {
-    // These strings are the public contract for `@fairu:play` and friends;
-    // renaming one silently breaks every template using it.
+    // These strings are the public contract for `@fairu-play` and friends;
+    // renaming one silently breaks every template using it. The dash matters —
+    // see the comment on FAIRU_EVENTS about Angular and colons.
     expect(FAIRU_EVENTS).toMatchObject({
-      ready: 'fairu:ready',
-      play: 'fairu:play',
-      pause: 'fairu:pause',
-      ended: 'fairu:ended',
-      timeupdate: 'fairu:timeupdate',
-      trackchange: 'fairu:trackchange',
-      error: 'fairu:error',
+      ready: 'fairu-ready',
+      play: 'fairu-play',
+      pause: 'fairu-pause',
+      ended: 'fairu-ended',
+      timeupdate: 'fairu-timeupdate',
+      trackchange: 'fairu-trackchange',
+      error: 'fairu-error',
     });
   });
 });

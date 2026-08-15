@@ -26,15 +26,27 @@ import type { VideoConfig, VideoTrack } from '@/types/video';
  * deliberate act, an attribute is often template boilerplate.
  */
 
-/** Events the element emits, all prefixed to avoid colliding with native ones. */
+/**
+ * Events the element emits, all prefixed to avoid colliding with native ones.
+ *
+ * Dash-separated, not `fairu:play`. Angular's template parser reads a colon in
+ * a binding name as a namespace separator: `(fairu:play)` compiles without any
+ * error and binds to `play` — so the handler never fires for this event, and
+ * does fire for the native `play` bubbling up from the inner media element.
+ * Silent and very hard to debug.
+ *
+ * A dash has no meaning in any of the three template syntaxes, so
+ * `(fairu-play)`, `@fairu-play` and `on:fairu-play` all bind to exactly this
+ * name.
+ */
 export const FAIRU_EVENTS = {
-  play: 'fairu:play',
-  pause: 'fairu:pause',
-  ended: 'fairu:ended',
-  timeupdate: 'fairu:timeupdate',
-  trackchange: 'fairu:trackchange',
-  error: 'fairu:error',
-  ready: 'fairu:ready',
+  play: 'fairu-play',
+  pause: 'fairu-pause',
+  ended: 'fairu-ended',
+  timeupdate: 'fairu-timeupdate',
+  trackchange: 'fairu-trackchange',
+  error: 'fairu-error',
+  ready: 'fairu-ready',
 } as const;
 
 export type FairuEventName = (typeof FAIRU_EVENTS)[keyof typeof FAIRU_EVENTS];
@@ -73,7 +85,24 @@ function parseNum(value: string | null): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-export class FairuPlayerElement extends HTMLElement {
+/**
+ * `HTMLElement`, or a stand-in when there is no DOM.
+ *
+ * `class X extends HTMLElement` is evaluated when the module loads, not when
+ * the element is first used — so importing this file in Node threw
+ * `ReferenceError: HTMLElement is not defined` and took down every server
+ * render. Angular Universal, Nuxt and Next all import for the side effect, so
+ * this was the first thing they hit.
+ *
+ * The stub is never instantiated: `defineFairuPlayer` returns early without a
+ * DOM, so nothing can construct one on the server.
+ */
+const ElementBase: typeof HTMLElement =
+  typeof HTMLElement === 'undefined'
+    ? (class {} as unknown as typeof HTMLElement)
+    : HTMLElement;
+
+export class FairuPlayerElement extends ElementBase {
   static get observedAttributes(): readonly string[] {
     return OBSERVED;
   }

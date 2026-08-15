@@ -1088,6 +1088,9 @@ import '@fairu/player/wc';
 import '@fairu/player/styles.css';
 ```
 
+The import is safe to run on a server — it registers nothing when there is no
+DOM, so Angular Universal, Nuxt and Next can import it unconditionally.
+
 There are two ways in, because neither covers everything:
 
 - **Attributes** for the simple case. HTML attributes are strings, so this is
@@ -1131,8 +1134,8 @@ const config = ref({
   <fairu-player
     :config="config"
     theme="dark"
-    @fairu:play="onPlay"
-    @fairu:ended="onEnded"
+    @fairu-play="onPlay"
+    @fairu-ended="onEnded"
   />
 </template>
 ```
@@ -1163,8 +1166,8 @@ import '@fairu/player/wc';
     <fairu-player
       [config]="config"
       theme="dark"
-      (fairu:play)="onPlay()"
-      (fairu:timeupdate)="onTime($any($event).detail.time)"
+      (fairu-play)="onPlay()"
+      (fairu-timeupdate)="onTime($any($event).detail.time)"
     ></fairu-player>
   `,
 })
@@ -1183,7 +1186,7 @@ export class EpisodeComponent {
   const config = { track: { id: 'ep-1', src: '/ep-1.mp3' } };
 </script>
 
-<fairu-player {config} theme="dark" on:fairu:play={handlePlay} />
+<fairu-player {config} theme="dark" on:fairu-play={handlePlay} />
 ```
 
 ### Attributes
@@ -1215,13 +1218,22 @@ export class EpisodeComponent {
 All events bubble and are `composed`, so a parent element can listen. The
 payload is on `event.detail`.
 
+> **The names use a dash, not a colon.** Angular's template parser reads a colon
+> in a binding name as a namespace separator: `(fairu:play)` compiles *without
+> an error* and binds to `play` — so the handler never fires for this event, and
+> does fire for the native `play` bubbling up from the inner media element. A
+> dash has no meaning in Vue, Angular or Svelte template syntax, so
+> `(fairu-play)`, `@fairu-play` and `on:fairu-play` all bind to exactly the name
+> below. This is asserted against Angular's own compiler in
+> `src/wc/frameworkBindings.test.ts`.
+
 | Event | `detail` |
 |---|---|
-| `fairu:ready` | `null` — fired once the element has mounted. |
-| `fairu:play` / `fairu:pause` / `fairu:ended` | `null` |
-| `fairu:timeupdate` | `{ time: number }` |
-| `fairu:trackchange` | `{ track, index }` |
-| `fairu:error` | `{ message, error }` |
+| `fairu-ready` | `null` — fired once the element has mounted. |
+| `fairu-play` / `fairu-pause` / `fairu-ended` | `null` |
+| `fairu-timeupdate` | `{ time: number }` |
+| `fairu-trackchange` | `{ track, index }` |
+| `fairu-error` | `{ message, error }` |
 
 ### Changing media
 
