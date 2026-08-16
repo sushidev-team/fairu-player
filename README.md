@@ -1200,6 +1200,7 @@ export class EpisodeComponent {
 | Attribute | Description |
 |---|---|
 | `src` | Media URL. Builds a single track. |
+| `track-id` | Stable identity for the media, used to key the remembered position. Defaults to `src`. Do **not** rely on the element's `id` for this — that identifies the DOM node, not the media. |
 | `title`, `artist`, `album` | Track metadata, also used for the OS lock screen. |
 | `artwork` | Cover image (audio). |
 | `poster` | Poster image (video). Implies `type="video"`. |
