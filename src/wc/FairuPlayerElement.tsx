@@ -157,7 +157,17 @@ export class FairuPlayerElement extends ElementBase {
 
     this.#root = createRoot(this.#mountPoint);
     this.#render();
-    this.#emit(FAIRU_EVENTS.ready, null);
+
+    // Deferred by a microtask rather than emitted here.
+    //
+    // `connectedCallback` runs *during* insertion, and Angular attaches its
+    // output listeners after the node is in the tree — so a synchronous `ready`
+    // fired before anyone was listening. An event nobody can hear is not an
+    // event. A microtask still resolves before the next frame, so a listener
+    // attached anywhere in the same task catches it.
+    queueMicrotask(() => {
+      if (this.#connected) this.#emit(FAIRU_EVENTS.ready, null);
+    });
   }
 
   disconnectedCallback(): void {

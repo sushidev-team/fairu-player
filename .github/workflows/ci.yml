@@ -85,6 +85,51 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
+  # Proves the published custom element actually works in Vue, Angular, Svelte
+  # and plain HTML — in a real browser, against `dist`, not against src.
+  #
+  # Its dependencies live in `verification/package.json` rather than in the
+  # library's devDependencies: Angular, Vue and Svelte together are a large tree
+  # that has no business slowing down `npm ci` for everyone else.
+  e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: Install library dependencies
+        run: npm ci
+
+      # The apps import the built artefact, so this has to run first.
+      - name: Build library
+        run: npm run build:lib
+
+      - name: Install verification dependencies
+        working-directory: verification
+        run: npm install
+
+      - name: Install Chromium
+        working-directory: verification
+        run: npx playwright install --with-deps chromium
+
+      - name: Run framework verification
+        working-directory: verification
+        run: npm test
+
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: verification/test-results/
+          retention-days: 7
+
   storybook:
     runs-on: ubuntu-latest
 
