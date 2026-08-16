@@ -1091,6 +1091,12 @@ import '@fairu/player/styles.css';
 The import is safe to run on a server — it registers nothing when there is no
 DOM, so Angular Universal, Nuxt and Next can import it unconditionally.
 
+> Every example below is executed in CI. `verification/` holds a Vue, an
+> Angular, a Svelte and a plain-HTML app that bind the element exactly as
+> documented here; Playwright drives all four in a real browser against the
+> built package on every push. If a snippet on this page stops working, that job
+> goes red.
+
 There are two ways in, because neither covers everything:
 
 - **Attributes** for the simple case. HTML attributes are strings, so this is
@@ -1440,6 +1446,11 @@ npm run lint
 
 # Run tests
 npm run test
+
+# Verify the custom element in Vue, Angular, Svelte and plain HTML
+# (real browser, against dist — see verification/README.md)
+npm run build:lib
+cd verification && npm install && npm run install:browsers && npm test
 
 # Build library
 npm run build:lib

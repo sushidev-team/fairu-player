@@ -145,7 +145,22 @@ der feindlichen Umgebungen.
 | 2.2 | **Error Boundaries** | Ein Fehler im Ad-Overlay reißt heute den ganzen Player mit. Subsysteme (Ads, HLS, Cast, PiP) einzeln kapseln, Fallback-UI, Fehler über `PlayerEventBus` nach außen. |
 | 2.3 | **Autoplay-Policy** | Kein Erkennen blockierter Autoplay-Policies, keine „Tap to play"-Rückfallebene. |
 | 2.4 | **Testabdeckung heben** | 30 Testdateien auf 226 Quelldateien. `VideoPlayer.tsx` (943 Zeilen) und die Contexts (2 761 Zeilen) sind weitgehend ungetestet. Die 91,5 % gelten nur für die abgedeckte Teilmenge. |
-| 2.5 | **E2E + a11y + Bundle-Gate** | Playwright-Suite, `vitest-axe`, `size-limit` mit Budget (Main < 80 KB gzip, CSS < 15 KB gzip). |
+| 2.5 | **a11y + Bundle-Gate** | `vitest-axe`, `size-limit` mit Budget (Main < 80 KB gzip, CSS < 15 KB gzip). Playwright ist erledigt — siehe unten. |
+
+### E2E-Framework-Verifikation — erledigt
+
+`verification/` enthält vier Apps (Vue, Angular, Svelte, Plain-HTML), die das
+Custom Element genau so einbinden wie die README es dokumentiert. Playwright
+fährt alle vier im echten Browser gegen das **gebaute** `dist`, als eigener
+CI-Job. 36 Assertions, ~1 Minute.
+
+Das war nötig, weil zwei Defekte jeden Unit-Test bestanden hatten: Angular band
+`(fairu:play)` an `play`, und der Import warf in Node. Ein dritter fiel bei der
+Einrichtung auf — `fairu-ready` feuerte synchron im `connectedCallback`, den
+Angular nie hörte.
+
+Die Abhängigkeiten liegen in `verification/package.json`, damit `npm ci` für die
+Bibliothek unberührt bleibt.
 
 ### Storybook-Abdeckung — erledigt
 
