@@ -19,6 +19,17 @@ import type { PersistedPreferences } from '@/types/persistence';
 import type { Track } from '@/types/player';
 import type { VideoTrack } from '@/types/video';
 
+/**
+ * Write a fixture and assert it landed.
+ *
+ * `writeStored` returns false when storage is unavailable or the write fails,
+ * and a silently missing fixture would let a test render with no stored
+ * preferences and pass without exercising restoration at all.
+ */
+function seed(preferences: PersistedPreferences): void {
+  expect(writeStored<PersistedPreferences>('preferences', preferences)).toBe(true);
+}
+
 const TRACK: Track = { id: 'ep-1', src: 'https://example.test/ep-1.mp3' };
 const VIDEO_TRACK: VideoTrack = { id: 'v-1', src: 'https://example.test/v-1.mp4' };
 
@@ -72,7 +83,7 @@ describe('persistence through the providers', () => {
 
   describe('audio', () => {
     it('applies a stored volume', () => {
-      writeStored<PersistedPreferences>('preferences', { volume: 0.25 });
+      seed({ volume: 0.25 });
 
       render(
         <PlayerProvider config={{ track: TRACK, volume: 1 }}>
@@ -84,7 +95,7 @@ describe('persistence through the providers', () => {
     });
 
     it('applies a stored mute', () => {
-      writeStored<PersistedPreferences>('preferences', { muted: true });
+      seed({ muted: true });
 
       render(
         <PlayerProvider config={{ track: TRACK, muted: false }}>
@@ -96,7 +107,7 @@ describe('persistence through the providers', () => {
     });
 
     it('applies a stored playback rate', () => {
-      writeStored<PersistedPreferences>('preferences', { playbackRate: 1.5 });
+      seed({ playbackRate: 1.5 });
 
       render(
         <PlayerProvider config={{ track: TRACK }}>
@@ -111,7 +122,7 @@ describe('persistence through the providers', () => {
       // The damaging half. If the rate is read but never applied, state stays
       // at 1, the persist effect sees a mismatch and writes 1 back — so a
       // listener's 1.5x is destroyed just by opening the page.
-      writeStored<PersistedPreferences>('preferences', { playbackRate: 1.5 });
+      seed({ playbackRate: 1.5 });
 
       render(
         <PlayerProvider config={{ track: TRACK }}>
@@ -123,7 +134,7 @@ describe('persistence through the providers', () => {
     });
 
     it('does not overwrite a stored volume with the default', () => {
-      writeStored<PersistedPreferences>('preferences', { volume: 0.25 });
+      seed({ volume: 0.25 });
 
       render(
         <PlayerProvider config={{ track: TRACK, volume: 1 }}>
@@ -137,7 +148,7 @@ describe('persistence through the providers', () => {
 
   describe('video', () => {
     it('applies a stored volume', () => {
-      writeStored<PersistedPreferences>('preferences', { volume: 0.4 });
+      seed({ volume: 0.4 });
 
       render(
         <VideoProvider config={{ track: VIDEO_TRACK, volume: 1 }}>
@@ -149,7 +160,7 @@ describe('persistence through the providers', () => {
     });
 
     it('applies a stored playback rate', () => {
-      writeStored<PersistedPreferences>('preferences', { playbackRate: 2 });
+      seed({ playbackRate: 2 });
 
       render(
         <VideoProvider config={{ track: VIDEO_TRACK }}>
@@ -161,7 +172,7 @@ describe('persistence through the providers', () => {
     });
 
     it('does not overwrite a stored playback rate with the default', () => {
-      writeStored<PersistedPreferences>('preferences', { playbackRate: 2 });
+      seed({ playbackRate: 2 });
 
       render(
         <VideoProvider config={{ track: VIDEO_TRACK }}>
@@ -181,7 +192,7 @@ describe('persistence through the providers', () => {
       // ref guard makes every later run a no-op — if that guard ever breaks,
       // the effect and its setState calls would feed each other forever.
       renderCount = 0;
-      writeStored<PersistedPreferences>('preferences', { volume: 0.25, playbackRate: 1.5 });
+      seed({ volume: 0.25, playbackRate: 1.5 });
 
       render(
         <PlayerProvider config={{ track: TRACK }}>
