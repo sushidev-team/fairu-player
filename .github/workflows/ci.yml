@@ -126,9 +126,12 @@ jobs:
         working-directory: verification
         run: npm ci
 
-      - name: Install Chromium
+      # All three engines. WebKit in particular only runs here — Playwright's
+      # build does not launch on current macOS, so CI is where that half of the
+      # matrix is actually verified.
+      - name: Install browsers
         working-directory: verification
-        run: npx playwright install --with-deps chromium
+        run: npm run install:browsers
 
       - name: Run framework verification
         working-directory: verification

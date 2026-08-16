@@ -41,16 +41,37 @@ Per framework:
 The two audio fixtures are different lengths on purpose: identical sources would
 make a successful swap indistinguishable from no swap at all.
 
+## Browsers
+
+All three engines, because the element's job is to hide their differences.
+Custom-element upgrade timing, `display: contents`, and how a media element
+reports its state are exactly the places where Chromium agreeing with itself
+proves the least.
+
+**WebKit does not launch on macOS 26** with Playwright's current build — the
+process starts and dies immediately, on 1.62.1, the latest at time of writing.
+That is the local machine, not this code: CI runs Ubuntu, where all three work,
+and CI is what the guarantee rests on.
+
+So there are two entry points:
+
+| | Browsers | Used by |
+|---|---|---|
+| `npm test` | chromium, firefox, webkit | CI |
+| `npm run test:local` | chromium, firefox | day-to-day work on a Mac |
+
+If WebKit does launch on your machine, use `npm test` and get the full matrix.
+
 ## Running it
 
 ```bash
-npm --prefix .. run build:lib   # the apps import dist, not src
-npm install
-npm run install:browsers
-npm test
+npm --prefix .. run build:lib      # the apps import dist, not src
+npm ci
+npm run install:browsers:local    # or install:browsers for all three
+npm run test:local                # or npm test for all three
 ```
 
-Roughly a minute. `npm run test:headed` watches it happen.
+Under a minute for two engines. `npm run test:headed` watches it happen.
 
 To poke at one app by hand:
 

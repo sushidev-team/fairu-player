@@ -26,20 +26,18 @@ export default defineConfig({
     video: 'off',
   },
 
+  // All three engines, because the element's job is to hide their differences.
+  // Custom-element upgrade timing, `display: contents`, and how a media element
+  // reports its state are exactly the places where Chromium agreeing with
+  // itself proves the least.
+  //
+  // No autoplay flags: the specs dispatch synthetic media events rather than
+  // starting real playback, so autoplay policy never enters into it — and a
+  // Chromium-only launch argument would have made this matrix uneven anyway.
   projects: [
-    {
-      name: 'chromium',
-      use: {
-        browserName: 'chromium',
-        launchOptions: {
-          args: [
-            // Lets the tests drive playback without a click for every assertion.
-            // The media is 0.2s of silence, so nothing is actually audible.
-            '--autoplay-policy=no-user-gesture-required',
-          ],
-        },
-      },
-    },
+    { name: 'chromium', use: { browserName: 'chromium' } },
+    { name: 'firefox', use: { browserName: 'firefox' } },
+    { name: 'webkit', use: { browserName: 'webkit' } },
   ],
 
   webServer: apps.map((app) => ({

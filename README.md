@@ -1451,7 +1451,7 @@ npm run test
 # Verify the custom element in Vue, Angular, Svelte and plain HTML
 # (real browser, against dist — see verification/README.md)
 npm run build:lib
-cd verification && npm install && npm run install:browsers && npm test
+cd verification && npm ci && npm run install:browsers:local && npm run test:local
 
 # Build library
 npm run build:lib

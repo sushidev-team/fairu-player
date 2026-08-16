@@ -7,8 +7,10 @@
   "scripts": {
     "build:lib": "npm --prefix .. run build:lib",
     "test": "playwright test",
+    "test:local": "playwright test --project=chromium --project=firefox",
     "test:headed": "playwright test --headed",
-    "install:browsers": "playwright install --with-deps chromium",
+    "install:browsers": "playwright install --with-deps chromium firefox webkit",
+    "install:browsers:local": "playwright install chromium firefox",
     "dev:vue": "vite --config apps/vue/vite.config.ts",
     "dev:angular": "vite --config apps/angular/vite.config.ts",
     "dev:svelte": "vite --config apps/svelte/vite.config.ts",
