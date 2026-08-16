@@ -118,9 +118,13 @@ jobs:
       - name: Build library
         run: npm run build:lib
 
+      # `ci`, not `install`: the lockfile is committed and is the source of
+      # truth. `install` is free to resolve a newer version than the one that
+      # was verified, which is how a lockfile silently stops meaning anything —
+      # see docs/DEPENDENCIES.md.
       - name: Install verification dependencies
         working-directory: verification
-        run: npm install
+        run: npm ci
 
       - name: Install Chromium
         working-directory: verification
