@@ -164,11 +164,22 @@ export function useMediaSession(options: UseMediaSessionOptions = {}): void {
   }, [seekOffset]);
 
   // Metadata
+  //
+  // Keyed on the metadata's *value*, not its identity. Callers build the object
+  // inline from the current track, so it is a new reference on every render —
+  // and `position` changes on every `timeupdate`, roughly four times a second.
+  // Depending on identity meant allocating a MediaMetadata and reassigning
+  // `navigator.mediaSession.metadata` at that rate, for data that had not
+  // changed since the track started.
+  const metadataKey = JSON.stringify(metadata ?? null);
+
   useEffect(() => {
     const session = getMediaSession();
     if (!session || !enabled) return;
 
-    if (!metadata) {
+    const current = JSON.parse(metadataKey) as MediaSessionMetadata | null;
+
+    if (!current) {
       session.metadata = null;
       return;
     }
@@ -178,18 +189,15 @@ export function useMediaSession(options: UseMediaSessionOptions = {}): void {
 
     try {
       session.metadata = new MetadataCtor({
-        title: metadata.title,
-        artist: metadata.artist,
-        album: metadata.album,
-        artwork: metadata.artwork,
+        title: current.title,
+        artist: current.artist,
+        album: current.album,
+        artwork: current.artwork,
       });
     } catch {
       // A malformed artwork URL is the usual cause. Not worth failing playback.
     }
-  }, [
-    enabled,
-    metadata,
-  ]);
+  }, [enabled, metadataKey]);
 
   // Playback state
   useEffect(() => {

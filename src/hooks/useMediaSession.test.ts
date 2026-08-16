@@ -118,6 +118,47 @@ describe('useMediaSession', () => {
       expect(session.playbackState).toBe('none');
     });
 
+    it('does not rewrite metadata while only the position advances', () => {
+      // `timeupdate` fires roughly four times a second and callers build the
+      // metadata object inline, so depending on its identity meant allocating a
+      // MediaMetadata and reassigning navigator.mediaSession.metadata at that
+      // rate for data that had not changed.
+      const session = installMediaSession();
+
+      const { rerender } = renderHook(
+        ({ position }) =>
+          useMediaSession({
+            metadata: { title: 'Episode 1', artist: 'Fairu' },
+            position,
+            duration: 600,
+          }),
+        { initialProps: { position: 0 } }
+      );
+
+      const first = session.metadata;
+
+      rerender({ position: 1 });
+      rerender({ position: 2 });
+      rerender({ position: 3 });
+
+      expect(session.metadata).toBe(first);
+    });
+
+    it('does rewrite metadata when the track actually changes', () => {
+      const session = installMediaSession();
+
+      const { rerender } = renderHook(
+        ({ title }) => useMediaSession({ metadata: { title } }),
+        { initialProps: { title: 'Episode 1' } }
+      );
+
+      const first = session.metadata;
+      rerender({ title: 'Episode 2' });
+
+      expect(session.metadata).not.toBe(first);
+      expect((session.metadata as { init: { title: string } }).init.title).toBe('Episode 2');
+    });
+
     it('publishes nothing when disabled', () => {
       const session = installMediaSession();
       renderHook(() =>

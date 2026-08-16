@@ -15,6 +15,15 @@
 
 import { describe, it, expect } from 'vitest';
 
+/**
+ * Importing the entry point pulls in the whole player graph, and vitest
+ * transforms it unbundled and uncached in this fresh node environment. That is
+ * comfortably over the 5s default when the rest of the suite is competing for
+ * the machine — it passed alone and timed out in a full run. The generous
+ * timeout is about transform cost, not about the code being slow.
+ */
+const IMPORT_TIMEOUT = 30_000;
+
 describe('server-side rendering', () => {
   it('has no DOM in this environment', () => {
     // Guards the guard: if a jsdom environment leaked in, everything below
@@ -25,7 +34,7 @@ describe('server-side rendering', () => {
 
   it('imports without throwing', async () => {
     await expect(import('./index')).resolves.toBeDefined();
-  });
+  }, IMPORT_TIMEOUT);
 
   it('still exports its public surface', async () => {
     const api = await import('./index');
@@ -34,7 +43,7 @@ describe('server-side rendering', () => {
     expect(api.defineFairuPlayer).toBeInstanceOf(Function);
     expect(api.FAIRU_PLAYER_TAG).toBe('fairu-player');
     expect(api.FAIRU_EVENTS.play).toBe('fairu-play');
-  });
+  }, IMPORT_TIMEOUT);
 
   it('registers nothing, quietly', async () => {
     const { defineFairuPlayer } = await import('./index');
@@ -43,5 +52,5 @@ describe('server-side rendering', () => {
     // than a throw, so a shared component file can import it unconditionally.
     expect(() => defineFairuPlayer()).not.toThrow();
     expect(() => defineFairuPlayer('other-tag')).not.toThrow();
-  });
+  }, IMPORT_TIMEOUT);
 });

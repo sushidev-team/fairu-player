@@ -112,6 +112,23 @@ describe('<fairu-player>', () => {
       expect(element.children.length).toBe(0);
     });
 
+    it('emits ready once across a remove-and-reinsert', async () => {
+      // Frameworks move nodes within a single task. The deferred ready must
+      // belong to the connection that scheduled it, or a consumer initialises
+      // twice off one element.
+      const onReady = vi.fn();
+      const element = document.createElement('fairu-player') as FairuPlayerElement;
+      element.addEventListener(FAIRU_EVENTS.ready, onReady);
+      element.setAttribute('src', TRACK.src);
+
+      document.body.appendChild(element);
+      element.remove();
+      document.body.appendChild(element);
+      await settle();
+
+      expect(onReady).toHaveBeenCalledTimes(1);
+    });
+
     it('survives an immediate remove-and-reinsert', async () => {
       // Frameworks move nodes: Vue's <Teleport>, Angular's structural
       // directives and list re-ordering all detach and re-attach.

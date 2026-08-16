@@ -94,8 +94,16 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
 
+    # This job installs and executes a large third-party tree (Angular, Vue,
+    # Svelte, a browser) purely to render pages. It has no reason to be able to
+    # write to the repository, and no reason to keep a usable token on disk.
+    permissions:
+      contents: read
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Use Node.js
         uses: actions/setup-node@v4

@@ -51,14 +51,18 @@ function shuffleWithCurrentFirst(indices: number[], current: number): number[] {
  * A content-based identity for a track list.
  *
  * Callers build the array inline (`[config.track]`), so it is a new reference
- * on every render and comparing by identity would resync endlessly. The ids are
- * what actually determine whether this is a different playlist.
+ * on every render and comparing by identity would resync endlessly.
  *
- * NUL separates them: it is the one character that cannot legitimately appear
- * in an id, so `['a', 'b']` and `['a b']` cannot collapse into one signature.
+ * `src` counts as much as `id`. Signed URLs expire and get re-issued under the
+ * same track id, so an id-only signature left the player pointed at a dead
+ * source after a refresh — a real update that looked like no change at all.
+ *
+ * NUL separates the fields: it is the one character that cannot legitimately
+ * appear in an id or a URL, so two different lists cannot collapse into one
+ * signature.
  */
 function trackListSignature(tracks: Track[]): string {
-  return tracks.map((track) => track.id).join('\u0000');
+  return tracks.map((track) => `${track.id}\u0000${track.src}`).join('\u0000');
 }
 
 export function usePlaylist(options: UsePlaylistOptions = {}): UsePlaylistReturn {
@@ -124,13 +128,23 @@ export function usePlaylist(options: UsePlaylistOptions = {}): UsePlaylistReturn
     }
   }, [incomingSignature, initialTracks, tracks.length]);
 
-  // Generate shuffled order when shuffle is enabled
+  // Generate the shuffled order when shuffle is enabled, or when the list it
+  // describes is replaced.
+  //
+  // Keyed on `tracks` rather than on `tracks.length`: a replacement list of the
+  // same length kept the previous permutation while the cursor reset to 0, so
+  // the order still led with the old current index and left 0 at the end —
+  // where `next()` ends the queue after a single track. That is the defect
+  // `shuffleWithCurrentFirst` exists to prevent, arriving through another door.
+  //
+  // `tracks` is state, so its identity changes exactly when a list is adopted
+  // and never merely because a caller re-rendered.
   useEffect(() => {
     if (shuffle && tracks.length > 0) {
       const indices = tracks.map((_, i) => i);
       setShuffledOrder(shuffleWithCurrentFirst(indices, currentIndexRef.current));
     }
-  }, [shuffle, tracks.length]);
+  }, [shuffle, tracks]);
 
   const currentTrack = useMemo(() => {
     if (tracks.length === 0) return null;

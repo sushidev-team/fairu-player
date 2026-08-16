@@ -137,21 +137,52 @@ export function writeStored<T>(key: string, value: T, kind: StorageKind = 'local
 
   const envelope: StoredEnvelope<T> = { v: SCHEMA_VERSION, t: Date.now(), d: value };
 
+  // Serialised before the write, and outside the retry.
+  //
+  // `JSON.stringify` throws on a cyclic or non-serialisable value. Doing it
+  // inside the catch below meant such a value was treated as a quota problem:
+  // the recovery path evicted the oldest stored entry and then failed anyway,
+  // destroying unrelated data over a caller's bad argument.
+  let serialized: string;
   try {
-    backend.setItem(namespaced(key), JSON.stringify(envelope));
-    return true;
+    serialized = JSON.stringify(envelope);
   } catch {
-    // Almost always QuotaExceededError. Drop our own older entries and retry
-    // once — a player's preferences are small, so if this still fails the page
-    // is out of storage for reasons we cannot fix.
+    return false;
+  }
+
+  try {
+    backend.setItem(namespaced(key), serialized);
+    return true;
+  } catch (error) {
+    // Only a genuine quota failure justifies evicting anything. A SecurityError
+    // from a blocked origin reaches here too, and pruning would not help it.
+    if (!isQuotaExceeded(error)) return false;
+
     try {
       pruneOldest(backend, 1);
-      backend.setItem(namespaced(key), JSON.stringify(envelope));
+      backend.setItem(namespaced(key), serialized);
       return true;
     } catch {
       return false;
     }
   }
+}
+
+/**
+ * Whether a failed write was the storage being full.
+ *
+ * Browsers disagree on how to say it: Chrome and Safari throw a DOMException
+ * named `QuotaExceededError`, Firefox uses `NS_ERROR_DOM_QUOTA_REACHED`, and
+ * older engines only set the legacy numeric code.
+ */
+function isQuotaExceeded(error: unknown): boolean {
+  if (!(error instanceof DOMException)) return false;
+  return (
+    error.name === 'QuotaExceededError' ||
+    error.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+    error.code === 22 ||
+    error.code === 1014
+  );
 }
 
 export function removeStored(key: string, kind: StorageKind = 'local'): void {

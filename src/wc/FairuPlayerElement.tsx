@@ -54,6 +54,7 @@ export type FairuEventName = (typeof FAIRU_EVENTS)[keyof typeof FAIRU_EVENTS];
 /** Attributes the element observes. */
 const OBSERVED = [
   'src',
+  'track-id',
   'title',
   'artist',
   'album',
@@ -114,6 +115,14 @@ export class FairuPlayerElement extends ElementBase {
   #connected = false;
   /** Coalesces bursts of attribute changes into one re-render. */
   #renderQueued = false;
+  /**
+   * Bumped on every connect, so deferred work can tell whether it still belongs
+   * to the connection that scheduled it. Frameworks move nodes — a Vue
+   * `<Teleport>` or an Angular list reorder detaches and re-attaches within one
+   * task — and a microtask queued by the old connection would otherwise still
+   * see `#connected === true` and fire a second time.
+   */
+  #generation = 0;
 
   /** Structured configuration. Set through a framework binding, not markup. */
   get config(): PlayerConfig | VideoConfig {
@@ -146,6 +155,7 @@ export class FairuPlayerElement extends ElementBase {
   connectedCallback(): void {
     if (this.#connected) return;
     this.#connected = true;
+    this.#generation += 1;
 
     // React renders into a child rather than into the host: React owns the
     // children of whatever it renders into, and the host may carry
@@ -165,8 +175,14 @@ export class FairuPlayerElement extends ElementBase {
     // fired before anyone was listening. An event nobody can hear is not an
     // event. A microtask still resolves before the next frame, so a listener
     // attached anywhere in the same task catches it.
+    const generation = this.#generation;
     queueMicrotask(() => {
-      if (this.#connected) this.#emit(FAIRU_EVENTS.ready, null);
+      // Checked against the generation, not just `#connected`: a detach and
+      // re-attach within the same task would leave `#connected` true again, and
+      // consumers would see two ready events for one element.
+      if (this.#connected && this.#generation === generation) {
+        this.#emit(FAIRU_EVENTS.ready, null);
+      }
     });
   }
 
@@ -210,7 +226,12 @@ export class FairuPlayerElement extends ElementBase {
     // through `.config` or `.playlist`.
     const attrTrack: (Track & VideoTrack) | undefined = src
       ? {
-          id: this.getAttribute('id') || src,
+          // `track-id`, never the host's `id`. The DOM id identifies the
+          // element, not the media: two players sharing an id would share a
+          // resume position, and replacing `src` on one element would keep the
+          // old one — dropping the viewer into the middle of different audio.
+          // Falling back to the source keeps the identity tied to the media.
+          id: this.getAttribute('track-id') ?? src,
           src,
           title: this.getAttribute('title') ?? undefined,
           artist: this.getAttribute('artist') ?? undefined,

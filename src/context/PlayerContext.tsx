@@ -152,13 +152,43 @@ export function PlayerProvider({
 
   const { volume, isMuted, playbackRate, currentTime, duration, isPlaying } = audioReturn.state;
 
+  // Apply stored preferences to the media element, once.
+  //
+  // Passing them as options is not enough: `useMedia` seeds its state from the
+  // options only on the first render, and storage is read in an effect — so the
+  // stored values always arrived one render too late and were silently ignored.
+  // Worse, the persist effect below then saw state disagreeing with storage and
+  // wrote the defaults back, destroying the setting on the next mount.
+  //
+  // No dependency array on purpose. The media element may not exist yet — for
+  // video it is rendered by a child component — and a ref appearing is
+  // invisible to React, so this retries every render until it lands. The guard
+  // makes every later run a no-op.
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current || !prefsHydrated) return;
+    if (!audioReturn.audioRef.current) return;
+
+    restoredRef.current = true;
+    if (preferences.volume !== undefined) {
+      audioReturn.controls.setVolume(preferences.volume);
+    }
+    if (preferences.muted !== undefined && preferences.muted !== isMuted) {
+      // `toggleMute` flips rather than sets, so it is only correct to call when
+      // the stored value actually differs.
+      audioReturn.controls.toggleMute();
+    }
+    if (preferences.playbackRate !== undefined) {
+      audioReturn.controls.setPlaybackRate(preferences.playbackRate);
+    }
+  });
+
   // Persist preference changes.
   //
-  // Gated on hydration: before the stored values have been read, the state
-  // still holds the config defaults, and writing those back would overwrite
-  // the listener's remembered settings with the site's defaults on every mount.
+  // Gated on the restore above having run: writing before it would save the
+  // config defaults over the listener's remembered settings on every mount.
   useEffect(() => {
-    if (!prefsHydrated) return;
+    if (!prefsHydrated || !restoredRef.current) return;
     if (
       preferences.volume === volume &&
       preferences.muted === isMuted &&

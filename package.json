@@ -47,7 +47,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "lint": "eslint . --report-unused-disable-directives --max-warnings 99",
+    "lint": "eslint . --report-unused-disable-directives --max-warnings 98",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit"
   },

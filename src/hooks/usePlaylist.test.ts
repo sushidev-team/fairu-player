@@ -97,6 +97,21 @@ describe('usePlaylist', () => {
       expect(result.current.state.currentIndex).toBe(2);
     });
 
+    it('adopts a list whose ids match but whose sources changed', () => {
+      // Signed URLs expire and get re-issued under the same track id, so this
+      // is a real update rather than a contrived one — and comparing ids alone
+      // would leave the player on the dead source.
+      const { result, rerender } = renderHook(
+        ({ tracks }) => usePlaylist({ tracks }),
+        { initialProps: { tracks: TRACKS } }
+      );
+
+      const refreshed = TRACKS.map((t) => ({ ...t, src: `${t.src}?token=fresh` }));
+      rerender({ tracks: refreshed });
+
+      expect(result.current.state.currentTrack?.src).toBe(refreshed[0].src);
+    });
+
     it('keeps initialIndex when a late list fills an empty one', () => {
       const { result, rerender } = renderHook(
         ({ tracks }) => usePlaylist({ tracks, initialIndex: 1 }),
@@ -442,6 +457,39 @@ describe('usePlaylist', () => {
       act(() => result.current.controls.previous());
 
       expect(result.current.state.currentIndex).toBe(start);
+    });
+
+    it('rebuilds the order after a replacement list of the same length', () => {
+      // The order is rebuilt from the track *count*, so a same-length swap kept
+      // the previous permutation while the cursor reset to 0 — leaving index 0
+      // wherever the old order had put it. With the forced permutation that is
+      // last, so the first `next()` would end the queue after one track: the
+      // defect this hook already fixed once, returning through another door.
+      forcePermutation();
+      const onQueueEnd = vi.fn();
+      // Starting away from 0 is what makes the staleness observable: the order
+      // is built current-first, so after the cursor resets to 0 the old order
+      // still leads with index 2 and leaves 0 at the end.
+      const { result, rerender } = renderHook(
+        ({ tracks }) => usePlaylist({ tracks, shuffle: true, initialIndex: 2, onQueueEnd }),
+        { initialProps: { tracks: TRACKS } }
+      );
+
+      const replacement: Track[] = [
+        { id: 'x', src: 'x.mp3' },
+        { id: 'y', src: 'y.mp3' },
+        { id: 'z', src: 'z.mp3' },
+      ];
+      rerender({ tracks: replacement });
+
+      const visited = new Set<number>([result.current.state.currentIndex]);
+      for (let i = 0; i < replacement.length - 1; i++) {
+        act(() => result.current.controls.next());
+        visited.add(result.current.state.currentIndex);
+      }
+
+      expect([...visited].sort()).toEqual([0, 1, 2]);
+      expect(onQueueEnd).not.toHaveBeenCalled();
     });
 
     it('keeps the current track playing when shuffle is switched on', () => {

@@ -176,6 +176,54 @@ describe('storage', () => {
       expect(readStored('another')).toBe('z');
     });
 
+    it('does not evict anything when the value cannot be serialised', () => {
+      // A cyclic value throws in JSON.stringify, which used to land in the
+      // quota-recovery path: it evicted a stored entry and then failed anyway,
+      // destroying unrelated data over a caller's bad argument.
+      vi.spyOn(Date, 'now').mockReturnValue(1_000);
+      writeStored('keep-me', 'x');
+
+      const cyclic: Record<string, unknown> = {};
+      cyclic.self = cyclic;
+
+      expect(writeStored('bad', cyclic)).toBe(false);
+      expect(readStored('keep-me')).toBe('x');
+    });
+
+    it('does not evict anything when the write fails for a non-quota reason', () => {
+      vi.spyOn(Date, 'now').mockReturnValue(1_000);
+      writeStored('keep-me', 'x');
+
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new DOMException('blocked', 'SecurityError');
+      });
+
+      expect(writeStored('other', 'y')).toBe(false);
+      // Pruning cannot fix a blocked origin, so nothing should have been lost.
+      expect(localStorage.getItem(`${NS}keep-me`)).not.toBeNull();
+    });
+
+    it('recognises the Firefox spelling of a quota failure', () => {
+      vi.spyOn(Date, 'now').mockReturnValue(1_000);
+      writeStored('old', 'x');
+
+      const real = Storage.prototype.setItem;
+      let failed = false;
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+        this: Storage,
+        key: string,
+        value: string
+      ) {
+        if (!failed) {
+          failed = true;
+          throw new DOMException('full', 'NS_ERROR_DOM_QUOTA_REACHED');
+        }
+        real.call(this, key, value);
+      });
+
+      expect(writeStored('another', 'z')).toBe(true);
+    });
+
     it('never evicts keys belonging to the host page', () => {
       vi.spyOn(Date, 'now').mockReturnValue(1_000);
       writeStored('mine', 'x');

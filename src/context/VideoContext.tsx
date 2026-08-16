@@ -174,9 +174,30 @@ export function VideoProvider({
 
   const { volume, isMuted, playbackRate, currentTime, duration, isPlaying } = videoReturn.state;
 
-  // Persist preference changes, once the stored values have been read.
+  // Apply stored preferences to the media element, once — see PlayerContext for
+  // why this cannot be done through the options alone, and why it has no
+  // dependency array. It matters more here: the <video> is rendered by a child
+  // component, so it is reliably absent on the provider's first effect pass.
+  const restoredRef = useRef(false);
   useEffect(() => {
-    if (!prefsHydrated) return;
+    if (restoredRef.current || !prefsHydrated) return;
+    if (!videoReturn.videoRef.current) return;
+
+    restoredRef.current = true;
+    if (preferences.volume !== undefined) {
+      videoReturn.controls.setVolume(preferences.volume);
+    }
+    if (preferences.muted !== undefined && preferences.muted !== isMuted) {
+      videoReturn.controls.toggleMute();
+    }
+    if (preferences.playbackRate !== undefined) {
+      videoReturn.controls.setPlaybackRate(preferences.playbackRate);
+    }
+  });
+
+  // Persist preference changes, once the restore above has run.
+  useEffect(() => {
+    if (!prefsHydrated || !restoredRef.current) return;
     if (
       preferences.volume === volume &&
       preferences.muted === isMuted &&
