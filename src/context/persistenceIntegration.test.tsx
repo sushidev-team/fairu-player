@@ -11,7 +11,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { useContext } from 'react';
+import { useContext, useRef } from 'react';
 import { PlayerProvider, PlayerContext } from './PlayerContext';
 import { VideoProvider, useVideoPlayer } from './VideoContext';
 import { readStored, writeStored, resetStorageAvailability } from '@/utils/storage';
@@ -48,6 +48,16 @@ function VideoProbe() {
       <span data-testid="rate">{state.playbackRate}</span>
     </>
   );
+}
+
+/** Counts its own renders, to catch an effect that never settles. */
+let renderCount = 0;
+function CountingProbe() {
+  const ctx = useContext(PlayerContext);
+  const seen = useRef(0);
+  seen.current += 1;
+  renderCount = seen.current;
+  return <span data-testid="volume">{ctx?.state.volume}</span>;
 }
 
 describe('persistence through the providers', () => {
@@ -160,6 +170,28 @@ describe('persistence through the providers', () => {
       );
 
       expect(readStored<PersistedPreferences>('preferences')?.playbackRate).toBe(2);
+    });
+  });
+
+  describe('the restore effect settles', () => {
+    it('does not re-render without end', () => {
+      // The restore effect deliberately has no dependency array: the media
+      // element may not exist yet, and a ref appearing is invisible to React,
+      // so it retries every render until it lands. That is only safe because a
+      // ref guard makes every later run a no-op — if that guard ever breaks,
+      // the effect and its setState calls would feed each other forever.
+      renderCount = 0;
+      writeStored<PersistedPreferences>('preferences', { volume: 0.25, playbackRate: 1.5 });
+
+      render(
+        <PlayerProvider config={{ track: TRACK }}>
+          <CountingProbe />
+        </PlayerProvider>
+      );
+
+      // Four in practice. The bound is loose because the exact count depends on
+      // React's batching, but a loop would blow past any bound at all.
+      expect(renderCount).toBeLessThan(15);
     });
   });
 });
