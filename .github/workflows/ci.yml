@@ -38,6 +38,38 @@ jobs:
       - name: Build library
         run: npm run build:lib
 
+  # Its own job, not a step in the test matrix. Bundle size is a property of the
+  # built artefact rather than of the Node version that built it, so checking it
+  # once is enough — and size-limit 13 requires Node >= 22.18, which made it fail
+  # outright in the 20.x cell.
+  #
+  # `npm ci` on 20.x still prints an EBADENGINE warning for it. That is a
+  # warning, not an error: the package installs and everything else runs, so
+  # development on Node 20 is unaffected. Worth revisiting if 20 stays in the
+  # matrix long-term.
+  size:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build library
+        run: npm run build:lib
+
       # Blocking. Budgets sit just above the current sizes, so this catches a
       # regression rather than documenting one — see the `size-limit` block in
       # package.json.
