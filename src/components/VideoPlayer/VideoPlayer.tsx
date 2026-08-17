@@ -422,10 +422,15 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerWithProviderPro
   onTabVisibilityChange,
   theme,
 }, ref) {
+  // The `track` and `playlist` props are shorthands for the same fields inside
+  // `config`, so they may only override when they were actually passed.
+  // Spreading them unconditionally wrote `undefined` over `config.track` for
+  // every caller who used the config form — `<VideoPlayer config={{ track }} />`
+  // rendered a player with no source at all, silently.
   const videoConfig: VideoConfig = {
     ...config,
-    track,
-    playlist,
+    ...(track !== undefined ? { track } : {}),
+    ...(playlist !== undefined ? { playlist } : {}),
   };
 
   // Wrap PiP change to emit on playerEventBus
