@@ -1,6 +1,6 @@
 # Fairu Player – Roadmap
 
-Stand: 2026-08-14 · Version 1.4.0
+Stand: 2026-08-17 · Version 1.4.0
 
 Dieses Dokument beschreibt, was fehlt, um `@fairu/player` zu einem Player zu machen,
 der sich gegen JW Player, Video.js, Vidstack und Shaka behaupten kann — und in
@@ -34,11 +34,14 @@ welcher Reihenfolge das sinnvoll ist.
 | Metrik | Vorher | Jetzt |
 |---|---|---|
 | Quelldateien (`.ts`/`.tsx`) | 226 | 251 |
-| Testdateien | 30 | 34 |
-| Tests | 762 | 897 |
+| Testdateien | 30 | 60 |
+| Tests | 762 | 1 563 |
+| Statement-Coverage (gesamt) | 72,3 % | 81,8 % |
+| E2E im echten Browser | keine | 108 (4 Frameworks × 3 Engines) |
 | Stories | 27 | 42 |
 | Komponenten ohne Story | 15 | 0 |
 | Lint-Fehler | n/a (Gate deaktiviert) | 0, blockierend |
+| Bundle-Gate | keins | 5 Budgets, blockierend |
 | React-freie Module | 91 | — |
 | React-gekoppelte Module | 77 | — |
 
@@ -141,11 +144,37 @@ der feindlichen Umgebungen.
 
 | # | Thema | Detail |
 |---|---|---|
-| 2.1 | **HLS-Recovery härten** | `useHLS.ts` ruft bei fatalem Media-Error `recoverMediaError()` ohne Backoff, Retry-Limit oder Loop-Schutz. Ein dauerhaft kaputter Stream kann in eine Endlosschleife laufen. Nötig: exponentielles Backoff, Retry-Zähler, Aufgabe nach N Versuchen mit sauberem `onError`. |
-| 2.2 | **Error Boundaries** | Ein Fehler im Ad-Overlay reißt heute den ganzen Player mit. Subsysteme (Ads, HLS, Cast, PiP) einzeln kapseln, Fallback-UI, Fehler über `PlayerEventBus` nach außen. |
-| 2.3 | **Autoplay-Policy** | Kein Erkennen blockierter Autoplay-Policies, keine „Tap to play"-Rückfallebene. |
-| 2.4 | **Testabdeckung heben** | 30 Testdateien auf 226 Quelldateien. `VideoPlayer.tsx` (943 Zeilen) und die Contexts (2 761 Zeilen) sind weitgehend ungetestet. Die 91,5 % gelten nur für die abgedeckte Teilmenge. |
-| 2.5 | **a11y + Bundle-Gate** | `vitest-axe`, `size-limit` mit Budget (Main < 80 KB gzip, CSS < 15 KB gzip). Playwright ist erledigt — siehe unten. |
+| 2.1 | **HLS-Recovery härten** | ✅ Drei Versuche je Fehlerklasse, Netzwerk-Backoff 1s/2s/4s, echter Fehler danach, Budget zurückgesetzt sobald ein Level lädt. |
+| 2.2 | **Error Boundaries** | ✅ `PlayerErrorBoundary` um Overlay-Ads, Info-Cards und End-Screen; Reset bei Trackwechsel, `subsystemError` auf dem Bus. |
+| 2.3 | **Autoplay-Policy** | ✅ `useAutoplayDetection` — `allowed` / `muted-only` / `blocked`. |
+| 2.4 | **Testabdeckung heben** | ✅ 30 → 60 Testdateien, 762 → 1 563 Tests, Gesamt-Coverage 81,8 % Statements / 84,2 % Lines. |
+| 2.5 | **a11y + Bundle-Gate** | ✅ 19 axe-Prüfungen ohne Verstöße; `size-limit` mit fünf Budgets, blockierend in CI. |
+
+**Phase 2 ist abgeschlossen.**
+
+### Was dabei gefunden wurde
+
+Jede dieser Stellen war vorher ungetestet:
+
+| Wo | Was |
+|---|---|
+| `useHLS` | Unbegrenzte Recovery — bei totem CDN eine enge Schleife, die den Origin hämmert, hinter einem Spinner, der nie aufhört, ohne je einen Fehler zu melden. |
+| `useHLS` | Ein Qualitätswechsel zerstörte die Instanz und lud den Stream neu: Stall, neuer Buffer, gewähltes Level verloren. |
+| `TrackingContext` | Batch-Timer in einem `useMemo` mit Cleanup, die React nie aufruft — lief nach dem Unmount weiter. |
+| `AdContext` | Skip-Countdown ohne Unmount-Pfad, eines pro Ad-Break. |
+| `VideoPlayer` | `{...config, track, playlist}` überschrieb `config.track` mit `undefined`. `<VideoPlayer config={{track}} />` rendert ohne Quelle. |
+
+Die ersten beiden Timer-Lecks sind dasselbe Muster wie in `usePlaylist`:
+`useMemo` für Seiteneffekte. Drei Fundstellen — das ist ein wiederkehrender
+Fehler, keine Einzelfälle.
+
+### Offen geblieben
+
+- **`hls.js` wird statisch importiert.** Der Video-Chunk ist 182 KB brotli, davon
+  ist hls.js der Löwenanteil — auch wer nur MP4 abspielt, lädt ihn. Ein
+  dynamischer Import nur bei einer HLS-Quelle wäre die größte Einzelersparnis
+  im Paket.
+- `VideoPlayer.tsx` bei 61 %, Reels bei ~74 %.
 
 ### E2E-Framework-Verifikation — erledigt
 
