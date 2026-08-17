@@ -12,6 +12,12 @@ export { useChapters } from './useChapters';
 export { useMarkers } from './useMarkers';
 export { useKeyboardControls, type UseKeyboardControlsOptions } from './useKeyboardControls';
 export {
+  useAutoplayDetection,
+  type AutoplayCapability,
+  type UseAutoplayDetectionOptions,
+  type UseAutoplayDetectionReturn,
+} from './useAutoplayDetection';
+export {
   useMediaSession,
   isMediaSessionSupported,
   type UseMediaSessionOptions,

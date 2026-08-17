@@ -13,6 +13,7 @@ import { VideoOverlay } from './VideoOverlay';
 import { VideoControls } from './VideoControls';
 import { LogoOverlay } from './LogoOverlay';
 import { EndScreen } from './EndScreen';
+import { PlayerErrorBoundary } from '@/components/ErrorBoundary';
 import { OverlayAd } from '@/components/ads/OverlayAd';
 import { InfoCard, InfoCardIcon } from '@/components/ads/InfoCard';
 import { AdChoicesIcon } from '@/components/ads/AdChoicesIcon';
@@ -278,6 +279,13 @@ function VideoPlayerInner({
       )}
 
       {/* Overlay Ads */}
+      {/*
+        Each ad surface gets its own boundary. A malformed creative that throws
+        during render would otherwise unmount the whole player — the viewer
+        would lose the video because an advert failed. Keyed on the track so a
+        failure on one video does not disable the surface for the session.
+      */}
+      <PlayerErrorBoundary subsystem="overlay-ads" resetKeys={[currentTrack?.id]}>
       {!isAdPlaying && activeOverlayAds.map((ad) => {
         const isManual = isManualOverlayAd(ad.id);
         return (
@@ -295,7 +303,9 @@ function VideoPlayerInner({
           />
         );
       })}
+      </PlayerErrorBoundary>
 
+      <PlayerErrorBoundary subsystem="info-cards" resetKeys={[currentTrack?.id]}>
       {/* Info Card Icon */}
       {!isAdPlaying && activeInfoCards.length > 0 && (
         <InfoCardIcon
@@ -325,8 +335,10 @@ function VideoPlayerInner({
           />
         );
       })}
+      </PlayerErrorBoundary>
 
       {/* End Screen */}
+      <PlayerErrorBoundary subsystem="end-screen" resetKeys={[currentTrack?.id]}>
       {!isAdPlaying && config.endScreen?.enabled && (
         <EndScreen
           config={config.endScreen}
@@ -337,6 +349,7 @@ function VideoPlayerInner({
           onReplay={handleReplay}
         />
       )}
+      </PlayerErrorBoundary>
 
       {/* Video Controls */}
       {!isAdPlaying && (
@@ -866,6 +879,13 @@ function VideoPlayerInnerWithAds({
       )}
 
       {/* Overlay Ads */}
+      {/*
+        Each ad surface gets its own boundary. A malformed creative that throws
+        during render would otherwise unmount the whole player — the viewer
+        would lose the video because an advert failed. Keyed on the track so a
+        failure on one video does not disable the surface for the session.
+      */}
+      <PlayerErrorBoundary subsystem="overlay-ads" resetKeys={[currentTrack?.id]}>
       {!isAdPlaying && activeOverlayAds.map((ad) => {
         const isManual = isManualOverlayAd(ad.id);
         return (
@@ -883,7 +903,9 @@ function VideoPlayerInnerWithAds({
           />
         );
       })}
+      </PlayerErrorBoundary>
 
+      <PlayerErrorBoundary subsystem="info-cards" resetKeys={[currentTrack?.id]}>
       {/* Info Card Icon */}
       {!isAdPlaying && activeInfoCards.length > 0 && (
         <InfoCardIcon
@@ -913,8 +935,10 @@ function VideoPlayerInnerWithAds({
           />
         );
       })}
+      </PlayerErrorBoundary>
 
       {/* End Screen */}
+      <PlayerErrorBoundary subsystem="end-screen" resetKeys={[currentTrack?.id]}>
       {!isAdPlaying && config.endScreen?.enabled && (
         <EndScreen
           config={config.endScreen}
@@ -925,6 +949,7 @@ function VideoPlayerInnerWithAds({
           onReplay={handleReplay}
         />
       )}
+      </PlayerErrorBoundary>
 
       {/* Video Controls */}
       {!isAdPlaying && (

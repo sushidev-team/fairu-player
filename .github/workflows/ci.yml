@@ -38,6 +38,12 @@ jobs:
       - name: Build library
         run: npm run build:lib
 
+      # Blocking. Budgets sit just above the current sizes, so this catches a
+      # regression rather than documenting one — see the `size-limit` block in
+      # package.json.
+      - name: Check bundle size
+        run: npm run size
+
   audit:
     runs-on: ubuntu-latest
 

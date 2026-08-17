@@ -198,6 +198,7 @@ export {
   useHLS,
   isHLSSource,
   supportsNativeHLS,
+  useAutoplayDetection,
   useMediaSession,
   isMediaSessionSupported,
   usePersistentPreferences,
@@ -219,12 +220,21 @@ export {
   type UseKeyboardControlsOptions,
   type UseHLSOptions,
   type UseHLSReturn,
+  type AutoplayCapability,
+  type UseAutoplayDetectionOptions,
+  type UseAutoplayDetectionReturn,
   type UseMediaSessionOptions,
   type UsePersistentPreferencesOptions,
   type UsePersistentPreferencesReturn,
   type UseResumePositionOptions,
   type UseResumePositionReturn,
 } from './hooks';
+
+// Error boundary for wrapping player subsystems
+export {
+  PlayerErrorBoundary,
+  type PlayerErrorBoundaryProps,
+} from './components/ErrorBoundary';
 
 // Persistence + Media Session
 export {

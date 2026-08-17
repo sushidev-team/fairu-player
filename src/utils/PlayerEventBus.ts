@@ -8,7 +8,8 @@ export type PlayerEventType =
   | 'castStop'
   | 'tabHidden'
   | 'tabVisible'
-  | 'triggerReturnAd';
+  | 'triggerReturnAd'
+  | 'subsystemError';
 
 /**
  * Event payload types
@@ -21,6 +22,15 @@ export interface PlayerEventPayloads {
   tabHidden: { timestamp: number };
   tabVisible: { timestamp: number; hiddenDuration: number };
   triggerReturnAd: { hiddenDuration: number };
+  /**
+   * A subsystem crashed and was replaced by its fallback.
+   *
+   * Emitted by {@link PlayerErrorBoundary}. The player keeps playing — the
+   * point of the boundary is that a broken overlay does not take the video
+   * with it — so this is the only signal a host page gets that something was
+   * lost. Worth reporting rather than ignoring.
+   */
+  subsystemError: { subsystem: string; error: Error; componentStack?: string };
 }
 
 /**
