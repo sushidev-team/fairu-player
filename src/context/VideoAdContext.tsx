@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useMemo, useState, useCallback, useRef, useEffect } from 'react';
-import Hls from 'hls.js';
+import type Hls from 'hls.js';
+import { loadHls, mayUseHlsJs } from '@/utils/hlsLoader';
 import { isHLSSource, supportsNativeHLS } from '@/hooks/useHLS';
 import type { AdState, AdControls, AdProgressInfo } from '@/types/ads';
 import { VastErrorCode } from '@/types/vast';
@@ -85,22 +86,34 @@ export function VideoAdProvider({ children, config: userConfig = {} }: VideoAdPr
       if (supportsNativeHLS()) {
         // Use native HLS
         video.src = src;
-      } else if (Hls.isSupported()) {
-        // Use hls.js
-        const hls = new Hls({
-          enableWorker: true,
-        });
-        adHlsRef.current = hls;
-
-        hls.loadSource(src);
-        hls.attachMedia(video);
-
-        // Handle HLS errors
-        hls.on(Hls.Events.ERROR, (_, data) => {
-          if (data.fatal) {
-            console.error('HLS ad error:', data.type, data.details);
-            // Let the video error handler deal with it
+      } else if (mayUseHlsJs()) {
+        // hls.js, fetched on demand — see utils/hlsLoader. An HLS ad creative
+        // is the only reason this player needs the library at all, so a page
+        // that never serves one never pays for it.
+        void loadHls().then((Hls) => {
+          // The break may have moved on while the module was in flight; the ad
+          // element is reused, so attaching now would play the previous
+          // creative underneath the current one.
+          if (adHlsRef.current || video.src !== '' || !Hls.isSupported()) {
+            if (!Hls.isSupported()) {
+              console.warn('HLS is not supported in this browser for ad playback');
+              video.src = src;
+            }
+            return;
           }
+
+          const hls = new Hls({ enableWorker: true });
+          adHlsRef.current = hls;
+
+          hls.loadSource(src);
+          hls.attachMedia(video);
+
+          hls.on(Hls.Events.ERROR, (_, data) => {
+            if (data.fatal) {
+              console.error('HLS ad error:', data.type, data.details);
+              // Let the video error handler deal with it
+            }
+          });
         });
       } else {
         // HLS not supported, try anyway (will likely fail)

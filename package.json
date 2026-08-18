@@ -124,9 +124,14 @@
       "limit": "29 kB"
     },
     {
-      "name": "Video player chunk (includes hls.js)",
+      "name": "Video player chunk (hls.js excluded)",
       "path": "dist/VideoPlayer-*.js",
-      "limit": "190 kB"
+      "limit": "32 kB"
+    },
+    {
+      "name": "hls.js, fetched only for HLS sources",
+      "path": "dist/hls-*.js",
+      "limit": "200 kB"
     },
     {
       "name": "Stylesheet",

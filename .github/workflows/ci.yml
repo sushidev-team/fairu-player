@@ -10,9 +10,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    # 22 is the active LTS, 24 the current one. Node 20 left maintenance in
+    # April 2026, so testing against it was testing against a runtime nobody
+    # patches any more — and it was the only reason the size-limit engine
+    # constraint ever mattered.
     strategy:
       matrix:
-        node-version: [20.x, 22.x]
+        node-version: [22.x, 24.x]
 
     steps:
       - uses: actions/checkout@v4
@@ -38,15 +42,9 @@ jobs:
       - name: Build library
         run: npm run build:lib
 
-  # Its own job, not a step in the test matrix. Bundle size is a property of the
+  # Its own job, not a step in the test matrix: bundle size is a property of the
   # built artefact rather than of the Node version that built it, so checking it
-  # once is enough — and size-limit 13 requires Node >= 22.18, which made it fail
-  # outright in the 20.x cell.
-  #
-  # `npm ci` on 20.x still prints an EBADENGINE warning for it. That is a
-  # warning, not an error: the package installs and everything else runs, so
-  # development on Node 20 is unaffected. Worth revisiting if 20 stays in the
-  # matrix long-term.
+  # once is both correct and half the work.
   size:
     runs-on: ubuntu-latest
 
@@ -112,7 +110,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: '22.x'
           cache: 'npm'
 
       - name: Install dependencies
@@ -192,7 +190,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: '22.x'
           cache: 'npm'
 
       - name: Install dependencies

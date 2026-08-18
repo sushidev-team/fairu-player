@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Hls from 'hls.js';
+import type Hls from 'hls.js';
+import { loadHls, mayUseHlsJs, type HlsConstructor } from '@/utils/hlsLoader';
 import type { VideoQuality, HLSConfig } from '@/types/video';
 
 /**
@@ -61,8 +62,13 @@ export interface UseHLSReturn {
   isAutoQuality: boolean;
   /** Enable/disable auto quality selection */
   setAutoQuality: (auto: boolean) => void;
-  /** Attach HLS to the video element (call this to start playback) */
-  attachHLS: () => void;
+  /**
+   * Attach HLS to the video element (call this to start playback).
+   *
+   * Asynchronous: hls.js is fetched on demand, so the instance does not exist
+   * until the module has landed.
+   */
+  attachHLS: () => Promise<void>;
   /** Detach and cleanup HLS */
   detachHLS: () => void;
 }
@@ -96,6 +102,8 @@ export function useHLS({
   const networkRetries = useRef(0);
   const mediaRetries = useRef(0);
   const recoveryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Set on teardown so an in-flight module load does not attach afterwards. */
+  const cancelledRef = useRef(false);
   const [levels, setLevels] = useState<VideoQuality[]>([]);
   const [currentLevel, setCurrentLevel] = useState<number>(startLevel);
   const [isAutoQuality, setIsAutoQualityState] = useState<boolean>(autoQuality);
@@ -103,15 +111,19 @@ export function useHLS({
   // Determine if source is HLS
   const isHLS = isHLSSource(src);
 
-  // Determine if we need to use hls.js
+  // Determine if we need to use hls.js.
+  //
+  // `mayUseHlsJs()` replaces `Hls.isSupported()` here because asking the real
+  // one means downloading the library first — which is exactly what this hook
+  // now avoids. It is confirmed against `isSupported()` in `attachHLS`, once
+  // the module has actually landed.
   const nativeSupport = supportsNativeHLS();
-  const hlsJsSupported = Hls.isSupported();
-  const shouldUseHlsJs = isHLS && !nativeSupport && hlsJsSupported && enabled;
+  const shouldUseHlsJs = isHLS && !nativeSupport && mayUseHlsJs() && enabled;
 
   /**
    * Create and configure the hls.js instance
    */
-  const createHlsInstance = useCallback(() => {
+  const createHlsInstance = useCallback((Hls: HlsConstructor) => {
     if (hlsRef.current) {
       hlsRef.current.destroy();
     }
@@ -232,11 +244,27 @@ export function useHLS({
     isAutoQualityRef.current = isAutoQuality;
   }, [isAutoQuality]);
 
-  const attachHLS = useCallback(() => {
+  const attachHLS = useCallback(async () => {
     const video = videoRef.current;
     if (!video || !src || !shouldUseHlsJs) return;
 
-    const hls = createHlsInstance();
+    const Hls = await loadHls();
+
+    // The authoritative check, now that the library is here. `mayUseHlsJs()`
+    // only established that Media Source Extensions exist; hls.js additionally
+    // wants specific codec support, and a browser that fails this has nothing
+    // to fall back on — reporting it beats a silent black frame.
+    if (!Hls.isSupported()) {
+      onError?.(new Error('HLS is not supported in this browser'));
+      return;
+    }
+
+    // The element or the source may have changed while the module was in
+    // flight; attaching to a stale one would leave an orphaned instance
+    // buffering in the background.
+    if (videoRef.current !== video || cancelledRef.current) return;
+
+    const hls = createHlsInstance(Hls);
     hls.loadSource(src);
     hls.attachMedia(video);
 
@@ -248,7 +276,7 @@ export function useHLS({
       hls.currentLevel = startLevel;
       setCurrentLevel(startLevel + 1); // +1 because of "Auto" at index 0
     }
-  }, [src, videoRef, shouldUseHlsJs, createHlsInstance, startLevel]);
+  }, [src, videoRef, shouldUseHlsJs, createHlsInstance, startLevel, onError]);
 
   /**
    * Detach and cleanup HLS
@@ -307,14 +335,17 @@ export function useHLS({
 
   // Auto-attach when source changes (if using hls.js)
   useEffect(() => {
+    cancelledRef.current = false;
+
     if (shouldUseHlsJs && src) {
-      attachHLS();
+      void attachHLS();
     } else if (isHLS && nativeSupport && videoRef.current) {
       // Native HLS (Safari) - just set the source
       videoRef.current.src = src || '';
     }
 
     return () => {
+      cancelledRef.current = true;
       detachHLS();
     };
   }, [src, shouldUseHlsJs, isHLS, nativeSupport, attachHLS, detachHLS, videoRef]);

@@ -31,6 +31,19 @@ if (hasDom) {
     }),
   });
 
+  // jsdom implements no Media Source Extensions, and hls.js is only fetched
+  // when they exist — so without this the lazy loader correctly decides there
+  // is nothing to load and every HLS path goes untested. A constructor stub is
+  // enough: the tests replace hls.js itself, and nothing here ever appends a
+  // buffer.
+  if (typeof (globalThis as { MediaSource?: unknown }).MediaSource === 'undefined') {
+    (globalThis as { MediaSource?: unknown }).MediaSource = class MediaSource {
+      static isTypeSupported() {
+        return true;
+      }
+    };
+  }
+
   // Mock ResizeObserver
   (globalThis as typeof globalThis & { ResizeObserver: typeof ResizeObserver }).ResizeObserver = class ResizeObserver {
     observe() {}
