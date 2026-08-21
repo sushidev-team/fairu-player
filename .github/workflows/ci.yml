@@ -3,8 +3,10 @@ name: CI
 on:
   push:
     branches: [main]
+  # Every pull request, whatever it targets. Filtering on `[main]` meant a
+  # stacked PR — one branch based on another — ran no checks at all and merged
+  # on nothing but a green tick from an unrelated run.
   pull_request:
-    branches: [main]
 
 jobs:
   test:
