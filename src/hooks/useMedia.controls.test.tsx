@@ -367,8 +367,14 @@ describe('useMedia controls', () => {
       // controls entirely.
       setup();
 
-      element.volume = 0.2;
-      element.muted = true;
+      // Assigning these fires `volumechange` on the spot, so the assignment is
+      // itself a React update and belongs inside `act`. Leaving it outside made
+      // the explicit event below a no-op — the state had already moved, so
+      // nothing was published and the render never happened.
+      act(() => {
+        element.volume = 0.2;
+        element.muted = true;
+      });
       fire('volumechange');
 
       expect(captured.state.volume).toBeCloseTo(0.2);
@@ -378,7 +384,9 @@ describe('useMedia controls', () => {
     it('ratechange mirrors element-side changes', () => {
       setup();
 
-      element.playbackRate = 2;
+      act(() => {
+        element.playbackRate = 2;
+      });
       fire('ratechange');
 
       expect(captured.state.playbackRate).toBe(2);
