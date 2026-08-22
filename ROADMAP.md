@@ -170,11 +170,13 @@ Fehler, keine Einzelfälle.
 
 ### Offen geblieben
 
-- **`hls.js` wird statisch importiert.** Der Video-Chunk ist 182 KB brotli, davon
-  ist hls.js der Löwenanteil — auch wer nur MP4 abspielt, lädt ihn. Ein
-  dynamischer Import nur bei einer HLS-Quelle wäre die größte Einzelersparnis
-  im Paket.
-- `VideoPlayer.tsx` bei 61 %, Reels bei ~74 %.
+- ~~`hls.js` wird statisch importiert.~~ Erledigt: wird nur noch bei einer
+  HLS-Quelle nachgeladen, siehe `perf(hls)` in v1.5.0.
+- **Abdeckung von `VideoPlayer.tsx` und Reels.** Stand heute 61 % bzw. 64 %
+  Statements — die beiden einzigen nennenswerten Lücken im Paket
+  (Gesamt: 81,8 % Statements, `src/core` bei 98,6 %). Beides sind große
+  Komponenten mit viel UI-Verzweigung; der Weg dahin ist derselbe wie in
+  Phase 3: Logik heraustrennen, dann ohne Renderer testen.
 
 ### E2E-Framework-Verifikation — erledigt
 
@@ -225,7 +227,7 @@ React-frei** — der komplette VAST-Parser, `AdService`, `TrackingService`,
 substanziell der halbe Core. Was noch in React steckt, ist die Zustandslogik in
 den Contexts und in `VideoPlayer.tsx`.
 
-### Stand: zwei Schnitte erledigt
+### Stand: drei Schnitte erledigt
 
 | Slice | Wo | Beweis |
 |---|---|---|
