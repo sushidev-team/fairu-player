@@ -231,6 +231,7 @@ den Contexts und in `VideoPlayer.tsx`.
 |---|---|---|
 | Playlist-Regeln | `src/core/playlist.ts` | 49 bestehende Hook-Tests unverändert grün, 36 neue ohne Renderer |
 | Watch-Progress | `src/core/watchProgress.ts` | 30 bestehende unverändert grün, 29 neue ohne Renderer |
+| Media-Controller | `src/core/mediaController.ts` | 41 bestehende unverändert grün, 40 neue ohne Renderer |
 
 Beide sind reine Funktionen ohne React-Import. Die Hooks sind zu dünnen
 Bindungen geschrumpft; ein Vue- oder Angular-Adapter wäre dieselbe Form über
@@ -242,21 +243,25 @@ neuen Tests grün sind. Beim Playlist-Schnitt hat genau das einen Fehler
 gefangen (Callbacks auf einen Microtask verschoben), beim Watch-Progress eine
 Mutation, die Aufrufer-Objekte nachträglich veränderte.
 
-### Nächster Schnitt: `useMedia` → Media-Controller
+Der Media-Controller war der tragende Teil: `useMedia` ging von 348 auf 141
+Zeilen und ist jetzt ein `useSyncExternalStore` über den Controller. Das ist die
+idiomatische Leseweise für Zustand außerhalb von React und ersetzt das
+Spiegeln derselben Werte in `useState`, womit der alte Hook den Großteil seiner
+Länge verbracht hat. Vier `react-hooks/refs`-Warnungen sind damit weg — das
+Budget fiel von 96 auf 94.
 
-Das ist der tragende Teil und der, ohne den ein Adapter nichts abspielen kann.
-Auch der aufwendigste: 348 Zeilen, neun abhängige Module, 41 Tests. Ein
-`createMediaController(element)` mit `getState`/`subscribe`/`controls`, und
-`useMedia` wird ein `useSyncExternalStore` darüber — was nebenbei mehrere der
-verbliebenen React-Compiler-Warnungen auflöst.
+### Nächste Schnitte
 
-Bewusst nicht angefangen, solange die anderen Schnitte frisch sind: ein Umbau
-des meistgenutzten Hooks gehört in einen eigenen, fokussierten Durchgang.
+- **Ad-Contexts → Scheduler.** `AdContext` und `VideoAdContext` halten
+  Terminierung, Capping und Pod-Fortschritt. Beide sind inzwischen gut getestet
+  (98 % bzw. 84 %), also gibt es ein Orakel für die Extraktion.
+- **Monorepo-Split**: `@fairu/player-core` plus Adapter. Erst sinnvoll, wenn der
+  Core alles hält, was ein Adapter braucht — nach dem Ad-Schnitt ist das der
+  Fall.
 
-### Danach
-
-- Ad-Contexts → Scheduler
-- Monorepo-Split: `@fairu/player-core` plus Adapter
+Was noch **nicht** im Core ist und dort hingehört: HLS-Engine-Auswahl
+(`useHLS` ist bereits größtenteils neutral), Persistenz und Media Session (beide
+fast reine Funktionen), Kapitel- und Marker-Auflösung.
 
 ### Zielstruktur — Monorepo, kein eigenes Repo
 
