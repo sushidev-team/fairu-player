@@ -261,6 +261,18 @@ export function useReelsFeed({
   const [adSlots, setAdSlots] = useState<Record<string, ReelAdSlotState>>({});
   const [adsShown, setAdsShown] = useState(0);
   const [advanceBlocked, setAdvanceBlocked] = useState(false);
+  /**
+   * The slot whose gate the host has opened by hand.
+   *
+   * `advanceBlocked` is otherwise *derived* — "we are on a filled ad slide and
+   * gating is on" — and the effect below recomputes it on every render. An
+   * imperative `releaseGate()` fought that derivation and lost: the gate closed
+   * again on the very next commit, which is any commit at all when the host
+   * passes an inline `reels` array. Naming the released slot makes the release
+   * part of the derivation instead of a race against it, and it expires by
+   * itself as soon as another slot becomes active.
+   */
+  const [releasedSlotId, setReleasedSlotId] = useState<string | null>(null);
 
   const sessionRef = useRef({ adsShown: 0, lastAdStartedAt: 0 });
   const resolvingRef = useRef<Set<string>>(new Set());
@@ -453,8 +465,10 @@ export function useReelsFeed({
     }
 
     const slotState = adSlots[activeSlide.slot.id];
-    setAdvanceBlocked(slotState?.status === 'filled');
-  }, [activeSlide, adConfig?.blockAdvanceUntilComplete, adSlots]);
+    setAdvanceBlocked(
+      slotState?.status === 'filled' && releasedSlotId !== activeSlide.slot.id
+    );
+  }, [activeSlide, adConfig?.blockAdvanceUntilComplete, adSlots, releasedSlotId]);
 
   /* ------------------------------ Navigation ------------------------------ */
 
@@ -651,9 +665,12 @@ export function useReelsFeed({
         directionRef.current = 1;
         setActiveIndex((current) => clampIndex(current + 1));
       },
-      releaseGate: () => setAdvanceBlocked(false),
+      releaseGate: () => {
+        if (activeSlide?.kind === 'ad') setReleasedSlotId(activeSlide.slot.id);
+        setAdvanceBlocked(false);
+      },
     }),
-    [adConfig, adSlots, clampIndex]
+    [adConfig, adSlots, clampIndex, activeSlide]
   );
 
   const state: ReelsState = {
