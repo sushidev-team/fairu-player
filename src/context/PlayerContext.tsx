@@ -1,6 +1,9 @@
-import React, { createContext, useRef, useMemo, useCallback } from 'react';
+import React, { createContext, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useAudio } from '@/hooks/useAudio';
 import { usePlaylist } from '@/hooks/usePlaylist';
+import { useMediaSession } from '@/hooks/useMediaSession';
+import { usePersistentPreferences } from '@/hooks/usePersistentPreferences';
+import { useResumePosition } from '@/hooks/useResumePosition';
 import { LabelsProvider } from './LabelsContext';
 import type {
   PlayerConfig,
@@ -77,14 +80,6 @@ export function PlayerProvider({
     onTrackChange?.(track, index);
   }, [onTrackChange]);
 
-  // Handle ended - move to next track if autoPlayNext
-  const handleEnded = useCallback(() => {
-    onEnded?.();
-    if (config.autoPlayNext) {
-      playlistReturn.controls.next();
-    }
-  }, [config.autoPlayNext, onEnded]);
-
   // Initialize playlist
   const playlistReturn = usePlaylist({
     tracks,
@@ -94,14 +89,49 @@ export function PlayerProvider({
     onTrackChange: handleTrackChange,
   });
 
+  // Handle ended - move to next track if autoPlayNext
+  //
+  // This used to be declared *above* `playlistReturn` and closed over it through
+  // the temporal dead zone, with `playlistReturn.controls` missing from the
+  // dependency array. The callback therefore kept whichever `controls` object
+  // existed when `autoPlayNext`/`onEnded` last changed, so auto-advance could
+  // call a stale `next()` and jump to the wrong track. VideoContext already had
+  // it in this order; this brings PlayerContext in line.
+  const handleEnded = useCallback(() => {
+    onEnded?.();
+    if (config.autoPlayNext) {
+      playlistReturn.controls.next();
+    }
+  }, [config.autoPlayNext, onEnded, playlistReturn.controls]);
+
   // Get current track source
-  const currentSrc = playlistReturn.state.currentTrack?.src;
+  const currentTrack = playlistReturn.state.currentTrack;
+  const currentSrc = currentTrack?.src;
+
+  // Remembered volume / mute / rate. Stored values win over the config
+  // defaults, because the config default is the site's opening offer and the
+  // stored value is the listener having already answered it.
+  const { preferences, update: updatePreferences, isHydrated: prefsHydrated } =
+    usePersistentPreferences({
+      ...config.persistence,
+      defaults: {
+        volume: config.volume,
+        muted: config.muted,
+        playbackRate: 1,
+      },
+    });
+
+  const resume = useResumePosition({
+    trackId: currentTrack?.id,
+    ...config.persistence,
+    ...config.resume,
+  });
 
   // Initialize audio with current track
   const audioReturn = useAudio({
     src: currentSrc,
-    volume: config.volume,
-    muted: config.muted,
+    volume: preferences.volume ?? config.volume,
+    muted: preferences.muted ?? config.muted,
     autoPlay: config.autoPlay,
     skipForwardSeconds: config.skipForwardSeconds,
     skipBackwardSeconds: config.skipBackwardSeconds,
@@ -119,6 +149,128 @@ export function PlayerProvider({
   if (audioReturn.audioRef.current !== audioRef.current) {
     audioRef.current = audioReturn.audioRef.current;
   }
+
+  const { volume, isMuted, playbackRate, currentTime, duration, isPlaying } = audioReturn.state;
+
+  // Apply stored preferences to the media element, once.
+  //
+  // Passing them as options is not enough: `useMedia` seeds its state from the
+  // options only on the first render, and storage is read in an effect — so the
+  // stored values always arrived one render too late and were silently ignored.
+  // Worse, the persist effect below then saw state disagreeing with storage and
+  // wrote the defaults back, destroying the setting on the next mount.
+  //
+  // No dependency array on purpose. The media element may not exist yet — for
+  // video it is rendered by a child component — and a ref appearing is
+  // invisible to React, so this retries every render until it lands. The guard
+  // makes every later run a no-op.
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current || !prefsHydrated) return;
+    if (!audioReturn.audioRef.current) return;
+
+    restoredRef.current = true;
+    if (preferences.volume !== undefined) {
+      audioReturn.controls.setVolume(preferences.volume);
+    }
+    if (preferences.muted !== undefined && preferences.muted !== isMuted) {
+      // `toggleMute` flips rather than sets, so it is only correct to call when
+      // the stored value actually differs.
+      audioReturn.controls.toggleMute();
+    }
+    if (preferences.playbackRate !== undefined) {
+      audioReturn.controls.setPlaybackRate(preferences.playbackRate);
+    }
+  });
+
+  // Persist preference changes.
+  //
+  // Gated on the restore above having run: writing before it would save the
+  // config defaults over the listener's remembered settings on every mount.
+  useEffect(() => {
+    if (!prefsHydrated || !restoredRef.current) return;
+    if (
+      preferences.volume === volume &&
+      preferences.muted === isMuted &&
+      preferences.playbackRate === playbackRate
+    ) {
+      return;
+    }
+    updatePreferences({ volume, muted: isMuted, playbackRate });
+  }, [
+    prefsHydrated,
+    volume,
+    isMuted,
+    playbackRate,
+    preferences.volume,
+    preferences.muted,
+    preferences.playbackRate,
+    updatePreferences,
+  ]);
+
+  // Restore the stored position once per track, after duration is known.
+  //
+  // Opt-in (`resume.autoResume`), because moving the playhead is a visible
+  // behaviour change an existing embed did not ask for. Recording the position
+  // stays on regardless, so a host page can offer "Continue from 12:34?" from
+  // `useResumePosition` without handing the decision to the player.
+  //
+  // Seeking before `loadedmetadata` is silently ignored by the media element,
+  // which is why this waits on a usable duration rather than on the src change.
+  const autoResume = config.resume?.autoResume ?? false;
+  const restoredForRef = useRef<string | null>(null);
+  useEffect(() => {
+    const trackId = currentTrack?.id;
+    if (!autoResume || !trackId || !resume.isHydrated) return;
+    if (restoredForRef.current === trackId) return;
+    if (!Number.isFinite(duration) || duration <= 0) return;
+
+    restoredForRef.current = trackId;
+    if (resume.resumeAt !== null && resume.resumeAt < duration) {
+      audioReturn.controls.seek(resume.resumeAt);
+    }
+  }, [
+    autoResume,
+    currentTrack?.id,
+    resume.isHydrated,
+    resume.resumeAt,
+    duration,
+    audioReturn.controls,
+  ]);
+
+  // Record the position as it advances. `save` throttles internally.
+  useEffect(() => {
+    if (!isPlaying) return;
+    resume.save(currentTime, duration);
+  }, [isPlaying, currentTime, duration, resume]);
+
+  // Publish to the OS lock screen / Now Playing UI.
+  useMediaSession({
+    ...config.mediaSession,
+    metadata: currentTrack
+      ? {
+          title: currentTrack.title,
+          artist: currentTrack.artist,
+          album: currentTrack.album,
+          artwork: currentTrack.artwork
+            ? [{ src: currentTrack.artwork, sizes: '512x512' }]
+            : undefined,
+        }
+      : null,
+    isPlaying,
+    position: currentTime,
+    duration,
+    playbackRate,
+    seekOffset: config.skipForwardSeconds,
+    onPlay: audioReturn.controls.play,
+    onPause: audioReturn.controls.pause,
+    onStop: audioReturn.controls.stop,
+    onNextTrack: playlistReturn.controls.next,
+    onPreviousTrack: playlistReturn.controls.previous,
+    onSeekTo: audioReturn.controls.seek,
+    onSeekForward: audioReturn.controls.skipForward,
+    onSeekBackward: audioReturn.controls.skipBackward,
+  });
 
   const contextValue = useMemo<PlayerContextValue>(() => ({
     state: audioReturn.state,

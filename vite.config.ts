@@ -29,6 +29,9 @@ export default defineConfig(({ mode }) => {
           entry: {
             index: resolve(__dirname, 'src/index.ts'),
             embed: resolve(__dirname, 'src/embed/embed.ts'),
+            // The custom element ships as its own entry so that a Vue or
+            // Angular app pulls in the element and not the React named exports.
+            wc: resolve(__dirname, 'src/wc/index.ts'),
           },
           formats: ['es', 'cjs'] as const,
           fileName: (format: string, entryName: string) => {

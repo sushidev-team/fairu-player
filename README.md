@@ -14,6 +14,8 @@ A lightweight, modular React media player with TypeScript support. Supports audi
 - **Subtitles** - Video subtitle/caption support
 - **Fullscreen Mode** - Native fullscreen with keyboard controls
 - **Watch Progress Tracking** - Track watched segments and completion
+- **Media Session** - Lock screen, notification shade, headset buttons and CarPlay/Android Auto
+- **Persistence** - Remembers volume, mute, speed and where playback stopped, per track
 - **Embeddable** - Script-based and iframe embedding options
 - **GDPR Compliant** - Opt-in tracking with configurable endpoints
 - **Ads Support** - Pre-roll, mid-roll, and post-roll ad integration with VAST tracking
@@ -338,33 +340,45 @@ import { useHLS, isHLSSource } from '@fairu/player';
 function HLSPlayer() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const {
-    isReady,
-    availableQualities,
-    currentQuality,
-    setQuality,
+    isHLS,
+    isUsingHlsJs,
+    levels,
+    currentLevel,
+    setLevel,
     isAutoQuality,
-    setAutoQuality
-  } = useHLS(videoRef, {
+    setAutoQuality,
+    attachHLS,
+    detachHLS,
+    hlsInstance,
+  } = useHLS({
     src: 'https://example.com/video.m3u8',
-    autoQuality: true,
+    videoRef,
+    config: { autoQuality: true, lowLatencyMode: false },
+    onQualityLevelsLoaded: (parsed) => console.log(parsed.length, 'levels'),
+    onError: (error) => console.error(error),
   });
 
   return (
     <>
       <video ref={videoRef} />
       <select
-        value={currentQuality}
-        onChange={(e) => setQuality(e.target.value)}
+        value={currentLevel}
+        onChange={(e) => setLevel(Number(e.target.value))}
       >
-        <option value="auto">Auto</option>
-        {availableQualities.map(q => (
-          <option key={q.label} value={q.label}>{q.label}</option>
+        <option value={-1}>Auto</option>
+        {levels.map((level, i) => (
+          <option key={level.label} value={i}>{level.label}</option>
         ))}
       </select>
     </>
   );
 }
 ```
+
+`levels` comes from the manifest, so it is empty until it has been parsed.
+`currentLevel` is an index into it, with `-1` meaning adaptive — which is why
+`setLevel` takes a number rather than a label. Safari plays HLS natively, so
+`isUsingHlsJs` is false there and `hlsInstance` is `null`.
 
 ### `useFullscreen`
 
@@ -395,35 +409,45 @@ Playlist management with shuffle and repeat.
 import { usePlaylist } from '@fairu/player';
 
 function PlaylistManager() {
-  const {
-    tracks,
-    currentIndex,
-    currentTrack,
-    shuffle,
-    repeat,
-    hasNext,
-    hasPrevious,
-    playTrack,
-    next,
-    previous,
-    toggleShuffle,
-    setRepeat,
-  } = usePlaylist({
+  const { state, controls } = usePlaylist({
     tracks: [...],
     initialIndex: 0,
+    onTrackChange: (track, index) => console.log('now playing', track.title, index),
+    onQueueEnd: () => console.log('reached the end'),
   });
 
   return (
     <div>
-      {tracks.map((track, i) => (
-        <div key={track.id} onClick={() => playTrack(i)}>
-          {currentIndex === i && '▶'} {track.title}
+      {state.tracks.map((track, i) => (
+        <div key={track.id} onClick={() => controls.goToTrack(i)}>
+          {state.currentIndex === i && '▶'} {track.title}
         </div>
       ))}
+      <button onClick={controls.previous}>Previous</button>
+      <button onClick={controls.next}>Next</button>
+      <button onClick={controls.toggleShuffle}>
+        Shuffle {state.shuffle ? 'on' : 'off'}
+      </button>
     </div>
   );
 }
 ```
+
+**`state`:** `tracks`, `currentIndex`, `currentTrack`, `shuffle`, `repeat`,
+`queue`, `history`.
+
+**`controls`:** `next`, `previous`, `goToTrack`, `setRepeat`, `toggleShuffle`,
+`addToQueue`, `removeFromQueue`, `clearQueue`.
+
+Two behaviours worth knowing:
+
+- **Shuffle keeps the current track playing** and reorders what comes after it,
+  so switching it on never jumps elsewhere and every remaining track is visited
+  before `onQueueEnd` fires.
+- **A new track list is adopted when its ids differ.** Re-passing the same
+  tracks — which happens on every render with an inline array — leaves the
+  position alone; a genuinely different list resets the cursor, history and
+  queue.
 
 ### `useChapters`
 
@@ -1054,6 +1078,299 @@ import { PlayerProvider, TrackingProvider, Player } from '@fairu/player';
 </TrackingProvider>
 ```
 
+## Vue, Angular, Svelte & plain HTML
+
+The player also ships as a custom element, so it is not React-only. One import
+registers `<fairu-player>`:
+
+```ts
+import '@fairu/player/wc';
+import '@fairu/player/styles.css';
+```
+
+The import is safe to run on a server — it registers nothing when there is no
+DOM, so Angular Universal, Nuxt and Next can import it unconditionally.
+
+> Every example below is executed in CI. `verification/` holds a Vue, an
+> Angular, a Svelte and a plain-HTML app that bind the element exactly as
+> documented here; Playwright drives all four in a real browser against the
+> built package on every push. If a snippet on this page stops working, that job
+> goes red.
+
+There are two ways in, because neither covers everything:
+
+- **Attributes** for the simple case. HTML attributes are strings, so this is
+  what a hand-written page or a CMS can express.
+- **Properties** (`config`, `playlist`) for structured data. A playlist or an ad
+  schedule cannot go through an attribute without JSON-stringifying it — and
+  every framework's binding syntax sets DOM properties, which is exactly what
+  this needs.
+
+Properties win over attributes when both are set.
+
+### Plain HTML
+
+```html
+<fairu-player
+  src="https://example.com/episode.mp3"
+  title="Wie Streaming wirklich funktioniert"
+  artist="Fairu Podcast"
+  artwork="https://example.com/cover.jpg"
+  theme="dark"
+></fairu-player>
+```
+
+### Vue
+
+```vue
+<script setup>
+import '@fairu/player/wc';
+import { ref } from 'vue';
+
+const config = ref({
+  playlist: [
+    { id: 'ep-1', src: '/ep-1.mp3', title: 'Folge 1', artist: 'Fairu' },
+    { id: 'ep-2', src: '/ep-2.mp3', title: 'Folge 2', artist: 'Fairu' },
+  ],
+  volume: 0.8,
+});
+</script>
+
+<template>
+  <fairu-player
+    :config="config"
+    theme="dark"
+    @fairu-play="onPlay"
+    @fairu-ended="onEnded"
+  />
+</template>
+```
+
+Tell Vue the tag is a custom element so it does not warn about an unknown
+component:
+
+```ts
+// vite.config.ts
+vue({
+  template: {
+    compilerOptions: { isCustomElement: (tag) => tag === 'fairu-player' },
+  },
+});
+```
+
+### Angular
+
+```ts
+import { CUSTOM_ELEMENTS_SCHEMA, Component } from '@angular/core';
+import '@fairu/player/wc';
+
+@Component({
+  selector: 'app-episode',
+  standalone: true,
+  schemas: [CUSTOM_ELEMENTS_SCHEMA], // required for custom elements
+  template: `
+    <fairu-player
+      [config]="config"
+      theme="dark"
+      (fairu-play)="onPlay()"
+      (fairu-timeupdate)="onTime($any($event).detail.time)"
+    ></fairu-player>
+  `,
+})
+export class EpisodeComponent {
+  config = { track: { id: 'ep-1', src: '/ep-1.mp3', title: 'Folge 1' } };
+  onPlay() {}
+  onTime(seconds: number) {}
+}
+```
+
+### Svelte
+
+```svelte
+<script>
+  import '@fairu/player/wc';
+  const config = { track: { id: 'ep-1', src: '/ep-1.mp3' } };
+</script>
+
+<fairu-player {config} theme="dark" on:fairu-play={handlePlay} />
+```
+
+### Attributes
+
+| Attribute | Description |
+|---|---|
+| `src` | Media URL. Builds a single track. |
+| `track-id` | Stable identity for the media, used to key the remembered position. Defaults to `src`. Do **not** rely on the element's `id` for this — that identifies the DOM node, not the media. |
+| `title`, `artist`, `album` | Track metadata, also used for the OS lock screen. |
+| `artwork` | Cover image (audio). |
+| `poster` | Poster image (video). Implies `type="video"`. |
+| `type` | `audio` or `video`. Optional — inferred from `poster` otherwise. |
+| `theme` | Theme name, applied as `data-theme`. |
+| `autoplay`, `muted` | Booleans. A bare attribute means true. |
+| `volume` | 0–1. |
+| `persistence` | `false` to disable remembering preferences. |
+| `auto-resume` | `true` to seek to the remembered position on load. |
+| `media-session` | `false` to disable the OS lock-screen integration. |
+
+### Properties
+
+| Property | Type | Description |
+|---|---|---|
+| `config` | `PlayerConfig \| VideoConfig` | The full config object, same shape as the React `config` prop. |
+| `playlist` | `Track[] \| VideoTrack[]` | Convenience for setting just the queue. |
+| `isVideo` | `boolean` (read-only) | Whether this instance renders video. |
+
+### Events
+
+All events bubble and are `composed`, so a parent element can listen. The
+payload is on `event.detail`.
+
+> **The names use a dash, not a colon.** Angular's template parser reads a colon
+> in a binding name as a namespace separator: `(fairu:play)` compiles *without
+> an error* and binds to `play` — so the handler never fires for this event, and
+> does fire for the native `play` bubbling up from the inner media element. A
+> dash has no meaning in Vue, Angular or Svelte template syntax, so
+> `(fairu-play)`, `@fairu-play` and `on:fairu-play` all bind to exactly the name
+> below. This is asserted against Angular's own compiler in
+> `src/wc/frameworkBindings.test.ts`.
+
+| Event | `detail` |
+|---|---|
+| `fairu-ready` | `null` — fired once the element has mounted. |
+| `fairu-play` / `fairu-pause` / `fairu-ended` | `null` |
+| `fairu-timeupdate` | `{ time: number }` |
+| `fairu-trackchange` | `{ track, index }` |
+| `fairu-error` | `{ message, error }` |
+
+### Changing media
+
+Rebinding `config` or `playlist` swaps what is playing — the ordinary Vue and
+Angular pattern works:
+
+```vue
+<fairu-player :config="{ track: currentEpisode }" />
+```
+
+The list is compared by track id, not by array identity, so re-passing the same
+tracks (which happens on every render with an inline object) does **not** reset
+the listener's position. A genuinely different list resets the cursor, history
+and queue, as you would expect from switching playlists.
+
+## Media Session (lock screen & OS controls)
+
+The player publishes the current track to the OS, so the episode title, artwork
+and transport controls appear on the lock screen, in the notification shade, on
+the macOS Now Playing widget, on Bluetooth headsets and in CarPlay / Android
+Auto. Hardware play/pause and next/previous buttons are wired up too.
+
+This is on by default and needs no configuration — metadata is taken from the
+current track's `title`, `artist`, `album` and `artwork` (or `poster` for video).
+
+```tsx
+<Player
+  config={{
+    track: {
+      id: 'ep-1',
+      src: 'https://example.com/episode.mp3',
+      title: 'Wie Streaming wirklich funktioniert',
+      artist: 'Fairu Podcast',
+      artwork: 'https://example.com/cover.jpg', // shown on the lock screen
+    },
+    mediaSession: {
+      enabled: true, // default
+      seekOffset: 30, // seconds for the OS skip buttons
+    },
+  }}
+/>
+```
+
+Turn it off for background/ambient video and ad-only surfaces, which should not
+take over the viewer's Now Playing slot:
+
+```tsx
+<VideoPlayer config={{ mediaSession: { enabled: false } }} />
+```
+
+Everything is feature-detected: the API is unavailable in non-secure contexts
+and some webviews, and individual actions are rejected by browsers that do not
+implement them. Use `isMediaSessionSupported()` if you need to branch on it.
+
+### Standalone hook
+
+```tsx
+import { useMediaSession } from '@fairu/player';
+
+useMediaSession({
+  metadata: { title, artist, artwork: [{ src: cover, sizes: '512x512' }] },
+  isPlaying,
+  position: currentTime,
+  duration,
+  onPlay: controls.play,
+  onPause: controls.pause,
+  onSeekTo: controls.seek,
+});
+```
+
+## Persistence
+
+Volume, mute, playback rate and playback position survive a reload. Both are on
+by default.
+
+```tsx
+<Player
+  config={{
+    playlist: episodes,
+    persistence: {
+      enabled: true, // default
+      scope: 'sidebar', // namespace, so several players can coexist
+      maxAge: 30 * 24 * 60 * 60 * 1000, // discard entries older than 30 days
+    },
+    resume: {
+      minPosition: 10, // ignore anything below this, in seconds
+      completedThreshold: 0.95, // treat as finished past 95 %
+      saveInterval: 5000, // throttle writes while playing
+      maxEntries: 100, // remembered tracks; oldest evicted first
+    },
+  }}
+/>
+```
+
+Storage failures never surface to a viewer. Server-side rendering, blocked
+storage in a cross-origin iframe, Safari private mode and an exhausted quota all
+degrade to "no persistence" — the player still plays.
+
+Opt out entirely for consent-gated setups, then switch it on after opt-in:
+
+```tsx
+<Player config={{ persistence: { enabled: hasConsent } }} />
+```
+
+### Standalone hooks
+
+```tsx
+import { usePersistentPreferences, useResumePosition } from '@fairu/player';
+
+const { preferences, update, reset } = usePersistentPreferences({
+  defaults: { volume: 0.8 },
+});
+
+const { resumeAt, entry, save, markCompleted, clearAll } = useResumePosition({
+  trackId: track.id,
+});
+
+// `resumeAt` is null when there is nothing worth resuming — never played,
+// too early, or already finished.
+if (resumeAt !== null) controls.seek(resumeAt);
+```
+
+### Clearing stored data
+
+```tsx
+import { clearStored } from '@fairu/player';
+
+clearStored(); // removes every entry this player owns, host page untouched
+```
+
 ## Keyboard Shortcuts
 
 | Key | Action |
@@ -1125,8 +1442,16 @@ npm run dev
 # Run Storybook
 npm run storybook
 
+# Lint (blocking in CI: zero errors, warning budget ratchets down)
+npm run lint
+
 # Run tests
 npm run test
+
+# Verify the custom element in Vue, Angular, Svelte and plain HTML
+# (real browser, against dist — see verification/README.md)
+npm run build:lib
+cd verification && npm ci && npm run install:browsers:local && npm run test:local
 
 # Build library
 npm run build:lib

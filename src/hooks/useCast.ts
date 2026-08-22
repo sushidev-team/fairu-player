@@ -107,16 +107,22 @@ export function useCast(
     }
 
     // Chrome/Edge: Remote Playback API events
-    if (video.remote) {
+    //
+    // The `remote` object is captured into a local rather than re-read through
+    // `video.remote!` at cleanup time. Re-reading a property of a detached
+    // element on teardown is the classic way to end up dereferencing
+    // `undefined`, and the non-null assertions were papering over exactly that.
+    const remote = video.remote;
+    if (remote) {
       const handleConnect = () => handleCastChange(true);
       const handleDisconnect = () => handleCastChange(false);
 
-      video.remote.addEventListener('connect', handleConnect);
-      video.remote.addEventListener('disconnect', handleDisconnect);
+      remote.addEventListener('connect', handleConnect);
+      remote.addEventListener('disconnect', handleDisconnect);
 
       return () => {
-        video.remote!.removeEventListener('connect', handleConnect);
-        video.remote!.removeEventListener('disconnect', handleDisconnect);
+        remote.removeEventListener('connect', handleConnect);
+        remote.removeEventListener('disconnect', handleDisconnect);
       };
     }
   }, [videoRef, onChange]);

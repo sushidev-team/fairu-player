@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AdPosition } from '@/types/ads';
-import type { VideoAdBreak } from '@/types/video';
+import type { OverlayAd, VideoAdBreak } from '@/types/video';
 import type {
   MediaFileSelectionOptions,
   VastClientOptions,
@@ -18,6 +18,7 @@ import {
   sendBeacon,
   substituteMacros,
   VastClient,
+  vastAdsToOverlayAds,
   vastAdsToVideoAds,
   landscapePlayerMediaOptions,
   type AdConsent,
@@ -150,11 +151,28 @@ export interface UseVastAdBreaksOptions {
    * fires more than once: after planning, then again as each break fills.
    */
   onResolved?: (adBreaks: VideoAdBreak[]) => void;
+  /**
+   * Called whenever the set of banners changes.
+   *
+   * Separate from {@link onResolved} because they arrive on their own schedule:
+   * a response can carry a banner and no linear ad at all, which fills nothing
+   * and still has something to show.
+   */
+  onOverlays?: (overlayAds: OverlayAd[]) => void;
 }
 
 export interface UseVastAdBreaksReturn {
   /** Ready to hand straight to `<VideoPlayer adConfig={{ enabled: true, adBreaks }} />`. */
   adBreaks: VideoAdBreak[];
+  /**
+   * Banners from the same responses, ready for `<VideoPlayer config={{ overlayAds }} />`.
+   *
+   * These are `<NonLinearAds>`: inventory the ad server already trafficked and
+   * that the player used to drop on the floor. They are not breaks — nothing is
+   * interrupted — so they are returned beside `adBreaks` rather than inside
+   * them, and a response carrying only one of these is a fill.
+   */
+  overlayAds: OverlayAd[];
   loading: boolean;
   error: Error | null;
   /**
@@ -189,6 +207,15 @@ interface PlannedBreak {
   triggerTime?: number;
   /** Tag URLs and/or inline documents, tried in order. */
   tags: VastTagSource[];
+  /**
+   * A VMAP break declared `nonlinear` and not `linear`.
+   *
+   * Its response is requested like any other and read only for banners: the
+   * document said this placement does not interrupt, so a linear creative that
+   * happens to ride along must not become a break. Nor does an absent one owe
+   * an error — nothing was expecting a spot here.
+   */
+  overlayOnly?: boolean;
 }
 
 /** Map a VMAP offset onto the player's three positions. */
@@ -298,9 +325,11 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
     mediaFileOptions,
     onError,
     onResolved,
+    onOverlays,
   } = options;
 
   const [adBreaks, setAdBreaks] = useState<VideoAdBreak[]>([]);
+  const [overlayAds, setOverlayAds] = useState<OverlayAd[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [consentBlocked, setConsentBlocked] = useState(false);
@@ -321,9 +350,11 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
   // not re-request every ad tag on each render — which would double-count.
   const onErrorRef = useRef(onError);
   const onResolvedRef = useRef(onResolved);
+  const onOverlaysRef = useRef(onOverlays);
   const onConsentBlockedRef = useRef(onConsentBlocked);
   onErrorRef.current = onError;
   onResolvedRef.current = onResolved;
+  onOverlaysRef.current = onOverlays;
   onConsentBlockedRef.current = onConsentBlocked;
 
   /**
@@ -343,6 +374,8 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
     /** Ids already requested — a no-fill must not be retried on every tick. */
     attempted: new Set<string>(),
     filled: new Map<string, VideoAdBreak>(),
+    /** Non-linear creatives from the same responses, keyed by the break they came with. */
+    overlays: new Map<string, OverlayAd[]>(),
     macros: {} as VastMacroContext,
     fill: (_planned: PlannedBreak) => {},
   });
@@ -365,18 +398,21 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
     pending.planned = [];
     pending.attempted = new Set();
     pending.filled = new Map();
+    pending.overlays = new Map();
     pending.macros = {};
 
     setConsentBlocked(false);
 
     if (!enabled) {
       setAdBreaks([]);
+      setOverlayAds([]);
       return;
     }
 
     const hasWork = Boolean(preRoll || postRoll || vmapUrl || vmapXml || midRolls?.length);
     if (!hasWork) {
       setAdBreaks([]);
+      setOverlayAds([]);
       return;
     }
 
@@ -392,12 +428,19 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
       onResolvedRef.current?.(next);
     };
 
+    /** Publish the banners, in the order they appear over the content. */
+    const publishOverlays = () => {
+      const next = [...pending.overlays.values()].flat().sort((a, b) => a.displayAt - b.displayAt);
+      setOverlayAds(next);
+      onOverlaysRef.current?.(next);
+    };
+
     /** Request one planned break and publish it if it filled. */
     const fill = async (planned: PlannedBreak): Promise<void> => {
       if (!live() || pending.attempted.has(planned.id)) return;
       pending.attempted.add(planned.id);
 
-      const { id, position, triggerTime, tags } = planned;
+      const { id, position, triggerTime, tags, overlayOnly } = planned;
       if (tags.length === 0) return;
 
       // Inline documents resolve without a network round-trip; URLs go through
@@ -422,6 +465,22 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
 
       const { ads, errors } = vastAdsToVideoAds(result.ads, toOptions);
 
+      /*
+       * The same response, read for what it also carries.
+       *
+       * `<NonLinearAds>` were parsed and rendered nowhere: the ad server counted
+       * a response, the viewer saw nothing and no pixel ever came back. They are
+       * banners over the content rather than interruptions of it, so they are
+       * not breaks and do not belong in `adBreaks` — they come out beside them.
+       *
+       * A non-linear carries no timing of its own; VAST leaves that to the
+       * player. The break it arrived with is the honest answer: a mid-roll's
+       * banner belongs at the mid-roll's second, and a pre-roll's at the start.
+       */
+      const overlays = vastAdsToOverlayAds(result.ads, {
+        displayAt: position === 'post-roll' ? (pending.duration ?? 0) : (triggerTime ?? 0),
+      });
+
       // Unplayable creatives still owe the ad server an error pixel.
       for (const err of errors) {
         for (const url of err.errorUrls) {
@@ -429,10 +488,32 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
         }
       }
 
+      if (overlays.length > 0) {
+        pending.overlays.set(id, overlays);
+        publishOverlays();
+      }
+
+      /*
+       * A break the VMAP declared non-linear is a placement, not an
+       * interruption. Its banners are already published above; a linear
+       * creative in the same response is not what the document asked for, and
+       * an absent one owes no error pixel.
+       */
+      if (overlayOnly) return;
+
       if (ads.length === 0) {
-        for (const url of result.errorUrls) {
-          sendBeacon(url.replace(/\[ERRORCODE\]/g, String(VastErrorCode.WRAPPER_NO_ADS)));
+        /*
+         * A response holding only a banner is a fill, not a no-fill. Reporting
+         * WRAPPER_NO_ADS here told the ad server its creative had failed while
+         * the player was in fact about to show it — the error that made
+         * non-linear inventory look unsellable.
+         */
+        if (overlays.length === 0) {
+          for (const url of result.errorUrls) {
+            sendBeacon(url.replace(/\[ERRORCODE\]/g, String(VastErrorCode.WRAPPER_NO_ADS)));
+          }
         }
+
         return;
       }
 
@@ -497,8 +578,15 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
         xml = await response.text();
       }
 
-      const vmapBreaks: VmapAdBreak[] = parseVmap(xml!).adBreaks.filter((b) =>
-        b.breakTypes.includes('linear')
+      /*
+       * Non-linear breaks are planned too.
+       *
+       * Filtering them out here is what kept trafficked banner inventory
+       * invisible under VMAP even once the player could render it: the break
+       * was discarded before its document was ever fetched.
+       */
+      const vmapBreaks: VmapAdBreak[] = parseVmap(xml!).adBreaks.filter(
+        (b) => b.breakTypes.includes('linear') || b.breakTypes.includes('nonlinear')
       );
 
       const planned: PlannedBreak[] = [];
@@ -519,6 +607,7 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
           position: placement.position,
           ...(placement.triggerTime !== undefined ? { triggerTime: placement.triggerTime } : {}),
           tags,
+          ...(adBreak.breakTypes.includes('linear') ? {} : { overlayOnly: true }),
         });
       }
 
@@ -537,6 +626,7 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
         if (requireConsent && !consentAllowsAdRequest(resolvedConsent)) {
           setConsentBlocked(true);
           setAdBreaks([]);
+          setOverlayAds([]);
           onConsentBlockedRef.current?.(resolvedConsent);
           return;
         }
@@ -564,12 +654,22 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
         if (!live()) return;
         // Publish even when nothing filled, so `onResolved` always fires once.
         if (pending.filled.size === 0) publish();
+        /*
+         * And the banners, unconditionally.
+         *
+         * They are published as each response yields one, so without this a
+         * generation that produced none would leave the previous content's
+         * banners on screen — over an episode they were never sold against.
+         * `adBreaks` is spared that by the line above; this is its counterpart.
+         */
+        if (pending.overlays.size === 0) publishOverlays();
       } catch (caught) {
         if (!live()) return;
         const err =
           caught instanceof Error ? caught : new Error('Failed to resolve VAST ad breaks');
         setError(err);
         setAdBreaks([]);
+        setOverlayAds([]);
         onErrorRef.current?.(err);
       } finally {
         if (live()) setLoading(false);
@@ -608,7 +708,7 @@ export function useVastAdBreaks(options: UseVastAdBreaksOptions = {}): UseVastAd
     }
   }, []);
 
-  return { adBreaks, loading, error, consentBlocked, reload, notifyTime };
+  return { adBreaks, overlayAds, loading, error, consentBlocked, reload, notifyTime };
 }
 
 export default useVastAdBreaks;

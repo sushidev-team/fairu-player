@@ -88,7 +88,8 @@ export function VolumeControl({
     if (disabled) return;
 
     const step = e.shiftKey ? 0.1 : 0.05;
-    let newVolume = volume;
+    // No initialiser: both handled branches assign, `default` returns.
+    let newVolume: number;
 
     switch (e.key) {
       case 'ArrowUp':

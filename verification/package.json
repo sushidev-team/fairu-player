@@ -1,0 +1,33 @@
+{
+  "name": "fairu-player-verification",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Real-browser proof that <fairu-player> works in Vue, Angular, Svelte and plain HTML. Deliberately a separate workspace so the library's own install stays lean.",
+  "scripts": {
+    "build:lib": "npm --prefix .. run build:lib",
+    "test": "playwright test",
+    "test:local": "playwright test --project=chromium --project=firefox",
+    "test:headed": "playwright test --headed",
+    "install:browsers": "playwright install --with-deps chromium firefox webkit",
+    "install:browsers:local": "playwright install chromium firefox",
+    "dev:vue": "vite --config apps/vue/vite.config.ts",
+    "dev:angular": "vite --config apps/angular/vite.config.ts",
+    "dev:svelte": "vite --config apps/svelte/vite.config.ts",
+    "dev:plain": "vite --config apps/plain/vite.config.ts"
+  },
+  "devDependencies": {
+    "@angular/common": "^21.0.0",
+    "@angular/compiler": "^21.0.0",
+    "@angular/core": "^21.0.0",
+    "@angular/platform-browser": "^21.0.0",
+    "@playwright/test": "^1.50.0",
+    "@sveltejs/vite-plugin-svelte": "^5.0.0",
+    "@vitejs/plugin-vue": "^5.2.0",
+    "svelte": "^5.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vue": "^3.5.0",
+    "zone.js": "^0.15.0"
+  }
+}

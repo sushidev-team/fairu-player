@@ -72,7 +72,22 @@ export function AdProvider({ children, config: userConfig = {} }: AdProviderProp
     return trackerRef.current;
   }, []);
 
-  useEffect(() => () => trackerRef.current?.dispose(), []);
+  // Release everything this provider owns when it goes away.
+  //
+  // The skip countdown used to have no unmount path at all: a player torn down
+  // mid-ad left an interval running for the life of the page, calling setState
+  // on a component that no longer exists — and a page that swaps players
+  // accumulated one per ad break.
+  useEffect(
+    () => () => {
+      trackerRef.current?.dispose();
+      if (skipTimer.current) {
+        clearInterval(skipTimer.current);
+        skipTimer.current = null;
+      }
+    },
+    []
+  );
 
   // Play ad
   const playAd = useCallback((ad: Ad, adBreak: AdBreak, adsRemaining: number) => {

@@ -17,6 +17,30 @@ function inlineVast(id: string, duration = '00:00:15', skip = ' skipoffset="00:0
 
 const NO_ADS = `<VAST version="4.2"><Error><![CDATA[https://t.example.com/noad]]></Error></VAST>`;
 
+/**
+ * A response carrying a banner. `withLinear` adds a spot beside it, which is
+ * how a real pod usually arrives — the two are trafficked together and used to
+ * cost each other nothing, because only one of them was ever rendered.
+ */
+function nonLinearVast(id: string, withLinear = false): string {
+  const linear = withLinear
+    ? `<Creative><Linear><Duration>00:00:15</Duration><MediaFiles>
+        <MediaFile type="video/mp4" bitrate="900" width="1280" height="720"><![CDATA[https://cdn.example.com/${id}.mp4]]></MediaFile>
+      </MediaFiles></Linear></Creative>`
+    : '';
+
+  return `<VAST version="4.2"><Ad id="${id}"><InLine>
+    <AdSystem>Test</AdSystem><AdTitle>${id}</AdTitle>
+    <Impression><![CDATA[https://t.example.com/${id}/imp]]></Impression>
+    <Creatives>${linear}<Creative><NonLinearAds>
+      <NonLinear width="300" height="50" minSuggestedDuration="00:00:20">
+        <StaticResource creativeType="image/png"><![CDATA[https://cdn.example.com/${id}.png]]></StaticResource>
+        <NonLinearClickThrough><![CDATA[https://example.com/${id}]]></NonLinearClickThrough>
+      </NonLinear>
+    </NonLinearAds></Creative></Creatives>
+  </InLine></Ad></VAST>`;
+}
+
 /** Install a fetch stub for the duration of one test. */
 function stubFetch(routes: Record<string, string>) {
   const calls: string[] = [];
@@ -500,6 +524,124 @@ describe('useVastAdBreaks', () => {
       act(() => result.current.notifyTime(1200));
       expect(calls.length).toBe(afterMount);
       vi.unstubAllGlobals();
+    });
+  });
+
+  /**
+   * Non-linear creatives, which the player used to parse and then drop.
+   *
+   * The cost was not only the banner nobody saw: a response carrying *only* a
+   * non-linear was reported back to the ad server as WRAPPER_NO_ADS, so the
+   * creative looked broken to the one system that could have told anybody.
+   */
+  describe('banners from non-linear creatives', () => {
+    it('returns a banner the response carried beside its spot', async () => {
+      stubFetch({ 'https://ads.example.com/pre': nonLinearVast('pre', true) });
+
+      const { result } = renderHook(() =>
+        useVastAdBreaks({ preRoll: 'https://ads.example.com/pre' })
+      );
+
+      await waitFor(() => expect(result.current.overlayAds).toHaveLength(1));
+
+      // Both halves of the same response, each rendered by the thing that can.
+      expect(result.current.adBreaks).toHaveLength(1);
+      expect(result.current.overlayAds[0].imageUrl).toBe('https://cdn.example.com/pre.png');
+      expect(result.current.overlayAds[0].clickThroughUrl).toBe('https://example.com/pre');
+    });
+
+    it('places a banner at the second of the break it arrived with', async () => {
+      stubFetch({ 'https://ads.example.com/mid': nonLinearVast('mid') });
+
+      const { result } = renderHook(() =>
+        useVastAdBreaks({
+          midRolls: [{ at: 120, tagUrl: 'https://ads.example.com/mid' }],
+        })
+      );
+
+      await waitFor(() => expect(result.current.overlayAds).toHaveLength(1));
+
+      // VAST gives a non-linear no timing of its own; the break it came with is
+      // the honest answer.
+      expect(result.current.overlayAds[0].displayAt).toBe(120);
+    });
+
+    it('treats a response holding only a banner as a fill', async () => {
+      const { calls } = stubFetch({ 'https://ads.example.com/pre': nonLinearVast('pre') });
+
+      const { result } = renderHook(() =>
+        useVastAdBreaks({ preRoll: 'https://ads.example.com/pre' })
+      );
+
+      await waitFor(() => expect(result.current.overlayAds).toHaveLength(1));
+
+      expect(result.current.adBreaks).toHaveLength(0);
+      /*
+       * The error pixel is the part that mattered: telling the ad server its
+       * creative failed, while the player was about to show it, is what made
+       * non-linear inventory look unsellable.
+       */
+      expect(calls.some((url) => url.includes('/noad'))).toBe(false);
+    });
+
+    it('renders a banner a VMAP declared as a non-linear break', async () => {
+      /*
+       * The break used to be filtered out during planning, so its document was
+       * never even fetched — trafficked inventory that stayed invisible under
+       * exactly the scheduling model that sells it.
+       */
+      const vmap = `<vmap:VMAP xmlns:vmap="http://www.iab.net/videosuite/vmap" version="1.0">
+        <vmap:AdBreak timeOffset="00:02:00" breakType="nonlinear" breakId="banner">
+          <vmap:AdSource><vmap:VASTAdData>${nonLinearVast('banner', true)}</vmap:VASTAdData></vmap:AdSource>
+        </vmap:AdBreak>
+      </vmap:VMAP>`;
+
+      stubFetch({ 'https://ads.example.com/vmap': vmap });
+
+      const { result } = renderHook(() =>
+        useVastAdBreaks({ vmapUrl: 'https://ads.example.com/vmap', duration: 600 })
+      );
+
+      await waitFor(() => expect(result.current.overlayAds).toHaveLength(1));
+
+      expect(result.current.overlayAds[0].displayAt).toBe(120);
+      /*
+       * And nothing interrupts: the document said this placement is
+       * non-linear, so the spot riding along in the same response is not a
+       * break the viewer agreed to.
+       */
+      expect(result.current.adBreaks).toHaveLength(0);
+    });
+
+    it('does not leave a previous generation’s banners on screen', async () => {
+      stubFetch({
+        'https://ads.example.com/one': nonLinearVast('one'),
+        'https://ads.example.com/two': NO_ADS,
+      });
+
+      const { result, rerender } = renderHook(
+        ({ tag }: { tag: string }) => useVastAdBreaks({ preRoll: tag }),
+        { initialProps: { tag: 'https://ads.example.com/one' } }
+      );
+
+      await waitFor(() => expect(result.current.overlayAds).toHaveLength(1));
+
+      rerender({ tag: 'https://ads.example.com/two' });
+
+      /*
+       * Banners are published as each response yields one, so a generation that
+       * yields none would otherwise keep showing the last one — over content it
+       * was never sold against.
+       */
+      await waitFor(() => expect(result.current.overlayAds).toHaveLength(0));
+    });
+
+    it('still reports a genuine no-fill', async () => {
+      const { calls } = stubFetch({ 'https://ads.example.com/pre': NO_ADS });
+
+      renderHook(() => useVastAdBreaks({ preRoll: 'https://ads.example.com/pre' }));
+
+      await waitFor(() => expect(calls.some((url) => url.includes('/noad'))).toBe(true));
     });
   });
 });

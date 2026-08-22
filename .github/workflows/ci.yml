@@ -3,16 +3,22 @@ name: CI
 on:
   push:
     branches: [main]
+  # Every pull request, whatever it targets. Filtering on `[main]` meant a
+  # stacked PR — one branch based on another — ran no checks at all and merged
+  # on nothing but a green tick from an unrelated run.
   pull_request:
-    branches: [main]
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
+    # 22 is the active LTS, 24 the current one. Node 20 left maintenance in
+    # April 2026, so testing against it was testing against a runtime nobody
+    # patches any more — and it was the only reason the size-limit engine
+    # constraint ever mattered.
     strategy:
       matrix:
-        node-version: [20.x, 22.x]
+        node-version: [22.x, 24.x]
 
     steps:
       - uses: actions/checkout@v4
@@ -37,6 +43,38 @@ jobs:
 
       - name: Build library
         run: npm run build:lib
+
+  # Its own job, not a step in the test matrix: bundle size is a property of the
+  # built artefact rather than of the Node version that built it, so checking it
+  # once is both correct and half the work.
+  size:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build library
+        run: npm run build:lib
+
+      # Blocking. Budgets sit just above the current sizes, so this catches a
+      # regression rather than documenting one — see the `size-limit` block in
+      # package.json.
+      - name: Check bundle size
+        run: npm run size
 
   audit:
     runs-on: ubuntu-latest
@@ -74,18 +112,76 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: '22.x'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      # NOTE: `npm run lint` currently cannot pass — eslint and its plugins are
-      # not in devDependencies, so the binary is missing. `continue-on-error`
-      # keeps CI green while that is outstanding; see docs/DEPENDENCIES.md.
+      # Blocking. Zero errors, and a warning budget that only ever ratchets
+      # down — see the `lint` script in package.json and Phase 0 of ROADMAP.md.
       - name: Run ESLint
         run: npm run lint
-        continue-on-error: true
+
+  # Proves the published custom element actually works in Vue, Angular, Svelte
+  # and plain HTML — in a real browser, against `dist`, not against src.
+  #
+  # Its dependencies live in `verification/package.json` rather than in the
+  # library's devDependencies: Angular, Vue and Svelte together are a large tree
+  # that has no business slowing down `npm ci` for everyone else.
+  e2e:
+    runs-on: ubuntu-latest
+
+    # This job installs and executes a large third-party tree (Angular, Vue,
+    # Svelte, a browser) purely to render pages. It has no reason to be able to
+    # write to the repository, and no reason to keep a usable token on disk.
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: Install library dependencies
+        run: npm ci
+
+      # The apps import the built artefact, so this has to run first.
+      - name: Build library
+        run: npm run build:lib
+
+      # `ci`, not `install`: the lockfile is committed and is the source of
+      # truth. `install` is free to resolve a newer version than the one that
+      # was verified, which is how a lockfile silently stops meaning anything —
+      # see docs/DEPENDENCIES.md.
+      - name: Install verification dependencies
+        working-directory: verification
+        run: npm ci
+
+      # All three engines. WebKit in particular only runs here — Playwright's
+      # build does not launch on current macOS, so CI is where that half of the
+      # matrix is actually verified.
+      - name: Install browsers
+        working-directory: verification
+        run: npm run install:browsers
+
+      - name: Run framework verification
+        working-directory: verification
+        run: npm test
+
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: verification/test-results/
+          retention-days: 7
 
   storybook:
     runs-on: ubuntu-latest
@@ -96,7 +192,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: '22.x'
           cache: 'npm'
 
       - name: Install dependencies

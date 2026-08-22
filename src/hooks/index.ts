@@ -11,6 +11,27 @@ export { usePlaylist, type UsePlaylistOptions, type UsePlaylistReturn } from './
 export { useChapters } from './useChapters';
 export { useMarkers } from './useMarkers';
 export { useKeyboardControls, type UseKeyboardControlsOptions } from './useKeyboardControls';
+export {
+  useAutoplayDetection,
+  type AutoplayCapability,
+  type UseAutoplayDetectionOptions,
+  type UseAutoplayDetectionReturn,
+} from './useAutoplayDetection';
+export {
+  useMediaSession,
+  isMediaSessionSupported,
+  type UseMediaSessionOptions,
+} from './useMediaSession';
+export {
+  usePersistentPreferences,
+  type UsePersistentPreferencesOptions,
+  type UsePersistentPreferencesReturn,
+} from './usePersistentPreferences';
+export {
+  useResumePosition,
+  type UseResumePositionOptions,
+  type UseResumePositionReturn,
+} from './useResumePosition';
 export { useAds } from '@/context/AdContext';
 export { useVideoPlayer } from '@/context/VideoContext';
 export { useVideoAds } from '@/context/VideoAdContext';

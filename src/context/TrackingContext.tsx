@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback, useMemo, useRef, useState } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TrackingConfig, TrackingContextValue, TrackingEvent } from '@/types/tracking';
 
 const DEFAULT_CONFIG: TrackingConfig = {
@@ -105,19 +105,26 @@ export function TrackingProvider({ children, config: userConfig = {} }: Tracking
     }
   }, [enabled, config, flush, sendEvents]);
 
-  // Set up batch interval
-  useMemo(() => {
-    if (config.batchEvents && config.batchInterval) {
-      batchTimer.current = setInterval(() => {
-        flush();
-      }, config.batchInterval);
+  // Set up the batch interval.
+  //
+  // This was a `useMemo` returning a cleanup function — which React never
+  // calls, because a memo produces a value, not a subscription. The interval
+  // was therefore created during render and never cleared: it outlived the
+  // provider and kept flushing for the life of the page, and every re-render
+  // that changed `flush` started another one alongside it.
+  useEffect(() => {
+    if (!config.batchEvents || !config.batchInterval) return;
 
-      return () => {
-        if (batchTimer.current) {
-          clearInterval(batchTimer.current);
-        }
-      };
-    }
+    batchTimer.current = setInterval(() => {
+      flush();
+    }, config.batchInterval);
+
+    return () => {
+      if (batchTimer.current) {
+        clearInterval(batchTimer.current);
+        batchTimer.current = null;
+      }
+    };
   }, [config.batchEvents, config.batchInterval, flush]);
 
   const contextValue = useMemo<TrackingContextValue>(() => ({
