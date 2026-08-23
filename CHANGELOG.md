@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.5.0](https://github.com/sushidev-team/fairu-player/compare/v1.4.0...v1.5.0) (2026-08-23)
+
+
+### Features
+
+* **ads:** return non-linear creatives as overlay ads ([45eb31f](https://github.com/sushidev-team/fairu-player/commit/45eb31f20dd3051629ad341095daa96d06183f45))
+* error boundaries, autoplay detection, a11y checks and a size gate ([9aa27b1](https://github.com/sushidev-team/fairu-player/commit/9aa27b1d6ae3555ff0546a0a1da47a88cdb81a69))
+* Media Session, persistence, custom element and a working lint gate ([d795e59](https://github.com/sushidev-team/fairu-player/commit/d795e59b37371485e61227eecfa0e1232b086ada))
+* publish playback to the OS via Media Session ([b2bf96d](https://github.com/sushidev-team/fairu-player/commit/b2bf96d5069ad4ed15df9db92e5fd2807f15898f))
+* remember volume, mute, speed and playback position ([c40b583](https://github.com/sushidev-team/fairu-player/commit/c40b5830f25ee10f3fdc7242f9ad2985bb33c336))
+* **wc:** ship the player as a &lt;fairu-player&gt; custom element ([e238320](https://github.com/sushidev-team/fairu-player/commit/e23832076cf0838c8b56bc0ab5b4215be9c45935))
+
+
+### Bug Fixes
+
+* **ads:** clear stale banners and plan non-linear VMAP breaks ([07dcfaf](https://github.com/sushidev-team/fairu-player/commit/07dcfaf7bf4c269baade929f32400177edc10f1c))
+* **ads:** honour adConfig.enabled in the video player ([b1343c8](https://github.com/sushidev-team/fairu-player/commit/b1343c852fcda9c4658d922208fa7f0d5aa5aba8))
+* **core:** four defects from review ([03523cd](https://github.com/sushidev-team/fairu-player/commit/03523cd4e86efff6cc03c866cea2ff3b1c301a65))
+* **hls:** bound error recovery, and stop reloading the stream to switch quality ([7eb41eb](https://github.com/sushidev-team/fairu-player/commit/7eb41eb39a85e059c6e9a3057eceb9d8448e63c2))
+* **keyboard:** make the arrow-key volume steps relative again ([0614945](https://github.com/sushidev-team/fairu-player/commit/0614945c316e441f3ede776fc19ca7869117522b))
+* **playlist:** traverse the whole shuffled order and adopt new track lists ([f6da867](https://github.com/sushidev-team/fairu-player/commit/f6da867f43e26cea98f07282f429427f22158671))
+* **reels:** fall back when keyboardStep is zero, negative or NaN ([e784bb9](https://github.com/sushidev-team/fairu-player/commit/e784bb9c3781fce34e767f917b266ca5d48d21a7))
+* **reels:** make releaseGate actually open the ad gate ([e5503a1](https://github.com/sushidev-team/fairu-player/commit/e5503a18ee436eb3a29df1d860630c6126868e40))
+* **reels:** seek the scrub bar by keyboard, and open the gate on the last slide ([b4471dc](https://github.com/sushidev-team/fairu-player/commit/b4471dc674313e68a9261fd783fdf7c7523e0500))
+* restore persisted preferences, and harden three review findings ([5f6b76d](https://github.com/sushidev-team/fairu-player/commit/5f6b76d6374dadfc8b30ca307c5c459bf0d774ff))
+* **video:** stop the track and playlist props clobbering config ([fc0bc8d](https://github.com/sushidev-team/fairu-player/commit/fc0bc8d18765e705fa082b9be519b32c7c916b39))
+* **wc:** configure VideoPlayer directly instead of nesting a provider ([59644ec](https://github.com/sushidev-team/fairu-player/commit/59644ec1a8e7f3c69f0ab7ca8c4590cc97542ac4))
+* **wc:** make the element usable in Angular and under SSR ([7da284d](https://github.com/sushidev-team/fairu-player/commit/7da284d4a041ff484f59cdf46a57c95387d52935))
+
+
+### Performance Improvements
+
+* **hls:** fetch hls.js on demand instead of bundling it into every video ([2359b88](https://github.com/sushidev-team/fairu-player/commit/2359b88ad0af5d08fe6cede58ee7bc0bb1cb28b9))
+
 ## [1.4.0](https://github.com/sushidev-team/fairu-player/compare/v1.3.3...v1.4.0) (2026-08-04)
 
 
