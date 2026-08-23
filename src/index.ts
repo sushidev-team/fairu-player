@@ -270,6 +270,19 @@ export {
 // Reels feed hook
 export { useReelsFeed, type UseReelsFeedOptions, type UseReelsFeedReturn } from './hooks/useReelsFeed';
 
+// Shareable timestamps — ?t=1m30s
+export {
+  useShareableTimestamp,
+  type UseShareableTimestampOptions,
+  type UseShareableTimestampReturn,
+} from './hooks/useShareableTimestamp';
+export {
+  formatTimestamp,
+  parseTimestamp,
+  withTimestamp,
+  timestampFrom,
+} from './core/timestamp';
+
 // A-B repeat
 export {
   useABLoop,
