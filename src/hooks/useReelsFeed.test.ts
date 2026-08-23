@@ -325,6 +325,83 @@ describe('useReelsFeed', () => {
     });
   });
 
+  describe('an ad on the final slide', () => {
+    /*
+      The one place the gate cannot rely on the index moving. `clampIndex` pins
+      the last slide, so `activeSlide` never changes and the gating effect
+      re-derives a closed gate on an advert that already finished. A VMAP
+      `timeOffset="end"` break lands exactly there.
+
+      The inline `reels` array is not incidental either: it is what makes the
+      effect re-run at all, and it is what a host writes.
+    */
+    const VMAP = `<?xml version="1.0"?>
+<vmap:VMAP xmlns:vmap="http://www.iab.net/videosuite/vmap" version="1.0">
+  <vmap:AdBreak timeOffset="end" breakType="linear" breakId="post"></vmap:AdBreak>
+</vmap:VMAP>`;
+
+    const config = {
+      ads: {
+        enabled: true,
+        vmapXml: VMAP,
+        blockAdvanceUntilComplete: true,
+        ads: [ad('a1')],
+      } as ReelsAdConfig,
+    };
+
+    async function onTheLastAd() {
+      const { result } = renderHook(() =>
+        useReelsFeed({
+          reels: [
+            { id: 'r1', src: 'https://cdn.example.com/r1.mp4' },
+            { id: 'r2', src: 'https://cdn.example.com/r2.mp4' },
+            { id: 'r3', src: 'https://cdn.example.com/r3.mp4' },
+          ],
+          config,
+        })
+      );
+
+      const slides = result.current.state.slides;
+      const adIndex = slides.findIndex((slide) => slide.kind === 'ad');
+      expect(adIndex).toBe(slides.length - 1);
+
+      act(() => result.current.controls.goTo(adIndex));
+      await waitFor(() => expect(result.current.state.advanceBlocked).toBe(true));
+
+      const slide = result.current.state.activeSlide;
+      if (slide?.kind !== 'ad') throw new Error('expected to be on the ad');
+      return { result, slot: slide.slot };
+    }
+
+    it('opens the gate when the ad completes', async () => {
+      const { result, slot } = await onTheLastAd();
+
+      act(() => result.current.adPlayback.onAdComplete(ad('a1'), slot));
+      expect(result.current.state.advanceBlocked).toBe(false);
+
+      act(() => result.current.controls.setMuted(false));
+      expect(result.current.state.advanceBlocked).toBe(false);
+    });
+
+    it('opens the gate when the ad fails', async () => {
+      const { result, slot } = await onTheLastAd();
+
+      act(() => result.current.adPlayback.onAdError(new Error('broken'), ad('a1'), slot));
+      act(() => result.current.controls.setMuted(false));
+
+      expect(result.current.state.advanceBlocked).toBe(false);
+    });
+
+    it('opens the gate when the viewer skips', async () => {
+      const { result } = await onTheLastAd();
+
+      act(() => result.current.controls.skipAd());
+      act(() => result.current.controls.setMuted(false));
+
+      expect(result.current.state.advanceBlocked).toBe(false);
+    });
+  });
+
   describe('ad playback', () => {
     it('counts an ad against the session', () => {
       const onAdStart = vi.fn();

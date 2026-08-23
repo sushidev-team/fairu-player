@@ -609,6 +609,10 @@ export function useReelsFeed({
       toggleSave: (reelId) => toggleInteraction(reelId, 'saved', onSave),
       toggleFollow: (reelId) => toggleInteraction(reelId, 'following', onFollow),
       skipAd: () => {
+        // Name the slot, do not rely on the index moving. On the last slide
+        // `clampIndex` pins it, `activeSlide` never changes, and the gating
+        // effect would re-derive a closed gate on an advert that is over.
+        if (activeSlide?.kind === 'ad') setReleasedSlotId(activeSlide.slot.id);
         setAdvanceBlocked(false);
         directionRef.current = 1;
         setActiveIndex((current) => clampIndex(current + 1));
@@ -626,6 +630,7 @@ export function useReelsFeed({
       onSave,
       onFollow,
       clampIndex,
+      activeSlide,
     ]
   );
 
@@ -656,11 +661,15 @@ export function useReelsFeed({
           return;
         }
 
+        // The pod is exhausted, so this slot is done gating — see `skipAd` for
+        // why the index moving is not enough on its own.
+        setReleasedSlotId(slot.id);
         directionRef.current = 1;
         setActiveIndex((current) => clampIndex(current + 1));
       },
       onAdError: (error: Error, ad: ReelAd | null, slot: ReelAdSlot) => {
         setAdvanceBlocked(false);
+        setReleasedSlotId(slot.id);
         adConfig?.onAdError?.(error, ad, slot);
         directionRef.current = 1;
         setActiveIndex((current) => clampIndex(current + 1));

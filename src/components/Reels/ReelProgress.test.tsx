@@ -195,6 +195,83 @@ describe('ReelProgress', () => {
     });
   });
 
+  describe('the keyboard', () => {
+    it('steps forward and back with the arrow keys', () => {
+      mount({ currentTime: 30, duration: 120 });
+
+      fireEvent.keyDown(bar(), { key: 'ArrowRight' });
+      expect(onSeek).toHaveBeenLastCalledWith(35);
+
+      fireEvent.keyDown(bar(), { key: 'ArrowLeft' });
+      expect(onSeek).toHaveBeenLastCalledWith(25);
+    });
+
+    it('honours a custom step', () => {
+      mount({ currentTime: 30, duration: 120, keyboardStep: 10 });
+
+      fireEvent.keyDown(bar(), { key: 'ArrowRight' });
+
+      expect(onSeek).toHaveBeenLastCalledWith(40);
+    });
+
+    it('jumps to either end with Home and End', () => {
+      mount({ currentTime: 30, duration: 120 });
+
+      fireEvent.keyDown(bar(), { key: 'Home' });
+      expect(onSeek).toHaveBeenLastCalledWith(0);
+
+      fireEvent.keyDown(bar(), { key: 'End' });
+      expect(onSeek).toHaveBeenLastCalledWith(120);
+    });
+
+    it('clamps at the ends', () => {
+      mount({ currentTime: 2, duration: 120 });
+      fireEvent.keyDown(bar(), { key: 'ArrowLeft' });
+      expect(onSeek).toHaveBeenLastCalledWith(0);
+
+      mount({ currentTime: 118, duration: 120 });
+      fireEvent.keyDown(screen.getAllByRole('slider')[1], { key: 'ArrowRight' });
+      expect(onSeek).toHaveBeenLastCalledWith(120);
+    });
+
+    it('leaves the up and down keys to the feed', () => {
+      mount();
+
+      fireEvent.keyDown(bar(), { key: 'ArrowUp' });
+      fireEvent.keyDown(bar(), { key: 'ArrowDown' });
+
+      // Those move between reels. A scrub bar that swallowed them would trap
+      // the viewer on one slide as soon as the bar had focus.
+      expect(onSeek).not.toHaveBeenCalled();
+    });
+
+    it('keeps the key from reaching the feed when it acts on it', () => {
+      mount();
+      const event = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true });
+      const stopped = vi.spyOn(event, 'stopPropagation');
+
+      fireEvent(bar(), event);
+
+      expect(stopped).toHaveBeenCalled();
+    });
+
+    it('does nothing without a duration', () => {
+      mount({ duration: 0 });
+
+      fireEvent.keyDown(bar(), { key: 'ArrowRight' });
+
+      expect(onSeek).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when scrubbing is switched off', () => {
+      mount({ scrubbable: false });
+
+      fireEvent.keyDown(screen.getByRole('progressbar'), { key: 'ArrowRight' });
+
+      expect(onSeek).not.toHaveBeenCalled();
+    });
+  });
+
   describe('when it must not scrub', () => {
     it('does nothing without a duration', () => {
       mount({ duration: 0 });

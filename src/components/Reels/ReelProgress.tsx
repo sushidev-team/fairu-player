@@ -14,6 +14,8 @@ export interface ReelProgressProps {
   /** Called when a drag starts / ends, so the caller can pause during a scrub. */
   onScrubStart?: () => void;
   onScrubEnd?: () => void;
+  /** Seconds moved per arrow key. */
+  keyboardStep?: number;
   /** Render in the accent colour instead of white (used for ads). */
   variant?: 'content' | 'ad';
   className?: string;
@@ -33,6 +35,7 @@ export function ReelProgress({
   onSeek,
   onScrubStart,
   onScrubEnd,
+  keyboardStep = 5,
   variant = 'content',
   className,
 }: ReelProgressProps) {
@@ -80,6 +83,47 @@ export function ReelProgress({
     [scrubbing, onSeek, timeFromEvent]
   );
 
+  /**
+   * Keyboard seeking.
+   *
+   * The element already announces itself as a slider and takes focus, so
+   * without this it made a promise it could not keep — a keyboard user could
+   * reach the bar and then do nothing with it.
+   *
+   * Up and Down are deliberately left alone: the feed uses them to move between
+   * reels, and a scrub bar stealing them would trap the viewer on one slide.
+   */
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (!scrubbable || duration <= 0) return;
+
+      let target: number;
+      switch (event.key) {
+        case 'ArrowRight':
+          target = currentTime + keyboardStep;
+          break;
+        case 'ArrowLeft':
+          target = currentTime - keyboardStep;
+          break;
+        case 'Home':
+          target = 0;
+          break;
+        case 'End':
+          target = duration;
+          break;
+        default:
+          return;
+      }
+
+      // Both, and for the same reason as the pointer path: the feed listens for
+      // keys on its container and would act on this one too.
+      event.preventDefault();
+      event.stopPropagation();
+      onSeek?.(Math.max(0, Math.min(duration, target)));
+    },
+    [scrubbable, duration, currentTime, keyboardStep, onSeek]
+  );
+
   const handlePointerUp = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (!scrubbing) return;
@@ -110,6 +154,7 @@ export function ReelProgress({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onKeyDown={handleKeyDown}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
     >
