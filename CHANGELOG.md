@@ -17,7 +17,6 @@
 
 * **ads:** clear stale banners and plan non-linear VMAP breaks ([07dcfaf](https://github.com/sushidev-team/fairu-player/commit/07dcfaf7bf4c269baade929f32400177edc10f1c))
 * **ads:** honour adConfig.enabled in the video player ([b1343c8](https://github.com/sushidev-team/fairu-player/commit/b1343c852fcda9c4658d922208fa7f0d5aa5aba8))
-* **ads:** honour adConfig.enabled, and close the two coverage gaps ([730d393](https://github.com/sushidev-team/fairu-player/commit/730d39326236c89073c0c02440dde2d407154b3f))
 * **core:** four defects from review ([03523cd](https://github.com/sushidev-team/fairu-player/commit/03523cd4e86efff6cc03c866cea2ff3b1c301a65))
 * **hls:** bound error recovery, and stop reloading the stream to switch quality ([7eb41eb](https://github.com/sushidev-team/fairu-player/commit/7eb41eb39a85e059c6e9a3057eceb9d8448e63c2))
 * **keyboard:** make the arrow-key volume steps relative again ([0614945](https://github.com/sushidev-team/fairu-player/commit/0614945c316e441f3ede776fc19ca7869117522b))
