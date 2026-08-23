@@ -190,6 +190,30 @@ describe('useABLoop', () => {
       expect(onSeek).not.toHaveBeenCalled();
     });
 
+    it('picks the loop back up after being switched off and on', () => {
+      const onSeek = vi.fn();
+      const { result, rerender } = renderHook(
+        ({ time, enabled }: { time: number; enabled: boolean }) =>
+          useABLoop({ currentTime: time, onSeek, enabled }),
+        { initialProps: { time: 0, enabled: true } }
+      );
+
+      act(() => result.current.controls.setA(10));
+      act(() => result.current.controls.setB(20));
+
+      rerender({ time: 20, enabled: true });
+      expect(onSeek).toHaveBeenCalledTimes(1);
+
+      // Switched off while the playhead sits past B — a paused player, or a
+      // host that turns the feature off mid-loop.
+      rerender({ time: 20, enabled: false });
+      rerender({ time: 20, enabled: true });
+
+      // Without re-arming on the way out, the loop stays silently dead: the
+      // playhead never drops below B on its own from here.
+      expect(onSeek).toHaveBeenCalledTimes(2);
+    });
+
     it('picks the loop back up after a seek out of it', () => {
       const onSeek = vi.fn();
       const { result, advanceTo } = playing(onSeek);

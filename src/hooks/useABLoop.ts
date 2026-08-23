@@ -86,7 +86,15 @@ export function useABLoop(options: UseABLoopOptions): UseABLoopReturn {
   }, []);
 
   useEffect(() => {
-    if (!enabled) return;
+    // Re-arm on the way out. A loop switched off after a lap has already fired
+    // is holding a spent guard, and switching it back on while the playhead is
+    // still past B — a paused player, most obviously — would find it disarmed
+    // with nothing left to clear it: the playhead never drops below B on its
+    // own from there.
+    if (!enabled) {
+      armedRef.current = true;
+      return;
+    }
 
     const target = core.seekTarget(loop, currentTime);
     if (target === null) {

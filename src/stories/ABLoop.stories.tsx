@@ -158,7 +158,12 @@ function Player() {
     <>
       <button onClick={() => loopControls.setA()}>Set A</button>
       <button onClick={() => loopControls.setB()}>Set B</button>
-      <button onClick={loopControls.clearLoop} disabled={!loop.isLooping}>
+      {/* Enabled as soon as there is a marker to remove — a single point, or
+          two on the same spot, are both states the viewer can get into. */}
+      <button
+        onClick={loopControls.clearLoop}
+        disabled={loop.loopStart === null && loop.loopEnd === null}
+      >
         Clear
       </button>
     </>
