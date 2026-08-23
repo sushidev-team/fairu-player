@@ -170,11 +170,13 @@ Fehler, keine Einzelfälle.
 
 ### Offen geblieben
 
-- **`hls.js` wird statisch importiert.** Der Video-Chunk ist 182 KB brotli, davon
-  ist hls.js der Löwenanteil — auch wer nur MP4 abspielt, lädt ihn. Ein
-  dynamischer Import nur bei einer HLS-Quelle wäre die größte Einzelersparnis
-  im Paket.
-- `VideoPlayer.tsx` bei 61 %, Reels bei ~74 %.
+- ~~`hls.js` wird statisch importiert.~~ Erledigt: wird nur noch bei einer
+  HLS-Quelle nachgeladen, siehe `perf(hls)` in v1.5.0.
+- **Abdeckung von `VideoPlayer.tsx` und Reels.** Stand heute 61 % bzw. 64 %
+  Statements — die beiden einzigen nennenswerten Lücken im Paket
+  (Gesamt: 81,8 % Statements, `src/core` bei 98,6 %). Beides sind große
+  Komponenten mit viel UI-Verzweigung; der Weg dahin ist derselbe wie in
+  Phase 3: Logik heraustrennen, dann ohne Renderer testen.
 
 ### E2E-Framework-Verifikation — erledigt
 
@@ -224,6 +226,47 @@ React-frei** — der komplette VAST-Parser, `AdService`, `TrackingService`,
 `AdEventBus`, `PlayerEventBus`, `adCaps`, `security`, `theme`, `fairu`. Das ist
 substanziell der halbe Core. Was noch in React steckt, ist die Zustandslogik in
 den Contexts und in `VideoPlayer.tsx`.
+
+### Stand: drei Schnitte erledigt
+
+| Slice | Wo | Beweis |
+|---|---|---|
+| Playlist-Regeln | `src/core/playlist.ts` | 49 bestehende Hook-Tests unverändert grün, 36 neue ohne Renderer |
+| Watch-Progress | `src/core/watchProgress.ts` | 30 bestehende unverändert grün, 29 neue ohne Renderer |
+| Media-Controller | `src/core/mediaController.ts` | 41 bestehende unverändert grün, 40 neue ohne Renderer |
+
+Keiner der drei importiert React. Playlist und Watch-Progress sind reine
+Funktionen; der Media-Controller ist es nicht und soll es nicht sein — er hält
+ein `HTMLMediaElement` und dessen Listener, weil das Element die Sache ist, die
+gesteuert wird. Framework-neutral heißt hier: keine Meinung darüber, wie ein UI
+zusieht. Die Hooks sind zu dünnen Bindungen geschrumpft; ein Vue- oder
+Angular-Adapter wäre dieselbe Form über denselben Core.
+
+Das Muster, das sich bewährt hat: **die bestehenden Tests unverändert lassen.**
+Dass sie durchlaufen, ist der Beleg für Verhaltensgleichheit — nicht, dass die
+neuen Tests grün sind. Beim Playlist-Schnitt hat genau das einen Fehler
+gefangen (Callbacks auf einen Microtask verschoben), beim Watch-Progress eine
+Mutation, die Aufrufer-Objekte nachträglich veränderte.
+
+Der Media-Controller war der tragende Teil: `useMedia` ging von 348 auf 141
+Zeilen und ist jetzt ein `useSyncExternalStore` über den Controller. Das ist die
+idiomatische Leseweise für Zustand außerhalb von React und ersetzt das
+Spiegeln derselben Werte in `useState`, womit der alte Hook den Großteil seiner
+Länge verbracht hat. Vier `react-hooks/refs`-Warnungen sind damit weg — das
+Budget fiel von 96 auf 94.
+
+### Nächste Schnitte
+
+- **Ad-Contexts → Scheduler.** `AdContext` und `VideoAdContext` halten
+  Terminierung, Capping und Pod-Fortschritt. Beide sind inzwischen gut getestet
+  (98 % bzw. 84 %), also gibt es ein Orakel für die Extraktion.
+- **Monorepo-Split**: `@fairu/player-core` plus Adapter. Erst sinnvoll, wenn der
+  Core alles hält, was ein Adapter braucht — nach dem Ad-Schnitt ist das der
+  Fall.
+
+Was noch **nicht** im Core ist und dort hingehört: HLS-Engine-Auswahl
+(`useHLS` ist bereits größtenteils neutral), Persistenz und Media Session (beide
+fast reine Funktionen), Kapitel- und Marker-Auflösung.
 
 ### Zielstruktur — Monorepo, kein eigenes Repo
 

@@ -7,6 +7,7 @@ import { useTabVisibility } from './useTabVisibility';
 import { useHLS, isHLSSource } from './useHLS';
 import type { VideoState, VideoControls, VideoQuality, WatchProgress, WatchedSegment, HLSConfig, TabVisibilityConfig } from '@/types/video';
 import { initialWatchProgress } from '@/types/video';
+import { applyProgress } from '@/core/watchProgress';
 import type { UseMediaOptions } from '@/types/media';
 import type { AdEventBus } from '@/utils/AdEventBus';
 import type { PlayerEventBus } from '@/utils/PlayerEventBus';
@@ -30,38 +31,6 @@ export interface UseVideoOptions extends UseMediaOptions {
   adEventBus?: AdEventBus;
   /** Player event bus for emitting tab/PiP events */
   playerEventBus?: PlayerEventBus;
-}
-
-/**
- * Merge overlapping segments and sort them
- */
-function mergeSegments(segments: WatchedSegment[]): WatchedSegment[] {
-  if (segments.length === 0) return [];
-
-  // Sort by start time
-  const sorted = [...segments].sort((a, b) => a.start - b.start);
-  const merged: WatchedSegment[] = [sorted[0]];
-
-  for (let i = 1; i < sorted.length; i++) {
-    const current = sorted[i];
-    const last = merged[merged.length - 1];
-
-    // If current segment overlaps or is adjacent to the last one, merge them
-    if (current.start <= last.end + 0.5) {
-      last.end = Math.max(last.end, current.end);
-    } else {
-      merged.push(current);
-    }
-  }
-
-  return merged;
-}
-
-/**
- * Calculate total watched duration from segments
- */
-function calculateWatchedDuration(segments: WatchedSegment[]): number {
-  return segments.reduce((total, segment) => total + (segment.end - segment.start), 0);
 }
 
 export interface UseVideoReturn {
@@ -374,41 +343,30 @@ export function useVideo(options: UseVideoOptions = {}): UseVideoReturn {
     return () => video.removeEventListener('loadedmetadata', handleResize);
   }, [updateVideoState, videoRef]);
 
-  // Update watch progress helper
+  // Update watch progress helper.
+  //
+  // The arithmetic lives in `@/core/watchProgress` — merging, percentages and
+  // the completion edge are the same rules for any framework, so this is only
+  // the part React owns: hold the result, publish it, announce it.
   const updateWatchProgress = useCallback((newSegment?: WatchedSegment) => {
-    const duration = mediaState.duration;
-    if (duration <= 0) return;
+    const { progress, justCompleted } = applyProgress(watchProgressRef.current, {
+      segment: newSegment,
+      duration: mediaState.duration,
+      currentTime: mediaState.currentTime,
+    });
 
-    let segments = [...watchProgressRef.current.watchedSegments];
+    // `applyProgress` hands back the same object when there is nothing to
+    // record — before metadata, or for a live stream — so this is also the
+    // guard that stops a pointless state update.
+    if (progress === watchProgressRef.current) return;
 
-    if (newSegment && newSegment.end > newSegment.start) {
-      segments.push(newSegment);
-      segments = mergeSegments(segments);
-    }
+    watchProgressRef.current = progress;
+    updateVideoState({ watchProgress: progress });
+    onWatchProgressUpdate?.(progress);
 
-    const watchedDuration = calculateWatchedDuration(segments);
-    const percentageWatched = Math.min(100, (watchedDuration / duration) * 100);
-    const furthestPoint = Math.max(
-      watchProgressRef.current.furthestPoint,
-      mediaState.currentTime
-    );
-
-    // Consider video fully watched if 95% or more has been watched
-    const isFullyWatched = percentageWatched >= 95;
-
-    const newProgress: WatchProgress = {
-      watchedSegments: segments,
-      percentageWatched,
-      isFullyWatched,
-      furthestPoint,
-    };
-
-    watchProgressRef.current = newProgress;
-    updateVideoState({ watchProgress: newProgress });
-    onWatchProgressUpdate?.(newProgress);
-
-    // Fire onFinished when fully watched (only once)
-    if (isFullyWatched && !hasFinishedRef.current) {
+    // `justCompleted` is the edge rather than the flag, so this fires once
+    // without a separate ref to remember that it already did.
+    if (justCompleted) {
       hasFinishedRef.current = true;
       onFinished?.();
     }
@@ -445,7 +403,14 @@ export function useVideo(options: UseVideoOptions = {}): UseVideoReturn {
   // Update furthest point during playback
   useEffect(() => {
     if (mediaState.isPlaying && mediaState.currentTime > watchProgressRef.current.furthestPoint) {
-      watchProgressRef.current.furthestPoint = mediaState.currentTime;
+      // Replace rather than write in place. This same record was handed to
+      // React state and to `onWatchProgressUpdate`, and a consumer that kept it
+      // must keep the values it was given — the retroactive mutation this
+      // avoids is exactly what `mergeSegments` was fixed for.
+      watchProgressRef.current = {
+        ...watchProgressRef.current,
+        furthestPoint: mediaState.currentTime,
+      };
     }
   }, [mediaState.isPlaying, mediaState.currentTime]);
 

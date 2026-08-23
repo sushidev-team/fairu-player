@@ -1,348 +1,157 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { MediaState, MediaControls, UseMediaOptions, UseMediaReturn } from '@/types/media';
-
-const initialState: MediaState = {
-  isPlaying: false,
-  isPaused: true,
-  isLoading: true,
-  isBuffering: false,
-  isEnded: false,
-  isMuted: false,
-  currentTime: 0,
-  duration: 0,
-  buffered: 0,
-  volume: 1,
-  playbackRate: 1,
-  error: null,
-};
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import type { MediaState, UseMediaOptions, UseMediaReturn } from '@/types/media';
+import {
+  createMediaController,
+  initialMediaState,
+  type MediaController,
+} from '@/core/mediaController';
 
 /**
- * Shared hook for managing media (audio/video) playback
- * Works with both HTMLAudioElement and HTMLVideoElement
+ * React binding over the media controller.
+ *
+ * Everything that touches the element — transport, seeking, volume, the fifteen
+ * media events — lives in `@/core/mediaController`. What is left here is React's
+ * share: notice the element, subscribe to the controller, hand back its state.
+ *
+ * `useSyncExternalStore` is the point rather than a detail. The controller is
+ * exactly what it is for: state that lives outside React and changes without
+ * asking. Reading it any other way means mirroring the same values into
+ * `useState` and keeping two copies honest — which is what this hook used to
+ * do, in about 350 lines.
  */
 export function useMedia<T extends HTMLMediaElement>(
   options: UseMediaOptions = {}
 ): UseMediaReturn<T> {
-  const {
-    src,
-    autoPlay = false,
-    volume: initialVolume = 1,
-    muted: initialMuted = false,
-    playbackRate: initialPlaybackRate = 1,
-    skipForwardSeconds = 30,
-    skipBackwardSeconds = 10,
-    onPlay,
-    onPause,
-    onEnded,
-    onTimeUpdate,
-    onError,
-    onLoadedMetadata,
-    onLoadedData,
-    onCanPlayThrough,
-  } = options;
+  const { src, autoPlay = false } = options;
 
   const mediaRef = useRef<T | null>(null);
-  const [state, setState] = useState<MediaState>({
-    ...initialState,
-    volume: initialVolume,
-    isMuted: initialMuted,
-    playbackRate: initialPlaybackRate,
-  });
+  /** Which element the current controller is bound to. */
+  const attachedRef = useRef<T | null>(null);
 
-  // Update state helper
-  const updateState = useCallback((updates: Partial<MediaState>) => {
-    setState((prev) => ({ ...prev, ...updates }));
-  }, []);
-
-  // Play
-  const play = useCallback(async () => {
-    const media = mediaRef.current;
-    if (!media) return;
-
-    try {
-      await media.play();
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error('Failed to play');
-      updateState({ error: err });
-      onError?.(err);
-    }
-  }, [onError, updateState]);
-
-  // Pause
-  const pause = useCallback(() => {
-    const media = mediaRef.current;
-    if (!media) return;
-    media.pause();
-  }, []);
-
-  // Toggle play/pause
-  const toggle = useCallback(async () => {
-    if (state.isPlaying) {
-      pause();
-    } else {
-      await play();
-    }
-  }, [state.isPlaying, play, pause]);
-
-  // Stop
-  const stop = useCallback(() => {
-    const media = mediaRef.current;
-    if (!media) return;
-    media.pause();
-    media.currentTime = 0;
-  }, []);
-
-  // Seek to specific time
-  const seek = useCallback((time: number) => {
-    const media = mediaRef.current;
-    if (!media) return;
-    media.currentTime = Math.max(0, Math.min(time, media.duration || 0));
-  }, []);
-
-  // Seek to percentage
-  const seekTo = useCallback((percentage: number) => {
-    const media = mediaRef.current;
-    if (!media || !media.duration) return;
-    const time = (percentage / 100) * media.duration;
-    seek(time);
-  }, [seek]);
-
-  // Skip forward
-  const skipForward = useCallback((seconds?: number) => {
-    const media = mediaRef.current;
-    if (!media) return;
-    const skipAmount = seconds ?? skipForwardSeconds;
-    seek(media.currentTime + skipAmount);
-  }, [seek, skipForwardSeconds]);
-
-  // Skip backward
-  const skipBackward = useCallback((seconds?: number) => {
-    const media = mediaRef.current;
-    if (!media) return;
-    const skipAmount = seconds ?? skipBackwardSeconds;
-    seek(media.currentTime - skipAmount);
-  }, [seek, skipBackwardSeconds]);
-
-  // Set volume
-  const setVolume = useCallback((volume: number) => {
-    const clampedVolume = Math.max(0, Math.min(1, volume));
-    // Update state first so UI reflects the change
-    updateState({ volume: clampedVolume });
-    // Then update the media element if available
-    const media = mediaRef.current;
-    if (media) {
-      media.volume = clampedVolume;
-    }
-  }, [updateState]);
-
-  // Toggle mute
-  const toggleMute = useCallback(() => {
-    const media = mediaRef.current;
-    if (media) {
-      media.muted = !media.muted;
-      updateState({ isMuted: media.muted });
-    } else {
-      // Toggle mute state even without media element
-      setState((prev) => ({ ...prev, isMuted: !prev.isMuted }));
-    }
-  }, [updateState]);
-
-  // Set playback rate
-  const setPlaybackRate = useCallback((rate: number) => {
-    const media = mediaRef.current;
-    if (!media) return;
-    media.playbackRate = rate;
-    updateState({ playbackRate: rate });
-  }, [updateState]);
-
-  // Set up media element and event listeners
-  useEffect(() => {
-    const media = mediaRef.current;
-    if (!media) return;
-
-    const handleLoadStart = () => {
-      updateState({ isLoading: true, error: null });
-    };
-
-    const handleLoadedMetadata = () => {
-      updateState({
-        isLoading: false,
-        duration: media.duration,
-      });
-      onLoadedMetadata?.(media.duration);
-    };
-
-    const handleLoadedData = () => {
-      onLoadedData?.();
-    };
-
-    const handleCanPlay = () => {
-      updateState({ isLoading: false, isBuffering: false });
-    };
-
-    const handleCanPlayThrough = () => {
-      onCanPlayThrough?.();
-    };
-
-    const handleWaiting = () => {
-      updateState({ isBuffering: true });
-    };
-
-    const handlePlaying = () => {
-      updateState({
-        isPlaying: true,
-        isPaused: false,
-        isBuffering: false,
-        isEnded: false,
-      });
-    };
-
-    const handlePlay = () => {
-      updateState({ isPlaying: true, isPaused: false, isEnded: false });
-      onPlay?.();
-    };
-
-    const handlePause = () => {
-      updateState({ isPlaying: false, isPaused: true });
-      onPause?.();
-    };
-
-    const handleEnded = () => {
-      updateState({ isPlaying: false, isPaused: true, isEnded: true });
-      onEnded?.();
-    };
-
-    const handleTimeUpdate = () => {
-      updateState({ currentTime: media.currentTime });
-      onTimeUpdate?.(media.currentTime);
-    };
-
-    const handleProgress = () => {
-      if (media.buffered.length > 0) {
-        const bufferedEnd = media.buffered.end(media.buffered.length - 1);
-        updateState({ buffered: bufferedEnd });
-      }
-    };
-
-    const handleVolumeChange = () => {
-      updateState({
-        volume: media.volume,
-        isMuted: media.muted,
-      });
-    };
-
-    const handleRateChange = () => {
-      updateState({ playbackRate: media.playbackRate });
-    };
-
-    const handleError = () => {
-      const error = media.error;
-      const err = new Error(error?.message || 'Media error');
-      updateState({ error: err, isLoading: false });
-      onError?.(err);
-    };
-
-    // Add event listeners
-    media.addEventListener('loadstart', handleLoadStart);
-    media.addEventListener('loadedmetadata', handleLoadedMetadata);
-    media.addEventListener('loadeddata', handleLoadedData);
-    media.addEventListener('canplay', handleCanPlay);
-    media.addEventListener('canplaythrough', handleCanPlayThrough);
-    media.addEventListener('waiting', handleWaiting);
-    media.addEventListener('playing', handlePlaying);
-    media.addEventListener('play', handlePlay);
-    media.addEventListener('pause', handlePause);
-    media.addEventListener('ended', handleEnded);
-    media.addEventListener('timeupdate', handleTimeUpdate);
-    media.addEventListener('progress', handleProgress);
-    media.addEventListener('volumechange', handleVolumeChange);
-    media.addEventListener('ratechange', handleRateChange);
-    media.addEventListener('error', handleError);
-
-    // Set initial values from current state (in case they were changed before media was ready)
-    media.volume = state.volume;
-    media.muted = state.isMuted;
-    media.playbackRate = state.playbackRate;
-
-    return () => {
-      media.removeEventListener('loadstart', handleLoadStart);
-      media.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      media.removeEventListener('loadeddata', handleLoadedData);
-      media.removeEventListener('canplay', handleCanPlay);
-      media.removeEventListener('canplaythrough', handleCanPlayThrough);
-      media.removeEventListener('waiting', handleWaiting);
-      media.removeEventListener('playing', handlePlaying);
-      media.removeEventListener('play', handlePlay);
-      media.removeEventListener('pause', handlePause);
-      media.removeEventListener('ended', handleEnded);
-      media.removeEventListener('timeupdate', handleTimeUpdate);
-      media.removeEventListener('progress', handleProgress);
-      media.removeEventListener('volumechange', handleVolumeChange);
-      media.removeEventListener('ratechange', handleRateChange);
-      media.removeEventListener('error', handleError);
-    };
-  }, [
-    initialVolume,
-    initialMuted,
-    initialPlaybackRate,
-    onPlay,
-    onPause,
-    onEnded,
-    onTimeUpdate,
-    onError,
-    onLoadedMetadata,
-    onLoadedData,
-    onCanPlayThrough,
-    updateState,
-  ]);
-
-  // Remember which element already received which source.
-  const appliedRef = useRef<{ element: T | null; src: string | undefined }>({
-    element: null,
-    src: undefined,
-  });
-
-  // Handle source changes.
+  // The controller lives in state, not a ref.
   //
-  // Deliberately runs on every render with no dependency array. A ref change is
-  // invisible to React, so a dependency-gated effect never notices that the
-  // media element was replaced — which happens whenever an ancestor swaps
-  // subtrees. The element would then sit there with an empty `src`, showing a
-  // poster and a permanent spinner, with no error anywhere. The guard below
-  // makes the common case a no-op, so running every render costs nothing.
+  // Render reads it — for the controls, and through `getSnapshot` — and reading
+  // a ref during render is unsafe under concurrent rendering, where a render
+  // can be discarded. State is also what makes the re-render happen when a
+  // controller appears; a ref change is invisible to React. The ref below is
+  // only for the lifecycle bookkeeping the effect needs.
+  const [controller, setController] = useState<MediaController | null>(null);
+  const controllerRef = useRef<MediaController | null>(null);
+
+  // The controller reads its callbacks through this, so passing inline arrow
+  // functions — which every caller does — never rebuilds it.
+  const optionsRef = useRef(options);
   useEffect(() => {
-    const media = mediaRef.current;
-    if (!media || !src) return;
-
-    const applied = appliedRef.current;
-    if (applied.element === media && applied.src === src) return;
-
-    appliedRef.current = { element: media, src };
-    media.src = src;
-    media.load();
-
-    if (autoPlay) {
-      play();
-    }
+    optionsRef.current = options;
+    controllerRef.current?.setCallbacks(options);
   });
 
-  const controls: MediaControls = {
-    play,
-    pause,
-    toggle,
-    stop,
-    seek,
-    seekTo,
-    skipForward,
-    skipBackward,
-    setVolume,
-    toggleMute,
-    setPlaybackRate,
-  };
+  /**
+   * Attach to whatever element is currently in the ref.
+   *
+   * No dependency array on purpose. An ancestor swapping subtrees replaces the
+   * element, and a ref change is invisible to React — a dependency-gated effect
+   * would never notice, leaving a controller bound to a detached node and a
+   * player showing a permanent spinner with no error anywhere. The guard makes
+   * every other run a no-op, so running each render costs nothing.
+   */
+  useEffect(() => {
+    const element = mediaRef.current;
 
-  return {
-    mediaRef,
-    state,
-    controls,
-  };
+    // Compared against the element the controller is bound to, not merely
+    // against whether one exists. An ancestor swapping subtrees hands over a
+    // *different* element under a living hook — checking only for presence
+    // would leave the controller on the detached node, and the replacement
+    // would sit there with an empty `src` behind a permanent spinner.
+    if (element === attachedRef.current) return;
+
+    controllerRef.current?.destroy();
+
+    const next = element ? createMediaController(element, optionsRef.current) : null;
+    controllerRef.current = next;
+    attachedRef.current = element;
+    setController(next);
+  });
+
+  // Teardown belongs to unmount alone; the effect above deliberately runs on
+  // every render and must not tear down what it just built.
+  useEffect(
+    () => () => {
+      controllerRef.current?.destroy();
+      controllerRef.current = null;
+      attachedRef.current = null;
+    },
+    []
+  );
+
+  const subscribe = useCallback(
+    (listener: () => void) => controller?.subscribe(listener) ?? (() => {}),
+    [controller]
+  );
+
+  const {
+    volume = initialMediaState.volume,
+    muted = initialMediaState.isMuted,
+    playbackRate = initialMediaState.playbackRate,
+  } = options;
+
+  const getSnapshot = useCallback(
+    (): MediaState =>
+      controller?.getState() ?? seededInitialState(volume, muted, playbackRate),
+    [controller, volume, muted, playbackRate]
+  );
+
+  const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+
+  // Source changes go through the controller, which ignores a repeat of what is
+  // already loaded.
+  useEffect(() => {
+    controllerRef.current?.setSource(src, autoPlay);
+  });
+
+  return { mediaRef, state, controls: controller?.controls ?? inertControls };
 }
+
+/**
+ * What to report before an element exists.
+ *
+ * Seeded from the options so a volume slider renders at the configured level on
+ * the first frame rather than jumping once the element attaches.
+ *
+ * Keyed by the three values it reads, not by the options object. Every caller
+ * builds that object inline — `useVideo` spreads a fresh one on every render —
+ * so an identity-keyed cache never hits after the first render and hands back a
+ * new snapshot each time. `useSyncExternalStore` compares snapshots by
+ * identity, and a caller that never attaches an element would sit on a hook
+ * that reports a different state object on every render for no reason.
+ */
+const seededCache = new Map<string, MediaState>();
+
+function seededInitialState(
+  volume: number,
+  isMuted: boolean,
+  playbackRate: number
+): MediaState {
+  const key = `${volume}|${isMuted}|${playbackRate}`;
+  const cached = seededCache.get(key);
+  if (cached) return cached;
+
+  const seeded: MediaState = { ...initialMediaState, volume, isMuted, playbackRate };
+  seededCache.set(key, seeded);
+  return seeded;
+}
+
+/** Controls before an element exists: every call a no-op, none of them a crash. */
+const inertControls: UseMediaReturn<HTMLMediaElement>['controls'] = {
+  play: async () => {},
+  pause: () => {},
+  toggle: async () => {},
+  stop: () => {},
+  seek: () => {},
+  seekTo: () => {},
+  skipForward: () => {},
+  skipBackward: () => {},
+  setVolume: () => {},
+  toggleMute: () => {},
+  setPlaybackRate: () => {},
+};
