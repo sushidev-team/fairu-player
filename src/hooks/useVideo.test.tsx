@@ -342,6 +342,28 @@ describe('useVideo', () => {
       expect(captured.state.watchProgress.furthestPoint).toBe(50);
     });
 
+    it('never changes a progress record it has already handed out', () => {
+      const published: Array<{ furthestPoint: number }> = [];
+      setup(
+        { onWatchProgressUpdate: (progress) => published.push(progress) },
+        { duration: 100 }
+      );
+
+      watch(0, 20);
+      const handedOut = published[published.length - 1];
+      const asGiven = JSON.stringify(handedOut);
+
+      // Keep playing past the furthest point without closing a segment, which
+      // is the path that used to write into the record in place.
+      fire('play');
+      video.currentTime = 60;
+      fire('timeupdate');
+
+      // A consumer that stored this record — to resume from it, to report it —
+      // must still be holding what it was given.
+      expect(JSON.stringify(handedOut)).toBe(asGiven);
+    });
+
     it('calls onWatchProgressUpdate as it goes', () => {
       const onWatchProgressUpdate = vi.fn();
       setup({ onWatchProgressUpdate }, { duration: 100 });

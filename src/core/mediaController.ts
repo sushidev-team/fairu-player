@@ -267,7 +267,16 @@ export function createMediaController(
   let appliedSource: string | undefined;
 
   function setSource(src: string | undefined, autoPlay = false): void {
-    if (!src || src === appliedSource) return;
+    // No source means somebody else owns the element now — hls.js attaches its
+    // own. Forgetting what was last applied is the point: otherwise returning
+    // to that same URL later looks "already loaded" and gets skipped, leaving
+    // the element pointed at a stream nobody asked for.
+    if (!src) {
+      appliedSource = undefined;
+      return;
+    }
+
+    if (src === appliedSource) return;
 
     appliedSource = src;
     element.src = src;

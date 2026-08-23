@@ -403,7 +403,14 @@ export function useVideo(options: UseVideoOptions = {}): UseVideoReturn {
   // Update furthest point during playback
   useEffect(() => {
     if (mediaState.isPlaying && mediaState.currentTime > watchProgressRef.current.furthestPoint) {
-      watchProgressRef.current.furthestPoint = mediaState.currentTime;
+      // Replace rather than write in place. This same record was handed to
+      // React state and to `onWatchProgressUpdate`, and a consumer that kept it
+      // must keep the values it was given — the retroactive mutation this
+      // avoids is exactly what `mergeSegments` was fixed for.
+      watchProgressRef.current = {
+        ...watchProgressRef.current,
+        furthestPoint: mediaState.currentTime,
+      };
     }
   }, [mediaState.isPlaying, mediaState.currentTime]);
 

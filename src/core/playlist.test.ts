@@ -27,7 +27,50 @@ function make(overrides: Partial<core.CreatePlaylistOptions> = {}) {
   return core.reshuffle(core.createPlaylistState({ tracks: TRACKS, ...overrides }), fixed);
 }
 
+/** A small deterministic PRNG, so a "many draws" test stays reproducible. */
+function seeded(seed: number): () => number {
+  let value = seed + 0x6d2b79f5;
+  return () => {
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 describe('playlist core', () => {
+  describe('shuffled wrap', () => {
+    it('never restarts on the track that just finished', () => {
+      // One draw in n puts the current index back at the front, so a single
+      // seed proves nothing — this asserts the invariant across many.
+      for (let seed = 0; seed < 200; seed += 1) {
+        const random = seeded(seed);
+        const base = core.reshuffle(
+          core.createPlaylistState({ tracks: TRACKS, shuffle: true, repeat: 'all' }),
+          random
+        );
+        // Stand at the end of the shuffled order, where the next step wraps.
+        const last = base.shuffledOrder[base.shuffledOrder.length - 1];
+        const atEnd = { ...base, currentIndex: last, currentTrack: TRACKS[last] };
+
+        const { state: wrapped, effect } = core.next(atEnd, random);
+
+        expect(effect.trackChanged).toBeDefined();
+        expect(wrapped.currentIndex).not.toBe(last);
+      }
+    });
+
+    it('leaves a one-track playlist alone', () => {
+      const single = core.reshuffle(
+        core.createPlaylistState({ tracks: [TRACKS[0]], shuffle: true, repeat: 'all' }),
+        fixed
+      );
+
+      // Nothing else to swap to, and repeating one track is what was asked for.
+      const { state: wrapped } = core.next(single, fixed);
+      expect(wrapped.currentIndex).toBe(0);
+    });
+  });
+
   describe('purity', () => {
     it('never mutates the state it is given', () => {
       const state = make();

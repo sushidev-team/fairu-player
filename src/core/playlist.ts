@@ -215,6 +215,14 @@ export function next(state: PlaylistCoreState, random?: () => number): PlaylistT
 
       // Read the index off the *new* order, not the one being replaced.
       const reshuffled = shuffleArray(state.shuffledOrder, random);
+
+      // A fresh permutation can put the track that just finished back at the
+      // front, and starting a new cycle by replaying it reads as a stuck
+      // player. One swap fixes it and keeps the rest of the permutation.
+      if (reshuffled.length > 1 && reshuffled[0] === state.currentIndex) {
+        [reshuffled[0], reshuffled[1]] = [reshuffled[1], reshuffled[0]];
+      }
+
       nextState = { ...state, shuffledOrder: reshuffled };
       nextIndex = reshuffled[0];
     } else {

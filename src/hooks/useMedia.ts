@@ -89,9 +89,16 @@ export function useMedia<T extends HTMLMediaElement>(
     [controller]
   );
 
+  const {
+    volume = initialMediaState.volume,
+    muted = initialMediaState.isMuted,
+    playbackRate = initialMediaState.playbackRate,
+  } = options;
+
   const getSnapshot = useCallback(
-    (): MediaState => controller?.getState() ?? seededInitialState(options),
-    [controller, options]
+    (): MediaState =>
+      controller?.getState() ?? seededInitialState(volume, muted, playbackRate),
+    [controller, volume, muted, playbackRate]
   );
 
   const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
@@ -109,23 +116,28 @@ export function useMedia<T extends HTMLMediaElement>(
  * What to report before an element exists.
  *
  * Seeded from the options so a volume slider renders at the configured level on
- * the first frame rather than jumping once the element attaches. Memoised by
- * value, because `useSyncExternalStore` compares snapshots by identity and a
- * fresh object every call is an infinite loop.
+ * the first frame rather than jumping once the element attaches.
+ *
+ * Keyed by the three values it reads, not by the options object. Every caller
+ * builds that object inline — `useVideo` spreads a fresh one on every render —
+ * so an identity-keyed cache never hits after the first render and hands back a
+ * new snapshot each time. `useSyncExternalStore` compares snapshots by
+ * identity, and a caller that never attaches an element would sit on a hook
+ * that reports a different state object on every render for no reason.
  */
-const seededCache = new WeakMap<UseMediaOptions, MediaState>();
+const seededCache = new Map<string, MediaState>();
 
-function seededInitialState(options: UseMediaOptions): MediaState {
-  const cached = seededCache.get(options);
+function seededInitialState(
+  volume: number,
+  isMuted: boolean,
+  playbackRate: number
+): MediaState {
+  const key = `${volume}|${isMuted}|${playbackRate}`;
+  const cached = seededCache.get(key);
   if (cached) return cached;
 
-  const seeded: MediaState = {
-    ...initialMediaState,
-    volume: options.volume ?? initialMediaState.volume,
-    isMuted: options.muted ?? initialMediaState.isMuted,
-    playbackRate: options.playbackRate ?? initialMediaState.playbackRate,
-  };
-  seededCache.set(options, seeded);
+  const seeded: MediaState = { ...initialMediaState, volume, isMuted, playbackRate };
+  seededCache.set(key, seeded);
   return seeded;
 }
 

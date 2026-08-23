@@ -235,9 +235,12 @@ den Contexts und in `VideoPlayer.tsx`.
 | Watch-Progress | `src/core/watchProgress.ts` | 30 bestehende unverändert grün, 29 neue ohne Renderer |
 | Media-Controller | `src/core/mediaController.ts` | 41 bestehende unverändert grün, 40 neue ohne Renderer |
 
-Beide sind reine Funktionen ohne React-Import. Die Hooks sind zu dünnen
-Bindungen geschrumpft; ein Vue- oder Angular-Adapter wäre dieselbe Form über
-denselben Core.
+Keiner der drei importiert React. Playlist und Watch-Progress sind reine
+Funktionen; der Media-Controller ist es nicht und soll es nicht sein — er hält
+ein `HTMLMediaElement` und dessen Listener, weil das Element die Sache ist, die
+gesteuert wird. Framework-neutral heißt hier: keine Meinung darüber, wie ein UI
+zusieht. Die Hooks sind zu dünnen Bindungen geschrumpft; ein Vue- oder
+Angular-Adapter wäre dieselbe Form über denselben Core.
 
 Das Muster, das sich bewährt hat: **die bestehenden Tests unverändert lassen.**
 Dass sie durchlaufen, ist der Beleg für Verhaltensgleichheit — nicht, dass die

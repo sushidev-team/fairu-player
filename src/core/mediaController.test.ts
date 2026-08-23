@@ -477,3 +477,38 @@ describe('mediaController', () => {
     });
   });
 });
+
+describe('handing the element to somebody else', () => {
+  it('reloads a source it had loaded before the handover', () => {
+    const element = makeElement();
+    const controller = createMediaController(element);
+
+    controller.setSource('https://example.test/a.mp4');
+    expect(element.src).toBe('https://example.test/a.mp4');
+
+    // `useVideo` passes no source for an HLS track, because hls.js attaches
+    // its own — the controller has to let go rather than remember.
+    controller.setSource(undefined);
+    element.src = 'blob:hls-stream';
+
+    controller.setSource('https://example.test/a.mp4');
+
+    // Without forgetting, this looks like the source already applied and gets
+    // skipped, leaving the element on a stream nobody asked for.
+    expect(element.src).toBe('https://example.test/a.mp4');
+  });
+
+  it('still ignores a repeat of the source it is already on', () => {
+    const element = makeElement();
+    const controller = createMediaController(element);
+    controller.setSource('https://example.test/a.mp4');
+
+    // `makeElement` already stubs `load`, so reset its history rather than
+    // spying on it again — vi.spyOn hands back the existing mock, calls and all.
+    const load = vi.mocked(element.load);
+    load.mockClear();
+    controller.setSource('https://example.test/a.mp4');
+
+    expect(load).not.toHaveBeenCalled();
+  });
+});
