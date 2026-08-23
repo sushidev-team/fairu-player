@@ -74,6 +74,17 @@ describe('parseTimestamp', () => {
       expect(parseTimestamp('   ')).toBeNull();
     });
 
+    it('a run of digits long enough to overflow', () => {
+      // Rejecting the literal string is not enough — `Number('9'.repeat(400))`
+      // is `Infinity` too, and a caller clamping against the duration would
+      // seek to the end of the media instead of ignoring the link.
+      const huge = '9'.repeat(400);
+      expect(parseTimestamp(huge)).toBeNull();
+      expect(parseTimestamp(`${huge}s`)).toBeNull();
+      expect(parseTimestamp(`1:${huge}`)).toBeNull();
+      expect(parseTimestamp(`1:2:${huge}`)).toBeNull();
+    });
+
     it('anything that is not finite', () => {
       // `Number('Infinity')` is a number, and it is greater than zero — which
       // is exactly how the original let it through.

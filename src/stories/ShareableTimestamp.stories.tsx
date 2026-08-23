@@ -127,7 +127,7 @@ export const Interactive: Story = {
 export const Format: Story = {
   render: () => {
     const accepted = ['90', '90.5', '45s', '1m30s', '1h2m3s', '1h', '1:30', '1:02:03'];
-    const refused = ['Infinity', '1e400', '0x10', '-30', '1:', '1m30', 'soon'];
+    const refused = ['Infinity', '1e400', '9'.repeat(400), '0x10', '-30', '1:', 'soon'];
 
     return (
       <Stage title="The format" maxWidth={720}>
@@ -149,7 +149,9 @@ export const Format: Story = {
               <tbody>
                 {refused.map((input) => (
                   <tr key={input}>
-                    <td className="py-0.5 opacity-70">{input}</td>
+                    <td className="py-0.5 opacity-70">
+                      {input.length > 14 ? `${input.slice(0, 12)}… (400 Ziffern)` : input}
+                    </td>
                     <td className="py-0.5 text-right opacity-50">null</td>
                   </tr>
                 ))}

@@ -16,8 +16,14 @@ export interface UseShareableTimestampOptions {
   seekOnMount?: boolean;
   /** Query parameter to use. Default `'t'`. */
   paramName?: string;
-  /** Called once, with the time taken from the URL. */
-  onTimestampParsed?: (time: number) => void;
+  /**
+   * Called once the URL timestamp has been applied, with the time actually
+   * seeked to — which is the parsed value clamped to the duration.
+   *
+   * For the value the *link* asked for, read `urlTimestamp`; it is available on
+   * the first render, before any of this happens.
+   */
+  onSeekApplied?: (time: number) => void;
 }
 
 export interface UseShareableTimestampReturn {
@@ -34,7 +40,7 @@ export interface UseShareableTimestampReturn {
    *
    * Derived rather than tracked: it is exactly "there is one, we are meant to
    * apply it, and we cannot yet". Use it for a "starting at 1:30…" label; to
-   * hear about the seek itself, pass `onTimestampParsed`.
+   * hear about the seek itself, pass `onSeekApplied`.
    */
   pendingSeek: boolean;
 }
@@ -62,7 +68,7 @@ export function useShareableTimestamp(
     onSeek,
     seekOnMount = true,
     paramName = 't',
-    onTimestampParsed,
+    onSeekApplied,
   } = options;
 
   // Read once. The address bar can change under a single-page app, but the
@@ -77,11 +83,11 @@ export function useShareableTimestamp(
   // callbacks are inline arrows at every call site.
   const currentTimeRef = useRef(currentTime);
   const onSeekRef = useRef(onSeek);
-  const onTimestampParsedRef = useRef(onTimestampParsed);
+  const onSeekAppliedRef = useRef(onSeekApplied);
   useEffect(() => {
     currentTimeRef.current = currentTime;
     onSeekRef.current = onSeek;
-    onTimestampParsedRef.current = onTimestampParsed;
+    onSeekAppliedRef.current = onSeekApplied;
   });
 
   const appliedRef = useRef(false);
@@ -96,7 +102,7 @@ export function useShareableTimestamp(
     // A link can outlive the cut it points into.
     const target = Math.min(urlTimestamp, duration);
     onSeekRef.current?.(target);
-    onTimestampParsedRef.current?.(target);
+    onSeekAppliedRef.current?.(target);
   }, [seekOnMount, urlTimestamp, duration]);
 
   const getShareUrl = useCallback(

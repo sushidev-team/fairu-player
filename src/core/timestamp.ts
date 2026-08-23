@@ -60,25 +60,39 @@ export function parseTimestamp(input: string): number | null {
   const value = input.trim();
   if (!value) return null;
 
-  if (DECIMAL.test(value)) return Number(value);
+  if (DECIMAL.test(value)) return finite(Number(value));
 
   const hms = HMS.exec(value);
   if (hms && (hms[1] || hms[2] || hms[3])) {
     const hours = Number(hms[1] ?? 0);
     const minutes = Number(hms[2] ?? 0);
     const seconds = Number(hms[3] ?? 0);
-    return hours * 3600 + minutes * 60 + seconds;
+    return finite(hours * 3600 + minutes * 60 + seconds);
   }
 
   const parts = value.split(':');
   if ((parts.length === 2 || parts.length === 3) && parts.every((p) => DECIMAL.test(p))) {
     const numbers = parts.map(Number);
-    return parts.length === 2
-      ? numbers[0] * 60 + numbers[1]
-      : numbers[0] * 3600 + numbers[1] * 60 + numbers[2];
+    return finite(
+      parts.length === 2
+        ? numbers[0] * 60 + numbers[1]
+        : numbers[0] * 3600 + numbers[1] * 60 + numbers[2]
+    );
   }
 
   return null;
+}
+
+/**
+ * The last gate, and every branch goes through it.
+ *
+ * Rejecting the literal string `Infinity` is not enough: the digit patterns
+ * above accept a run of any length, and `Number('9'.repeat(400))` overflows to
+ * `Infinity` just the same. A caller clamps against the duration, so such a
+ * link would seek to the end of the media rather than do nothing.
+ */
+function finite(seconds: number): number | null {
+  return Number.isFinite(seconds) ? seconds : null;
 }
 
 /**

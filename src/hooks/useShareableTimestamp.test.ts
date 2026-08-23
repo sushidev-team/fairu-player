@@ -34,7 +34,7 @@ function mount(props: {
   onSeek?: (time: number) => void;
   seekOnMount?: boolean;
   paramName?: string;
-  onTimestampParsed?: (time: number) => void;
+  onSeekApplied?: (time: number) => void;
 } = {}) {
   const { duration = 0, currentTime = 0, ...rest } = props;
   return renderHook(
@@ -109,12 +109,25 @@ describe('useShareableTimestamp', () => {
 
     it('announces the time it applied', () => {
       openedAt('?t=45s');
-      const onTimestampParsed = vi.fn();
-      const { rerender } = mount({ onTimestampParsed });
+      const onSeekApplied = vi.fn();
+      const { rerender } = mount({ onSeekApplied });
 
       rerender({ time: 0, dur: 300 });
 
-      expect(onTimestampParsed).toHaveBeenCalledWith(45);
+      expect(onSeekApplied).toHaveBeenCalledWith(45);
+    });
+
+    it('announces the clamped time, not the one the link asked for', () => {
+      openedAt('?t=1h');
+      const onSeekApplied = vi.fn();
+      const { result, rerender } = mount({ onSeekApplied });
+
+      rerender({ time: 0, dur: 300 });
+
+      // The callback says where playback went; `urlTimestamp` says what the
+      // link asked for. Conflating the two is what the old name did.
+      expect(onSeekApplied).toHaveBeenCalledWith(300);
+      expect(result.current.urlTimestamp).toBe(3600);
     });
 
     it('clamps a timestamp past the end', () => {
