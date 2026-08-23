@@ -6,13 +6,17 @@ Dieses Dokument beschreibt, was fehlt, um `@fairu/player` zu einem Player zu mac
 der sich gegen JW Player, Video.js, Vidstack und Shaka behaupten kann — und in
 welcher Reihenfolge das sinnvoll ist.
 
-> **Hinweis zu `IMPROVEMENTS.md`:** Jenes Dokument markiert 13 Punkte als
-> `[x] Completed`. Keiner davon existiert in diesem Repo — weder `FairuProvider.tsx`
-> noch `useABLoop`, `useEqualizer`, `usePlaybackHistory`, `useShareableTimestamp`,
-> `useSyncPlayback`, `useAutoplayDetection`, `ErrorBoundary/`, `size-limit` oder
-> `vitest-axe`. Das Dokument stammt vom 10.04.2026 und gehört vermutlich zur Planung
-> des Dart-Ports. Für den React-Player ist es **kein Statusbericht**. Die noch
-> relevanten Punkte daraus sind unten in die Phasen einsortiert.
+> **Hinweis zu `IMPROVEMENTS.md` — korrigiert.** Dieses Dokument hielt zunächst
+> fest, die dort als `[x] Completed` markierten 13 Punkte existierten schlicht
+> nicht. Das war falsch: sie existierten, nur nicht auf `main`. `FairuProvider`,
+> `useABLoop`, `useEqualizer`, `usePlaybackHistory`, `useShareableTimestamp`,
+> `useSyncPlayback` und `ErrorBoundary/` liegen alle in PR #16 (siehe unten).
+> `IMPROVEMENTS.md` beschrieb also einen Branch, nicht eine Fantasie — es war
+> nur nie gesagt, welchen.
+>
+> Inzwischen sind davon auf `main`: `ErrorBoundary/`, `useAutoplayDetection`,
+> `size-limit`, `vitest-axe`, `useABLoop` und `useShareableTimestamp`. Der Rest
+> steht weiter aus.
 
 ---
 
@@ -335,7 +339,7 @@ Phase 5 bereits fertig geschrieben, inklusive 52 Testdateien:
 |---|---|
 | `useEqualizer` (228 Z.), `Equalizer` | 5.1 Web Audio |
 | ~~`useABLoop`~~ — **übernommen**, siehe `src/core/abLoop.ts` | 5.2 A-B-Loop |
-| `useShareableTimestamp` (141 Z.) | 5.3 Shareable Timestamps |
+| ~~`useShareableTimestamp`~~ — **übernommen**, siehe `src/core/timestamp.ts` | 5.3 Shareable Timestamps |
 | `types/history.ts` | 5.4 Playback-History |
 | `useSubtitleStyling` (103 Z.), `SubtitleSettings` | 5.5 Untertitel-Styling |
 | `useSyncPlayback` (233 Z.), `SyncService` | 5.6 Synchronized Playback |
@@ -380,7 +384,7 @@ sondern richtig gepinnt; sie zieht mit, wenn Tailwind selbst auf v4 geht.
 |---|---|---|
 | 5.1 | **Web Audio** | Lautstärke-Normalisierung, Voice-Boost/EQ, Silence-Skip. Genau das, was Overcast von einem nackten `<audio>`-Tag unterscheidet. |
 | 5.2 | ~~**A-B-Loop / Segment-Repeat**~~ | **Erledigt.** `src/core/abLoop.ts` plus `useABLoop`, aus #16 übernommen und dabei neu geschrieben. |
-| 5.3 | **Shareable Timestamps** | `?t=1m30s` erzeugen und beim Mount auswerten; dockt an `embed/parseConfig` an. |
+| 5.3 | ~~**Shareable Timestamps**~~ | **Erledigt.** `src/core/timestamp.ts` plus `useShareableTimestamp`. Die Anbindung an `embed/parseConfig` steht noch aus — der Embed-Loader liest `t` bisher nicht. |
 | 5.4 | **Playback-History** | „Weiterhören"-Liste, baut auf 1.2 und `WatchProgress` auf. |
 | 5.5 | **Untertitel-Styling** | Schriftgröße, Farbe, Hintergrund, Position — mit Presets (u. a. High Contrast). |
 | 5.6 | **Synchronized Playback** | Watch-Together. Transport-agnostisch: Client-Hook plus Referenz-Interface, Server bleibt außerhalb des Scopes. |
