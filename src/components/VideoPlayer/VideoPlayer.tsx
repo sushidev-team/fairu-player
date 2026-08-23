@@ -31,6 +31,15 @@ export interface VideoPlayerRef {
 
 interface VideoPlayerInnerProps {
   className?: string;
+  /**
+   * Supplied only by `VideoPlayerWithAds`, and the single thing that used to
+   * justify a second 330-line copy of this component.
+   *
+   * When present it takes over "the viewer asked to play": the break decides
+   * whether the video starts now or after a spot. When absent the player is an
+   * ordinary one.
+   */
+  onPlayWithAds?: () => void;
   adState?: ReturnType<typeof useVideoAds>['state'];
   adControls?: ReturnType<typeof useVideoAds>['controls'];
   adVideoRef?: React.RefObject<HTMLVideoElement | null>;
@@ -55,6 +64,7 @@ function VideoPlayerInner({
   adState,
   adControls,
   adVideoRef,
+  onPlayWithAds,
   componentAdProps,
   onOverlayAdClose,
   onOverlayAdClick,
@@ -101,10 +111,14 @@ function VideoPlayerInner({
 
   // Handle click to toggle play/pause
   const handleClick = useCallback(() => {
-    if (!isAdPlaying) {
+    if (isAdPlaying) return;
+
+    if (!state.isPlaying && onPlayWithAds) {
+      onPlayWithAds();
+    } else {
       controls.toggle();
     }
-  }, [isAdPlaying, controls]);
+  }, [isAdPlaying, state.isPlaying, onPlayWithAds, controls]);
 
   // Handle replay
   const handleReplay = useCallback(() => {
@@ -116,17 +130,34 @@ function VideoPlayerInner({
   const handleVideoSelect = useCallback((video: RecommendedVideo) => {
     config.endScreen?.onVideoSelect?.(video);
     onVideoSelect?.(video);
-
-    // If the video has a src, load it into the player
-    if (video.src) {
-      // This would require playlist support to work fully
-      // For now, just trigger the callback
-    }
   }, [config.endScreen, onVideoSelect]);
+
+  /*
+    Controls that route "start playing" through the ad break.
+
+    Everything else passes through untouched — only the two entry points that
+    can begin playback need to ask first, and `toggle` only on the way in.
+    Pausing is never intercepted.
+  */
+  const wrappedControls = onPlayWithAds
+    ? {
+        ...controls,
+        play: async () => {
+          onPlayWithAds();
+        },
+        toggle: async () => {
+          if (!state.isPlaying) {
+            onPlayWithAds();
+          } else {
+            await controls.toggle();
+          }
+        },
+      }
+    : controls;
 
   // Keyboard controls
   useKeyboardControls({
-    controls: isAdPlaying ? undefined : controls,
+    controls: isAdPlaying ? undefined : wrappedControls,
     enabled: !isAdPlaying,
     // The arrow-key volume steps are relative, so the hook needs the level to
     // step from.
@@ -356,7 +387,7 @@ function VideoPlayerInner({
         <VideoControls
           visible={state.controlsVisible || !state.isPlaying}
           state={state}
-          controls={controls}
+          controls={wrappedControls}
           features={config.features}
           disabled={controlsDisabled}
           playlistState={playlistState}
@@ -543,16 +574,35 @@ function VideoPlayerWithAds({ className }: { className?: string }) {
   const midRollAds = adConfig.adBreaks?.filter((ab) => ab.position === 'mid-roll') ?? [];
   const postRollAds = adConfig.adBreaks?.filter((ab) => ab.position === 'post-roll') ?? [];
 
+  /*
+    The master switch.
+
+    `enabled` is a required field on `AdConfig`, and every other consumer of it
+    honours it — `AdService`, `useReelsFeed`, `reelsAdScheduler`. This player
+    did not, so a host switching ads off for a paying subscriber, or for a
+    region that opted out, still got a pre-roll.
+
+    Only the automatic triggers are gated. A host calling `startAdBreak`
+    directly is asking for a break explicitly, and silently dropping that would
+    be its own surprise.
+
+    Undefined counts as enabled: the field is required by the type, so a value
+    that is missing at runtime comes from untyped JS, and losing booked
+    inventory is the worse of the two failures. Only an explicit `false`
+    suppresses anything.
+  */
+  const adsEnabled = adConfig.enabled !== false;
+
   // Handle pre-roll: intercept first play and show ad first
   const handlePlayWithAds = useCallback(() => {
-    if (!hasPlayedPreRoll.current && preRollAds.length > 0) {
+    if (adsEnabled && !hasPlayedPreRoll.current && preRollAds.length > 0) {
       hasPlayedPreRoll.current = true;
       pendingPlay.current = true;
       adControls.startAdBreak(preRollAds[0] as VideoAdBreak);
     } else {
       videoControls.play();
     }
-  }, [preRollAds, adControls, videoControls]);
+  }, [adsEnabled, preRollAds, adControls, videoControls]);
 
   // Resume main video after ad ends
   useEffect(() => {
@@ -564,7 +614,7 @@ function VideoPlayerWithAds({ className }: { className?: string }) {
 
   // Handle mid-roll: trigger ads at specific times
   useEffect(() => {
-    if (adState.isPlayingAd || videoState.duration <= 0) return;
+    if (!adsEnabled || adState.isPlayingAd || videoState.duration <= 0) return;
 
     for (const adBreak of midRollAds) {
       if (
@@ -579,11 +629,12 @@ function VideoPlayerWithAds({ className }: { className?: string }) {
         break;
       }
     }
-  }, [videoState.currentTime, videoState.duration, adState.isPlayingAd, midRollAds, videoControls, adControls]);
+  }, [adsEnabled, videoState.currentTime, videoState.duration, adState.isPlayingAd, midRollAds, videoControls, adControls]);
 
   // Handle post-roll: trigger ads when video ends
   useEffect(() => {
     if (
+      adsEnabled &&
       videoState.isEnded &&
       !hasPlayedPostRoll.current &&
       postRollAds.length > 0
@@ -591,7 +642,7 @@ function VideoPlayerWithAds({ className }: { className?: string }) {
       hasPlayedPostRoll.current = true;
       adControls.startAdBreak(postRollAds[0] as VideoAdBreak);
     }
-  }, [videoState.isEnded, postRollAds, adControls]);
+  }, [adsEnabled, videoState.isEnded, postRollAds, adControls]);
 
   // Reset ad tracking when source changes
   useEffect(() => {
@@ -605,7 +656,7 @@ function VideoPlayerWithAds({ className }: { className?: string }) {
   const showCompanion = Boolean(adConfig.showCompanion && companionAd?.companion);
 
   const player = (
-    <VideoPlayerInnerWithAds
+    <VideoPlayerInner
       className={className}
       adState={adState}
       adControls={adControls}
@@ -628,349 +679,6 @@ function VideoPlayerWithAds({ className }: { className?: string }) {
         className="mt-3 w-full max-w-[300px]"
       />
     </>
-  );
-}
-
-interface VideoPlayerInnerWithAdsProps extends VideoPlayerInnerProps {
-  onPlayWithAds?: () => void;
-  componentAdProps?: CustomAdComponentProps | null;
-}
-
-/**
- * Inner player that uses custom play handler for ad integration
- */
-function VideoPlayerInnerWithAds({
-  className,
-  adState,
-  adControls,
-  adVideoRef,
-  onPlayWithAds,
-  componentAdProps,
-  onOverlayAdClose,
-  onOverlayAdClick,
-  onInfoCardDismiss,
-  onInfoCardSelect,
-  onVideoSelect,
-}: VideoPlayerInnerWithAdsProps) {
-  const { state, controls, config, videoRef, containerRef, currentTrack, playlistState, playlistControls } = useVideoPlayer();
-  const { state: overlayState, controls: overlayControls } = useOverlayAds();
-  const labels = useLabels();
-  const [infoCardsExpanded, setInfoCardsExpanded] = useState(false);
-
-  // Determine if controls should be disabled
-  const isAdPlaying = adState?.isPlayingAd ?? false;
-  const controlsDisabled = state.isLoading || isAdPlaying;
-
-  // Get active overlay ads and info cards from context
-  const activeOverlayAds = overlayState.activeOverlayAds;
-  const activeInfoCards = overlayState.activeInfoCards;
-  const manualOverlayAds = overlayState.manualOverlayAds;
-  const manualInfoCards = overlayState.manualInfoCards;
-
-  // Helper to check if an ad was manually triggered
-  const isManualOverlayAd = useCallback(
-    (adId: string) => manualOverlayAds.some((ad) => ad.id === adId),
-    [manualOverlayAds]
-  );
-  const isManualInfoCard = useCallback(
-    (cardId: string) => manualInfoCards.some((card) => card.id === cardId),
-    [manualInfoCards]
-  );
-
-  // Handle mouse movement to show controls
-  const handleMouseMove = useCallback(() => {
-    controls.showControls();
-  }, [controls]);
-
-  // Handle mouse leave to hide controls
-  const handleMouseLeave = useCallback(() => {
-    if (state.isPlaying && !isAdPlaying) {
-      controls.hideControls();
-    }
-  }, [state.isPlaying, isAdPlaying, controls]);
-
-  // Handle click to toggle play/pause with ad support
-  const handleClick = useCallback(() => {
-    if (isAdPlaying) return;
-
-    if (!state.isPlaying && onPlayWithAds) {
-      onPlayWithAds();
-    } else {
-      controls.toggle();
-    }
-  }, [isAdPlaying, state.isPlaying, onPlayWithAds, controls]);
-
-  // Handle replay
-  const handleReplay = useCallback(() => {
-    controls.seek(0);
-    controls.play();
-  }, [controls]);
-
-  // Handle video selection from end screen
-  const handleVideoSelect = useCallback((video: RecommendedVideo) => {
-    config.endScreen?.onVideoSelect?.(video);
-    onVideoSelect?.(video);
-  }, [config.endScreen, onVideoSelect]);
-
-  // Wrapped controls for ad integration
-  const wrappedControls = {
-    ...controls,
-    play: async () => {
-      if (onPlayWithAds) {
-        onPlayWithAds();
-      } else {
-        await controls.play();
-      }
-    },
-    toggle: async () => {
-      if (!state.isPlaying && onPlayWithAds) {
-        onPlayWithAds();
-      } else {
-        await controls.toggle();
-      }
-    },
-  };
-
-  // Keyboard controls
-  useKeyboardControls({
-    controls: isAdPlaying ? undefined : wrappedControls,
-    enabled: !isAdPlaying,
-    volume: state.volume,
-  });
-
-  return (
-    <div
-      ref={containerRef as React.RefObject<HTMLDivElement>}
-      className={cn(
-        'fairu-video-player relative',
-        'bg-black rounded-xl overflow-hidden',
-        'aspect-video',
-        state.isFullscreen && 'fixed inset-0 z-50 rounded-none',
-        className
-      )}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-    >
-      {/* Main Video Element */}
-      <video
-        ref={videoRef as React.RefObject<HTMLVideoElement>}
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ display: isAdPlaying ? 'none' : 'block' }}
-        preload="metadata"
-        playsInline
-        poster={currentTrack?.poster || config.poster}
-      >
-        {/* Subtitle/caption tracks */}
-        {currentTrack?.subtitles?.map((subtitle) => (
-          <track
-            key={subtitle.id}
-            kind="subtitles"
-            label={subtitle.id}
-            srcLang={subtitle.language}
-            src={subtitle.src}
-            default={subtitle.default}
-          />
-        ))}
-      </video>
-
-      {/* Ad Video Element */}
-      {adVideoRef && (
-        <video
-          ref={adVideoRef as React.RefObject<HTMLVideoElement>}
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ display: isAdPlaying ? 'block' : 'none' }}
-          playsInline
-        />
-      )}
-
-      {/* Video Overlay (big play button, loading) */}
-      {!isAdPlaying && (
-        <VideoOverlay
-          isPlaying={state.isPlaying}
-          isLoading={state.isLoading}
-          onClick={handleClick}
-          visible={!state.isPlaying || state.isLoading}
-        />
-      )}
-
-      {/* Ad Overlay */}
-      {isAdPlaying && adState && adControls && (
-        <div className="absolute inset-0 z-40">
-          {/* Component Ad - render custom component */}
-          {adState.isComponentAd && componentAdProps && (adState.currentAd as VideoAd)?.component && (
-            <div className="absolute inset-0">
-              {(() => {
-                const AdComponent = (adState.currentAd as VideoAd).component!;
-                return <AdComponent {...componentAdProps} />;
-              })()}
-            </div>
-          )}
-
-          {/* Video Ad controls - only show for non-component ads */}
-          {!adState.isComponentAd && (
-            <>
-              {/* AdChoices badge — a compliance surface, so it sits above the
-                  gradient rather than inside the control bar that fades. */}
-              <div className="absolute right-3 top-3 z-10">
-                <AdChoicesIcon
-                  icons={(adState.currentAd as VideoAd | null)?.icons}
-                  adId={adState.currentAd?.id}
-                />
-              </div>
-
-              <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-                <div className="flex items-center justify-between mb-2">
-                  {/* Ad badge */}
-                  <div className="flex items-center gap-3">
-                    <span className="px-2 py-1 bg-yellow-500 text-black text-xs font-bold rounded">
-                      {labels.ad}
-                    </span>
-                    {adState.currentAd?.title && (
-                      <span className="text-white text-sm">{adState.currentAd.title}</span>
-                    )}
-                    {adState.adsRemaining > 0 && (
-                      <span className="text-white/60 text-sm">
-                        {adState.adsRemaining + 1} of {(adState.currentAdBreak?.ads?.length ?? 0)}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Skip button - only show if skipping is allowed */}
-                  {adState.canSkip ? (
-                    <button
-                      onClick={adControls.skipAd}
-                      className="px-4 py-2 bg-white text-black text-sm font-medium rounded hover:bg-white/90 transition-colors"
-                    >
-                      {labels.skipAd}
-                    </button>
-                  ) : adState.skipCountdown > 0 ? (
-                    <span className="px-4 py-2 bg-white/20 text-white text-sm rounded">
-                      {interpolateLabel(labels.skipIn, { seconds: adState.skipCountdown })}
-                    </span>
-                  ) : null}
-                </div>
-
-                {/* Ad progress bar */}
-                <div className="h-1 bg-white/20 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-yellow-500 transition-all"
-                    style={{ width: `${(adState.adProgress / adState.adDuration) * 100}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Click-through area */}
-              {adState.currentAd?.clickThroughUrl && (
-                <button
-                  onClick={adControls.clickThrough}
-                  className="absolute inset-0 z-30 cursor-pointer"
-                  style={{ bottom: '80px' }}
-                  aria-label={labels.learnMore}
-                />
-              )}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Logo Overlay */}
-      {!isAdPlaying && config.logo && config.features?.logoOverlay !== false && (
-        <LogoOverlay
-          config={config.logo}
-          visible={state.controlsVisible || !state.isPlaying}
-          isPlaying={state.isPlaying}
-          isFullscreen={state.isFullscreen}
-        />
-      )}
-
-      {/* Overlay Ads */}
-      {/*
-        Each ad surface gets its own boundary. A malformed creative that throws
-        during render would otherwise unmount the whole player — the viewer
-        would lose the video because an advert failed. Keyed on the track so a
-        failure on one video does not disable the surface for the session.
-      */}
-      <PlayerErrorBoundary subsystem="overlay-ads" resetKeys={[currentTrack?.id]}>
-      {!isAdPlaying && activeOverlayAds.map((ad) => {
-        const isManual = isManualOverlayAd(ad.id);
-        return (
-          <OverlayAd
-            key={ad.id}
-            ad={ad}
-            currentTime={state.currentTime}
-            visible={isManual || state.isPlaying}
-            forceShow={isManual}
-            onClose={(closedAd) => {
-              overlayControls.hideOverlayAd(closedAd.id);
-              onOverlayAdClose?.(closedAd);
-            }}
-            onClick={onOverlayAdClick}
-          />
-        );
-      })}
-      </PlayerErrorBoundary>
-
-      <PlayerErrorBoundary subsystem="info-cards" resetKeys={[currentTrack?.id]}>
-      {/* Info Card Icon */}
-      {!isAdPlaying && activeInfoCards.length > 0 && (
-        <InfoCardIcon
-          hasActiveCards={activeInfoCards.length > 0}
-          cardCount={activeInfoCards.length}
-          expanded={infoCardsExpanded}
-          onToggle={() => setInfoCardsExpanded(!infoCardsExpanded)}
-        />
-      )}
-
-      {/* Info Cards */}
-      {!isAdPlaying && activeInfoCards.map((card) => {
-        const isManual = isManualInfoCard(card.id);
-        return (
-          <InfoCard
-            key={card.id}
-            card={card}
-            currentTime={state.currentTime}
-            duration={state.duration}
-            expanded={infoCardsExpanded}
-            forceShow={isManual}
-            onDismiss={(dismissedCard) => {
-              overlayControls.hideInfoCard(dismissedCard.id);
-              onInfoCardDismiss?.(dismissedCard);
-            }}
-            onSelect={onInfoCardSelect}
-          />
-        );
-      })}
-      </PlayerErrorBoundary>
-
-      {/* End Screen */}
-      <PlayerErrorBoundary subsystem="end-screen" resetKeys={[currentTrack?.id]}>
-      {!isAdPlaying && config.endScreen?.enabled && (
-        <EndScreen
-          config={config.endScreen}
-          currentTime={state.currentTime}
-          duration={state.duration}
-          isEnded={state.isEnded}
-          onVideoSelect={handleVideoSelect}
-          onReplay={handleReplay}
-        />
-      )}
-      </PlayerErrorBoundary>
-
-      {/* Video Controls */}
-      {!isAdPlaying && (
-        <VideoControls
-          visible={state.controlsVisible || !state.isPlaying}
-          state={state}
-          controls={wrappedControls}
-          features={config.features}
-          disabled={controlsDisabled}
-          playlistState={playlistState}
-          playlistControls={playlistControls}
-          subtitles={currentTrack?.subtitles}
-          markers={currentTrack?.markers || config.markers}
-        />
-      )}
-    </div>
   );
 }
 
