@@ -325,6 +325,55 @@ Sonst baut man DASH, DRM und Offline dreimal.
 
 ---
 
+## Vorhandene, nicht gemergte Arbeit — PR #16
+
+**Der wichtigste offene Punkt in diesem Dokument.** PR #16 (`feature/tests`,
+Merge-Basis 26.01.2026, 143 Dateien, ~30.000 Zeilen) enthält den Großteil von
+Phase 5 bereits fertig geschrieben, inklusive 52 Testdateien:
+
+| Vorhanden in #16 | Entspricht |
+|---|---|
+| `useEqualizer` (228 Z.), `Equalizer` | 5.1 Web Audio |
+| `useABLoop` (110 Z.) | 5.2 A-B-Loop |
+| `useShareableTimestamp` (141 Z.) | 5.3 Shareable Timestamps |
+| `types/history.ts` | 5.4 Playback-History |
+| `useSubtitleStyling` (103 Z.), `SubtitleSettings` | 5.5 Untertitel-Styling |
+| `useSyncPlayback` (233 Z.), `SyncService` | 5.6 Synchronized Playback |
+| `useSleepTimer` (220 Z.), `SleepTimer` | — |
+| `utils/thumbnails.ts` (156 Z.), `ThumbnailPreview` | Scrubbing-Vorschau |
+| `PauseAd`, `RewardedAd`, `useRewardedAd` | zusätzliche Ad-Formate |
+| `GestureOverlay`, `ShareButton`, `SubtitleDisplay`, `ScreenReaderAnnouncer` | — |
+
+Zwei Dinge daran sind wichtig:
+
+**Es ist einzeln übernehmbar.** `useABLoop` und `useShareableTimestamp`
+importieren ausschließlich React, die übrigen Hooks nur React plus ihre eigenen
+Typen. Sie hängen nicht an `useMedia` oder `useVideo` und überleben die
+Core-Extraktion daher unbeschadet. Der Branch als Ganzes ist nicht mergebar —
+er konfliktiert, und seine Tests laufen gegen APIs von Januar — aber
+Datei für Datei gegen den aktuellen `main` ist realistisch.
+
+**Es ist bereits einmal doppelt gebaut worden.** `PlayerErrorBoundary` und
+`useAutoplayDetection` liegen sowohl in #16 als auch auf `main`, unabhängig
+voneinander entstanden. Das ist der Preis dafür, den Branch liegen zu lassen,
+und er steigt mit jeder Phase.
+
+Empfehlung: nicht mergen, sondern einzeln herausziehen — pro Feature ein PR
+gegen den aktuellen Stand, mit den Tests aus #16 als Vorlage.
+
+---
+
+## Abhängigkeiten
+
+**`tailwind-merge` bleibt auf v2.** Nachgemessen, nicht geschätzt: v3 kostet
+**+2,7 kB brotli** im Audio-Chunk (27,9 → 30,6 kB) und reißt damit das
+29-kB-Budget. Funktional war in keinem geprüften Fall ein Unterschied messbar —
+`bg-*`, `h-*`, `max-h-*`, `flex-grow`, `overflow-ellipsis`, `aspect-*` lieferten
+unter v2 und v3 identische Ergebnisse. Die Version ist also nicht vernachlässigt,
+sondern richtig gepinnt; sie zieht mit, wenn Tailwind selbst auf v4 geht.
+
+---
+
 ## Phase 5 — Differenzierung
 
 | # | Thema | Detail |
