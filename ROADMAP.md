@@ -334,7 +334,7 @@ Phase 5 bereits fertig geschrieben, inklusive 52 Testdateien:
 | Vorhanden in #16 | Entspricht |
 |---|---|
 | `useEqualizer` (228 Z.), `Equalizer` | 5.1 Web Audio |
-| `useABLoop` (110 Z.) | 5.2 A-B-Loop |
+| ~~`useABLoop`~~ — **übernommen**, siehe `src/core/abLoop.ts` | 5.2 A-B-Loop |
 | `useShareableTimestamp` (141 Z.) | 5.3 Shareable Timestamps |
 | `types/history.ts` | 5.4 Playback-History |
 | `useSubtitleStyling` (103 Z.), `SubtitleSettings` | 5.5 Untertitel-Styling |
@@ -379,7 +379,7 @@ sondern richtig gepinnt; sie zieht mit, wenn Tailwind selbst auf v4 geht.
 | # | Thema | Detail |
 |---|---|---|
 | 5.1 | **Web Audio** | Lautstärke-Normalisierung, Voice-Boost/EQ, Silence-Skip. Genau das, was Overcast von einem nackten `<audio>`-Tag unterscheidet. |
-| 5.2 | **A-B-Loop / Segment-Repeat** | Für Lern- und Musikinhalte. |
+| 5.2 | ~~**A-B-Loop / Segment-Repeat**~~ | **Erledigt.** `src/core/abLoop.ts` plus `useABLoop`, aus #16 übernommen und dabei neu geschrieben. |
 | 5.3 | **Shareable Timestamps** | `?t=1m30s` erzeugen und beim Mount auswerten; dockt an `embed/parseConfig` an. |
 | 5.4 | **Playback-History** | „Weiterhören"-Liste, baut auf 1.2 und `WatchProgress` auf. |
 | 5.5 | **Untertitel-Styling** | Schriftgröße, Farbe, Hintergrund, Position — mit Presets (u. a. High Contrast). |

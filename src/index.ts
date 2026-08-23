@@ -270,6 +270,15 @@ export {
 // Reels feed hook
 export { useReelsFeed, type UseReelsFeedOptions, type UseReelsFeedReturn } from './hooks/useReelsFeed';
 
+// A-B repeat
+export {
+  useABLoop,
+  type ABLoopState,
+  type ABLoopControls,
+  type UseABLoopOptions,
+  type UseABLoopReturn,
+} from './hooks/useABLoop';
+
 // MRC viewability measurement
 export {
   useAdViewability,
