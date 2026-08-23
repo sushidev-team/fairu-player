@@ -214,6 +214,20 @@ describe('ReelProgress', () => {
       expect(onSeek).toHaveBeenLastCalledWith(40);
     });
 
+    it('falls back when the step makes no sense', () => {
+      // A prop typed `number` still admits these, and a NaN target reaches the
+      // media element.
+      for (const bad of [0, -5, Number.NaN, Number.POSITIVE_INFINITY]) {
+        onSeek.mockClear();
+        const { unmount } = mount({ currentTime: 30, duration: 120, keyboardStep: bad });
+
+        fireEvent.keyDown(screen.getByRole('slider'), { key: 'ArrowRight' });
+
+        expect(onSeek).toHaveBeenLastCalledWith(35);
+        unmount();
+      }
+    });
+
     it('jumps to either end with Home and End', () => {
       mount({ currentTime: 30, duration: 120 });
 

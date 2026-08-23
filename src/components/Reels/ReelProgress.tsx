@@ -21,6 +21,9 @@ export interface ReelProgressProps {
   className?: string;
 }
 
+/** Seconds an arrow key moves the playhead. */
+const DEFAULT_KEYBOARD_STEP = 5;
+
 /**
  * The hairline progress bar pinned to the bottom edge of a reel.
  *
@@ -35,7 +38,7 @@ export function ReelProgress({
   onSeek,
   onScrubStart,
   onScrubEnd,
-  keyboardStep = 5,
+  keyboardStep = DEFAULT_KEYBOARD_STEP,
   variant = 'content',
   className,
 }: ReelProgressProps) {
@@ -97,13 +100,21 @@ export function ReelProgress({
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (!scrubbable || duration <= 0) return;
 
+      // `number` still admits 0, NaN and negatives. A zero step makes the key
+      // do nothing, a negative one inverts it, and NaN travels all the way to
+      // `currentTime` — so fall back rather than trust the prop.
+      const step =
+        Number.isFinite(keyboardStep) && keyboardStep > 0
+          ? keyboardStep
+          : DEFAULT_KEYBOARD_STEP;
+
       let target: number;
       switch (event.key) {
         case 'ArrowRight':
-          target = currentTime + keyboardStep;
+          target = currentTime + step;
           break;
         case 'ArrowLeft':
-          target = currentTime - keyboardStep;
+          target = currentTime - step;
           break;
         case 'Home':
           target = 0;
