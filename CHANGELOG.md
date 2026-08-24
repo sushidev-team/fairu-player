@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.0](https://github.com/sushidev-team/fairu-player/compare/v1.5.0...v1.6.0) (2026-08-23)
+
+
+### Features
+
+* A-B repeat, extracted from PR [#16](https://github.com/sushidev-team/fairu-player/issues/16) ([#31](https://github.com/sushidev-team/fairu-player/issues/31)) ([353a0ac](https://github.com/sushidev-team/fairu-player/commit/353a0ac8f07c1b246be81649b6a21e975ad1da67))
+* shareable timestamps, extracted from PR [#16](https://github.com/sushidev-team/fairu-player/issues/16) ([#33](https://github.com/sushidev-team/fairu-player/issues/33)) ([ed22f21](https://github.com/sushidev-team/fairu-player/commit/ed22f21d7bd2fd8b65d3fe2e08134903d4319bfc))
+
 ## [1.5.0](https://github.com/sushidev-team/fairu-player/compare/v1.4.0...v1.5.0) (2026-08-23)
 
 
