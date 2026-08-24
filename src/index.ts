@@ -270,6 +270,23 @@ export {
 // Reels feed hook
 export { useReelsFeed, type UseReelsFeedOptions, type UseReelsFeedReturn } from './hooks/useReelsFeed';
 
+// Subtitle appearance
+export {
+  useSubtitleStyling,
+  type UseSubtitleStylingOptions,
+  type UseSubtitleStylingReturn,
+} from './hooks/useSubtitleStyling';
+export {
+  SubtitleSettings,
+  type SubtitleSettingsProps,
+} from './components/controls/SubtitleSettings';
+export {
+  DEFAULT_SUBTITLE_STYLE,
+  SUBTITLE_PRESETS,
+  type SubtitleStyle,
+  type SubtitleStylePreset,
+} from './core/subtitleStyle';
+
 // Shareable timestamps — ?t=1m30s
 export {
   useShareableTimestamp,

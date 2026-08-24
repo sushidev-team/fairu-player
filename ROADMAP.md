@@ -341,7 +341,7 @@ Phase 5 bereits fertig geschrieben, inklusive 52 Testdateien:
 | ~~`useABLoop`~~ — **übernommen**, siehe `src/core/abLoop.ts` | 5.2 A-B-Loop |
 | ~~`useShareableTimestamp`~~ — **übernommen**, siehe `src/core/timestamp.ts` | 5.3 Shareable Timestamps |
 | `types/history.ts` | 5.4 Playback-History |
-| `useSubtitleStyling` (103 Z.), `SubtitleSettings` | 5.5 Untertitel-Styling |
+| ~~`useSubtitleStyling`, `SubtitleSettings`~~ — **übernommen**, siehe `src/core/subtitleStyle.ts` | 5.5 Untertitel-Styling |
 | `useSyncPlayback` (233 Z.), `SyncService` | 5.6 Synchronized Playback |
 | `useSleepTimer` (220 Z.), `SleepTimer` | — |
 | `utils/thumbnails.ts` (156 Z.), `ThumbnailPreview` | Scrubbing-Vorschau |
@@ -386,7 +386,7 @@ sondern richtig gepinnt; sie zieht mit, wenn Tailwind selbst auf v4 geht.
 | 5.2 | ~~**A-B-Loop / Segment-Repeat**~~ | **Erledigt.** `src/core/abLoop.ts` plus `useABLoop`, aus #16 übernommen und dabei neu geschrieben. |
 | 5.3 | ~~**Shareable Timestamps**~~ | **Erledigt.** `src/core/timestamp.ts` plus `useShareableTimestamp`. Die Anbindung an `embed/parseConfig` steht noch aus — der Embed-Loader liest `t` bisher nicht. |
 | 5.4 | **Playback-History** | „Weiterhören"-Liste, baut auf 1.2 und `WatchProgress` auf. |
-| 5.5 | **Untertitel-Styling** | Schriftgröße, Farbe, Hintergrund, Position — mit Presets (u. a. High Contrast). |
+| 5.5 | ~~**Untertitel-Styling**~~ | **Erledigt.** `src/core/subtitleStyle.ts`, `useSubtitleStyling`, `SubtitleSettings`. Als `::cue`-Regel statt Style-Objekt — der Player rendert Cues nativ. |
 | 5.6 | **Synchronized Playback** | Watch-Together. Transport-agnostisch: Client-Hook plus Referenz-Interface, Server bleibt außerhalb des Scopes. |
 
 ---

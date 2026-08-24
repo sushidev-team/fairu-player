@@ -70,6 +70,16 @@ export interface PlayerLabels {
   sponsored: string;
   adCountdown: string;
   loadingMore: string;
+
+  /* --- Subtitle appearance --------------------------------------------- */
+  subtitleStyle: string;
+  subtitlePresets: string;
+  subtitleFontSize: string;
+  subtitleBackground: string;
+  subtitlePosition: string;
+  subtitlePositionTop: string;
+  subtitlePositionBottom: string;
+  subtitleReset: string;
 }
 
 /**
@@ -127,6 +137,14 @@ export const defaultLabels: PlayerLabels = {
   sponsored: 'Sponsored',
   adCountdown: '{seconds}s',
   loadingMore: 'Loading more videos',
+  subtitleStyle: 'Subtitle style',
+  subtitlePresets: 'Presets',
+  subtitleFontSize: 'Font size',
+  subtitleBackground: 'Background',
+  subtitlePosition: 'Position',
+  subtitlePositionTop: 'Top',
+  subtitlePositionBottom: 'Bottom',
+  subtitleReset: 'Reset to default',
 };
 
 /**
