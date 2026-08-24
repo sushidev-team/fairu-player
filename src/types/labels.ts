@@ -87,6 +87,16 @@ export interface PlayerLabels {
   subtitlePositionTop?: string;
   subtitlePositionBottom?: string;
   subtitleReset?: string;
+
+  /* --- Sleep timer ------------------------------------------------------ */
+  sleepTimer?: string;
+  sleepTimerOptions?: string;
+  sleepTimerCancel?: string;
+  /** `{time}` is replaced with the countdown. */
+  sleepTimerRemaining?: string;
+  sleepTimerEndOfTrack?: string;
+  /** `{minutes}` is replaced with the preset length. */
+  sleepTimerMinutes?: string;
 }
 
 /**
@@ -152,6 +162,12 @@ export const defaultLabels = {
   subtitlePositionTop: 'Top',
   subtitlePositionBottom: 'Bottom',
   subtitleReset: 'Reset to default',
+  sleepTimer: 'Sleep timer',
+  sleepTimerOptions: 'Sleep timer options',
+  sleepTimerCancel: 'Cancel timer',
+  sleepTimerRemaining: '{time} remaining',
+  sleepTimerEndOfTrack: 'End of track',
+  sleepTimerMinutes: '{minutes} min',
 } satisfies PlayerLabels;
 
 /**

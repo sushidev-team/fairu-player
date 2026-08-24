@@ -270,6 +270,21 @@ export {
 // Reels feed hook
 export { useReelsFeed, type UseReelsFeedOptions, type UseReelsFeedReturn } from './hooks/useReelsFeed';
 
+// Sleep timer
+export {
+  useSleepTimer,
+  type UseSleepTimerOptions,
+  type UseSleepTimerReturn,
+} from './hooks/useSleepTimer';
+export { SleepTimer, type SleepTimerProps } from './components/controls/SleepTimer';
+export {
+  DEFAULT_SLEEP_TIMER_PRESETS,
+  formatRemaining,
+  type SleepTimerMode,
+  type SleepTimerPreset,
+  type SleepTimerState,
+} from './core/sleepTimer';
+
 // Scrubbing thumbnails
 export { useThumbnails, type UseThumbnailsReturn } from './hooks/useThumbnails';
 export {
