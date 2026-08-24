@@ -67,9 +67,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build library
-        run: npm run build:lib
-
+      # `npm run size` builds the library and the three CDN bundles itself, so
+      # there is no separate build step: every artifact under a budget has to be
+      # present, and a budget for something CI never built is worth nothing.
+      #
       # Blocking. Budgets sit just above the current sizes, so this catches a
       # regression rather than documenting one — see the `size-limit` block in
       # package.json.
