@@ -344,7 +344,7 @@ Phase 5 bereits fertig geschrieben, inklusive 52 Testdateien:
 | ~~`useSubtitleStyling`, `SubtitleSettings`~~ — **übernommen**, siehe `src/core/subtitleStyle.ts` | 5.5 Untertitel-Styling |
 | `useSyncPlayback` (233 Z.), `SyncService` | 5.6 Synchronized Playback |
 | `useSleepTimer` (220 Z.), `SleepTimer` | — |
-| `utils/thumbnails.ts` (156 Z.), `ThumbnailPreview` | Scrubbing-Vorschau |
+| ~~`utils/thumbnails.ts`, `ThumbnailPreview`~~ — **übernommen**, siehe `src/core/thumbnails.ts` | Scrubbing-Vorschau |
 | `PauseAd`, `RewardedAd`, `useRewardedAd` | zusätzliche Ad-Formate |
 | `GestureOverlay`, `ShareButton`, `SubtitleDisplay`, `ScreenReaderAnnouncer` | — |
 

@@ -270,6 +270,20 @@ export {
 // Reels feed hook
 export { useReelsFeed, type UseReelsFeedOptions, type UseReelsFeedReturn } from './hooks/useReelsFeed';
 
+// Scrubbing thumbnails
+export { useThumbnails, type UseThumbnailsReturn } from './hooks/useThumbnails';
+export {
+  ThumbnailPreview,
+  type ThumbnailPreviewProps,
+} from './components/controls/ThumbnailPreview';
+export {
+  parseThumbnailVtt,
+  generateSpriteCues,
+  findCueAtTime,
+  type ThumbnailCue,
+  type ThumbnailConfig,
+} from './core/thumbnails';
+
 // Subtitle appearance
 export {
   useSubtitleStyling,

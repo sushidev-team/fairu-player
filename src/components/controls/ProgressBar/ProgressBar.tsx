@@ -13,6 +13,17 @@ export interface ProgressBarProps {
   chapters?: Chapter[];
   markers?: TimelineMarker[];
   showTooltip?: boolean;
+  /**
+   * Something to draw inside the hover tooltip — a scrub thumbnail, usually.
+   *
+   * A slot rather than a `thumbnails` config on purpose: the bar ships in the
+   * audio bundle, and wiring the thumbnail machinery in here would have made
+   * every audio player carry a video-only feature. The caller that has frames
+   * supplies them.
+   *
+   * A marker's own preview image still wins where both apply.
+   */
+  renderPreview?: (time: number) => React.ReactNode;
   disabled?: boolean;
   onSeek?: (time: number) => void;
   onSeekStart?: () => void;
@@ -64,6 +75,7 @@ export function ProgressBar({
   chapters = [],
   markers = [],
   showTooltip = true,
+  renderPreview,
   disabled = false,
   onSeek,
   onSeekStart,
@@ -302,6 +314,11 @@ export function ProgressBar({
 
   const hoverMarker = hoverTime > 0 ? getMarkerAtTime(hoverTime) : undefined;
 
+  // A marker carries a picture chosen for that moment; a scrub frame is only
+  // whatever happens to be there. The deliberate one wins.
+  const preview = hoverMarker?.previewImage ? null : renderPreview?.(hoverTime);
+  const hasPreviewImage = Boolean(hoverMarker?.previewImage) || Boolean(preview);
+
   /** Selecting an action seeks to it unless the track opts out. */
   const handleActionSelect = useCallback(
     (action: TimelineAction, track: TimelineTrack) => {
@@ -439,7 +456,7 @@ export function ProgressBar({
             'pointer-events-none whitespace-nowrap',
             'border border-[var(--fp-glass-border)]',
             'overflow-hidden',
-            hoverMarker?.previewImage ? 'p-0' : 'px-2.5 py-1.5'
+            hasPreviewImage ? 'p-0' : 'px-2.5 py-1.5'
           )}
           style={{
             left: `${hoverPosition}%`,
@@ -454,7 +471,8 @@ export function ProgressBar({
               style={{ width: 160, height: 90, objectFit: 'cover' }}
             />
           )}
-          <div className={hoverMarker?.previewImage ? 'px-2.5 py-1.5' : ''}>
+          {preview}
+          <div className={hasPreviewImage ? 'px-2.5 py-1.5' : ''}>
             <div className="font-medium">{formatTime(hoverTime)}</div>
             {hoverMarker?.title && (
               <div className="text-[var(--fp-color-accent)] text-[10px] mt-0.5">
