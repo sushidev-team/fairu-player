@@ -50,7 +50,7 @@
     "lint": "eslint . --report-unused-disable-directives --max-warnings 94",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
-    "size": "size-limit",
+    "size": "npm run build:cdn && size-limit",
     "size:why": "size-limit --why"
   },
   "peerDependencies": {
@@ -114,11 +114,6 @@
   },
   "size-limit": [
     {
-      "name": "React entry - whole public surface (react external)",
-      "path": "dist/index.js",
-      "limit": "36 kB"
-    },
-    {
       "name": "Audio player chunk",
       "path": "dist/Player-*.js",
       "limit": "29 kB"
@@ -126,7 +121,7 @@
     {
       "name": "Video player chunk (hls.js excluded)",
       "path": "dist/VideoPlayer-*.js",
-      "limit": "32 kB"
+      "limit": "30 kB"
     },
     {
       "name": "hls.js, fetched only for HLS sources",
@@ -142,6 +137,26 @@
       "name": "Custom element entry",
       "path": "dist/wc.js",
       "limit": "3 kB"
+    },
+    {
+      "name": "CDN standalone (React bundled in)",
+      "path": "dist/fairu-player.iife.js",
+      "limit": "145 kB"
+    },
+    {
+      "name": "CDN light (React supplied by the page)",
+      "path": "dist/fairu-player.light.iife.js",
+      "limit": "25 kB"
+    },
+    {
+      "name": "CDN loader",
+      "path": "dist/fairu-player.loader.iife.js",
+      "limit": "2.5 kB"
+    },
+    {
+      "name": "ESM entry - surface indicator, not a download",
+      "path": "dist/index.js",
+      "limit": "45 kB"
     }
   ]
 }

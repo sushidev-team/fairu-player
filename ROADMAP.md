@@ -367,6 +367,40 @@ gegen den aktuellen Stand, mit den Tests aus #16 als Vorlage.
 
 ---
 
+## Size-Budgets — was gemessen wird und warum
+
+Neun Budgets, und sie messen absichtlich **Artefakte, die jemand herunterlädt**:
+
+| | Grenze |
+|---|---|
+| Audio-Chunk, Video-Chunk, `hls.js` | 29 / 30 / 200 kB |
+| Stylesheet, Custom-Element-Entry | 10 / 3 kB |
+| CDN standalone / light / loader | 145 / 25 / 2,5 kB |
+| ESM-Entry (`dist/index.js`) | 45 kB — **Indikator**, kein Download |
+
+Zwei Dinge waren vorher falsch bzw. fehlten:
+
+**Die drei CDN-Bundles hatten überhaupt kein Budget.** Sie werden ausgeliefert —
+133 kB brotli beim Standalone, inklusive React —, und eine Regression dort war
+schlicht unsichtbar. CI hat sie nicht einmal gebaut; `npm run size` tut das
+jetzt selbst, denn ein Budget für etwas, das nie gebaut wird, ist keines.
+
+**`dist/index.js` misst nichts, das jemand zahlt.** `sideEffects` ist gesetzt,
+Bundler shaken die ungenutzten Exporte heraus, und CDN-Nutzer bekommen eigene
+IIFE-Builds. Die Zahl wächst mit jedem Hook, ohne dass ein Konsument davon
+betroffen wäre — sie deshalb pro Feature hochzuhandeln war eine Verhandlung über
+eine Zahl ohne Adressaten. Jetzt mit echtem Spielraum als grober Deckel, und der
+Name sagt es.
+
+Kurz erwogen und wieder verworfen: `@size-limit/esbuild`, um echte
+Import-Kosten (`import { AudioPlayer }`) zu messen. Sobald der Adapter
+installiert ist, schaltet size-limit **alle** Einträge auf Bundle-Modus — die
+Datei-Budgets messen dann etwas anderes und reißen sämtlich. Die beiden Modi
+vertragen sich in einer Config nicht, und die Chunk-Dateien beantworten dieselbe
+Frage bereits.
+
+---
+
 ## Abhängigkeiten
 
 **`tailwind-merge` bleibt auf v2.** Nachgemessen, nicht geschätzt: v3 kostet
