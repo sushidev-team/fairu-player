@@ -117,6 +117,16 @@ describe('sleepTimer core', () => {
       expect(core.remainingSeconds(extended, T0)).toBe(20 + 10 * 60);
     });
 
+    it('leaves an end-of-track timer alone before metadata', () => {
+      const timer = core.start('endOfTrack', T0);
+
+      // There is no remaining time to add to yet. Converting to a bare duration
+      // would discard the "until this track ends" part, so a sixty-minute
+      // episode would stop after the extension alone.
+      expect(core.extend(timer, 10, T0, { currentTime: 0, duration: 0 })).toBe(timer);
+      expect(core.extend(timer, 10, T0)).toBe(timer);
+    });
+
     it('leaves an idle timer alone', () => {
       expect(core.extend(core.idleSleepTimer, 10, T0)).toEqual(core.idleSleepTimer);
     });

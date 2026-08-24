@@ -116,27 +116,29 @@ export const Usage: Story = {
   render: () => (
     <Stage title="Usage" maxWidth={640}>
       <Snippet
-        code={`import { useSleepTimer, SleepTimer } from '@fairu/player';
+        code={`import { useRef } from 'react';
+import { useSleepTimer, SleepTimer } from '@fairu/player';
 
 function Player() {
-  const { state, controls } = useVideoPlayer();
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const timer = useSleepTimer({
-    mediaRef: videoRef,
-    // Only needed for the 'endOfTrack' preset.
-    currentTime: state.currentTime,
-    duration: state.duration,
+    mediaRef: audioRef,
     fadeOut: true,
   });
 
   return (
-    <SleepTimer
-      isActive={timer.state.isActive}
-      remainingTime={timer.state.remainingTime}
-      selectedDuration={timer.state.selectedDuration}
-      onStart={timer.controls.startTimer}
-      onCancel={timer.controls.stopTimer}
-    />
+    <>
+      <audio ref={audioRef} src={src} />
+
+      <SleepTimer
+        isActive={timer.state.isActive}
+        remainingTime={timer.state.remainingTime}
+        selectedDuration={timer.state.selectedDuration}
+        onStart={timer.controls.startTimer}
+        onCancel={timer.controls.stopTimer}
+      />
+    </>
   );
 }`}
       />

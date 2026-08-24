@@ -57,8 +57,22 @@ export function extend(
 ): SleepTimerState {
   if (!isActive(state) || !Number.isFinite(minutes) || minutes <= 0) return state;
 
+  // Nothing can be added to an unknown quantity. Before `loadedmetadata` an
+  // end-of-track timer has no remaining time to extend, and converting it to a
+  // bare duration would silently discard the "until this track ends" part — a
+  // sixty-minute episode would then stop after the extension alone.
+  //
+  // `hasExpired` waits for metadata for the same reason; refusing here keeps
+  // the two consistent. The press is a no-op for the second or two until the
+  // duration arrives.
+  if (state.mode === 'endOfTrack' && !hasKnownDuration(media)) return state;
+
   const left = remainingSeconds(state, now, media);
   return { mode: minutes, endsAt: now + (left + minutes * 60) * 1000 };
+}
+
+function hasKnownDuration(media?: MediaPosition): boolean {
+  return !!media && Number.isFinite(media.duration) && media.duration > 0;
 }
 
 /**
@@ -75,8 +89,8 @@ export function remainingSeconds(
   if (!isActive(state)) return 0;
 
   if (state.mode === 'endOfTrack') {
-    if (!media || !Number.isFinite(media.duration) || media.duration <= 0) return 0;
-    return Math.max(0, media.duration - media.currentTime);
+    if (!hasKnownDuration(media)) return 0;
+    return Math.max(0, (media as MediaPosition).duration - (media as MediaPosition).currentTime);
   }
 
   if (state.endsAt === null) return 0;
@@ -94,8 +108,8 @@ export function hasExpired(
   if (state.mode === 'endOfTrack') {
     // Before metadata there is no end to wait for, so nothing has expired yet —
     // reporting otherwise would stop playback the moment the timer was set.
-    if (!media || !Number.isFinite(media.duration) || media.duration <= 0) return false;
-    return media.currentTime >= media.duration;
+    if (!hasKnownDuration(media)) return false;
+    return (media as MediaPosition).currentTime >= (media as MediaPosition).duration;
   }
 
   return remainingSeconds(state, now) <= 0;
