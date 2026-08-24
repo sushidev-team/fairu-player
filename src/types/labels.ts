@@ -70,12 +70,29 @@ export interface PlayerLabels {
   sponsored: string;
   adCountdown: string;
   loadingMore: string;
+
+  /* --- Subtitle appearance --------------------------------------------- */
+  /*
+    Optional, unlike everything above, and deliberately so: `PlayerLabels` is a
+    public export, and a consumer who builds one by hand would stop type-checking
+    the moment a release added a required key. `defaultLabels` supplies all of
+    these, and every reader spreads the defaults underneath, so the values are
+    never actually absent at runtime.
+  */
+  subtitleStyle?: string;
+  subtitlePresets?: string;
+  subtitleFontSize?: string;
+  subtitleBackground?: string;
+  subtitlePosition?: string;
+  subtitlePositionTop?: string;
+  subtitlePositionBottom?: string;
+  subtitleReset?: string;
 }
 
 /**
  * Default English labels
  */
-export const defaultLabels: PlayerLabels = {
+export const defaultLabels = {
   play: 'Play',
   pause: 'Pause',
   mute: 'Mute',
@@ -127,7 +144,35 @@ export const defaultLabels: PlayerLabels = {
   sponsored: 'Sponsored',
   adCountdown: '{seconds}s',
   loadingMore: 'Loading more videos',
-};
+  subtitleStyle: 'Subtitle style',
+  subtitlePresets: 'Presets',
+  subtitleFontSize: 'Font size',
+  subtitleBackground: 'Background',
+  subtitlePosition: 'Position',
+  subtitlePositionTop: 'Top',
+  subtitlePositionBottom: 'Bottom',
+  subtitleReset: 'Reset to default',
+} satisfies PlayerLabels;
+
+/**
+ * A labels table with every value present.
+ *
+ * `PlayerLabels` carries optional keys — see the note on the subtitle block —
+ * so a component that reads one directly would otherwise have to guard each
+ * access. A plain spread is not enough either: a key explicitly set to
+ * `undefined` would overwrite the default with nothing.
+ */
+export function resolveLabels(supplied: PlayerLabels): typeof defaultLabels {
+  const resolved = { ...defaultLabels };
+
+  for (const [key, value] of Object.entries(supplied)) {
+    if (value !== undefined) {
+      (resolved as Record<string, string>)[key] = value as string;
+    }
+  }
+
+  return resolved;
+}
 
 /**
  * Partial labels for overriding specific labels

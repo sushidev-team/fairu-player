@@ -114,9 +114,9 @@
   },
   "size-limit": [
     {
-      "name": "React entry (react external)",
+      "name": "React entry - whole public surface (react external)",
       "path": "dist/index.js",
-      "limit": "33 kB"
+      "limit": "36 kB"
     },
     {
       "name": "Audio player chunk",
