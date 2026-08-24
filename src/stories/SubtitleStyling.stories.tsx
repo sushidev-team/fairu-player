@@ -34,10 +34,9 @@ Größe, Farbe und Kasten kommen aus einer ::cue-Regel.
 Die Position sitzt auf dem Cue selbst, nicht im CSS.
 `;
 
-const subtitleUrl =
-  typeof window === 'undefined'
-    ? ''
-    : URL.createObjectURL(new Blob([VTT], { type: 'text/vtt' }));
+// A `data:` URL rather than an object URL: it needs no revoking, and it does
+// not depend on a `window` that the smoke test's first render may not have.
+const subtitleUrl = `data:text/vtt,${encodeURIComponent(VTT)}`;
 
 const TRACK = {
   id: 'subtitle-style-demo',
