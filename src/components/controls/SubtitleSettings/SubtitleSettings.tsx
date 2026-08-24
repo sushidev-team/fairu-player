@@ -57,17 +57,18 @@ export function SubtitleSettings({
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      setIsOpen((open) => {
-        // Escape unmounts whatever was focused inside the panel, which would
-        // drop focus to the document body and lose the keyboard user's place.
-        if (open) triggerRef.current?.focus();
-        return false;
-      });
+      if (event.key !== 'Escape' || !isOpen) return;
+      // Outside the updater: React may run one of those more than once, and
+      // moving focus twice is not the same as moving it once.
+      //
+      // Escape unmounts whatever was focused inside the panel, so without this
+      // the keyboard user is dropped on the document body.
+      triggerRef.current?.focus();
+      setIsOpen(false);
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, []);
+  }, [isOpen]);
 
   const positions: Array<{ value: SubtitleStyle['position']; label: string }> = [
     { value: 'bottom', label: labels.subtitlePositionBottom },

@@ -188,6 +188,8 @@ describe('useSubtitleStyling', () => {
         removeEventListener: vi.fn(),
       };
       const element = {
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
         textTracks: Object.assign([track], {
           length: 1,
           addEventListener: vi.fn(),
@@ -234,6 +236,18 @@ describe('useSubtitleStyling', () => {
       );
     });
 
+    it('catches the file load of a track added later', () => {
+      const { element } = elementWithCue();
+      const capture = vi.fn();
+      Object.defineProperty(element, 'addEventListener', { value: capture });
+
+      renderHook(() => useSubtitleStyling({ videoRef: { current: element } }));
+
+      // Capturing on the element covers every <track> child, including ones a
+      // playlist adds after mount — per-element listeners would miss those.
+      expect(capture).toHaveBeenCalledWith('load', expect.any(Function), true);
+    });
+
     it('waits for the subtitle file to load', () => {
       // Until the file arrives, `TextTrack.cues` is null — and that `load`
       // fires on the <track> element, not on the TextTrack.
@@ -245,21 +259,19 @@ describe('useSubtitleStyling', () => {
         removeEventListener: vi.fn(),
       };
 
-      const listeners: Record<string, () => void> = {};
-      const trackElement = {
-        addEventListener: (type: string, handler: () => void) => {
-          listeners[type] = handler;
+      // `load` does not bubble, so the hook listens in the capture phase on the
+      // media element rather than on each <track>.
+      const captured: Record<string, () => void> = {};
+      const element = {
+        addEventListener: (type: string, handler: () => void, capture?: boolean) => {
+          if (capture) captured[type] = handler;
         },
         removeEventListener: vi.fn(),
-      };
-
-      const element = {
         textTracks: Object.assign([track], {
           length: 1,
           addEventListener: vi.fn(),
           removeEventListener: vi.fn(),
         }),
-        querySelectorAll: () => [trackElement],
       } as unknown as HTMLMediaElement;
 
       const { result } = renderHook(() =>
@@ -272,7 +284,7 @@ describe('useSubtitleStyling', () => {
 
       // The file lands.
       track.cues = Object.assign([cue], { length: 1 }) as ArrayLike<typeof cue>;
-      act(() => listeners.load?.());
+      act(() => captured.load?.());
 
       expect(cue.line).toBe(0);
     });

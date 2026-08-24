@@ -176,18 +176,18 @@ export function useSubtitleStyling(
       `cuechange` is the backstop for anything that replaces the cue list while
       playing.
     */
-    const trackElements = Array.from(
-      element.querySelectorAll?.('track') ?? []
-    ) as HTMLTrackElement[];
-
-    trackElements.forEach((track) => track.addEventListener('load', apply));
+    // `load` does not bubble, so it is caught in the capture phase on the media
+    // element. One listener then covers every `<track>` child, including the
+    // ones a playlist adds later — binding to the elements individually would
+    // miss exactly those.
+    element.addEventListener?.('load', apply, true);
     tracks.addEventListener?.('addtrack', apply);
     for (let i = 0; i < tracks.length; i += 1) {
       tracks[i].addEventListener?.('cuechange', apply);
     }
 
     return () => {
-      trackElements.forEach((track) => track.removeEventListener('load', apply));
+      element.removeEventListener?.('load', apply, true);
       tracks.removeEventListener?.('addtrack', apply);
       for (let i = 0; i < tracks.length; i += 1) {
         tracks[i].removeEventListener?.('cuechange', apply);
