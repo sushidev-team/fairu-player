@@ -234,6 +234,49 @@ describe('useSubtitleStyling', () => {
       );
     });
 
+    it('waits for the subtitle file to load', () => {
+      // Until the file arrives, `TextTrack.cues` is null — and that `load`
+      // fires on the <track> element, not on the TextTrack.
+      const cue = { line: 'auto' as number | 'auto' };
+      const track = {
+        kind: 'subtitles',
+        cues: null as unknown as ArrayLike<{ line: number | 'auto' }> | null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      };
+
+      const listeners: Record<string, () => void> = {};
+      const trackElement = {
+        addEventListener: (type: string, handler: () => void) => {
+          listeners[type] = handler;
+        },
+        removeEventListener: vi.fn(),
+      };
+
+      const element = {
+        textTracks: Object.assign([track], {
+          length: 1,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        }),
+        querySelectorAll: () => [trackElement],
+      } as unknown as HTMLMediaElement;
+
+      const { result } = renderHook(() =>
+        useSubtitleStyling({ videoRef: { current: element } })
+      );
+      act(() => result.current.updateStyle({ position: 'top' }));
+
+      // Nothing to write to yet.
+      expect(cue.line).toBe('auto');
+
+      // The file lands.
+      track.cues = Object.assign([cue], { length: 1 }) as ArrayLike<typeof cue>;
+      act(() => listeners.load?.());
+
+      expect(cue.line).toBe(0);
+    });
+
     it('works without a media element', () => {
       const { result } = renderHook(() => useSubtitleStyling());
 

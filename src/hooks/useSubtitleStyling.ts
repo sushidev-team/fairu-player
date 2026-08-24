@@ -166,16 +166,30 @@ export function useSubtitleStyling(
     apply();
 
     const tracks = element.textTracks;
+
+    /*
+      Three signals, because none of them alone covers the case.
+
+      The `load` of the subtitle *file* fires on the `<track>` element, not on
+      the `TextTrack` — until it does, `TextTrack.cues` is `null` and there is
+      nothing to write to. `addtrack` covers tracks added after mount, and
+      `cuechange` is the backstop for anything that replaces the cue list while
+      playing.
+    */
+    const trackElements = Array.from(
+      element.querySelectorAll?.('track') ?? []
+    ) as HTMLTrackElement[];
+
+    trackElements.forEach((track) => track.addEventListener('load', apply));
     tracks.addEventListener?.('addtrack', apply);
     for (let i = 0; i < tracks.length; i += 1) {
-      tracks[i].addEventListener?.('load', apply);
       tracks[i].addEventListener?.('cuechange', apply);
     }
 
     return () => {
+      trackElements.forEach((track) => track.removeEventListener('load', apply));
       tracks.removeEventListener?.('addtrack', apply);
       for (let i = 0; i < tracks.length; i += 1) {
-        tracks[i].removeEventListener?.('load', apply);
         tracks[i].removeEventListener?.('cuechange', apply);
       }
     };

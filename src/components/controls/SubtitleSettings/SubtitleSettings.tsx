@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { cn } from '@/utils/cn';
 import { useLabels } from '@/context/LabelsContext';
-import type { PlayerLabels } from '@/types/labels';
+import { resolveLabels, type PlayerLabels } from '@/types/labels';
 import type { SubtitleStyle, SubtitleStylePreset } from '@/core/subtitleStyle';
 
 export interface SubtitleSettingsProps {
@@ -34,10 +34,13 @@ export function SubtitleSettings({
   disabled = false,
 }: SubtitleSettingsProps) {
   const contextLabels = useLabels();
-  const labels = labelsProp ?? contextLabels;
+  // The subtitle keys are optional on `PlayerLabels`, so a hand-built table is
+  // allowed to omit them.
+  const labels = resolveLabels(labelsProp ?? contextLabels);
 
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const fontSizeId = useId();
   const backgroundId = useId();
 
@@ -54,7 +57,13 @@ export function SubtitleSettings({
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsOpen(false);
+      if (event.key !== 'Escape') return;
+      setIsOpen((open) => {
+        // Escape unmounts whatever was focused inside the panel, which would
+        // drop focus to the document body and lose the keyboard user's place.
+        if (open) triggerRef.current?.focus();
+        return false;
+      });
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
@@ -68,6 +77,7 @@ export function SubtitleSettings({
   return (
     <div ref={containerRef} className={cn('relative', className)}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => !disabled && setIsOpen((open) => !open)}
         disabled={disabled}

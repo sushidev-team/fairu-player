@@ -79,6 +79,18 @@ describe('SubtitleSettings', () => {
       expect(panel()).not.toBeInTheDocument();
     });
 
+    it('gives focus back to the button after Escape', () => {
+      mount();
+      open();
+      screen.getByLabelText('Font size').focus();
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      // Escape unmounts whatever was focused inside the panel; without this the
+      // keyboard user is dropped on the document body and loses their place.
+      expect(toggle()).toHaveFocus();
+    });
+
     it('stays shut while disabled', () => {
       mount(DEFAULT_SUBTITLE_STYLE, true);
       open();
