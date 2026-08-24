@@ -289,6 +289,53 @@ describe('useSubtitleStyling', () => {
       expect(cue.line).toBe(0);
     });
 
+    it('watches a track that arrives after mount', () => {
+      const cue = { line: 'auto' as number | 'auto' };
+      const lateTrack = {
+        kind: 'subtitles',
+        cues: Object.assign([cue], { length: 1 }),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      };
+
+      const trackListeners: Record<string, (event: Event) => void> = {};
+      const element = {
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        textTracks: Object.assign([] as unknown[], {
+          length: 0,
+          addEventListener: (type: string, handler: (event: Event) => void) => {
+            trackListeners[type] = handler;
+          },
+          removeEventListener: vi.fn(),
+        }),
+      } as unknown as HTMLMediaElement;
+
+      const { result } = renderHook(() =>
+        useSubtitleStyling({ videoRef: { current: element } })
+      );
+      act(() => result.current.updateStyle({ position: 'top' }));
+
+      act(() => {
+        // The browser puts the track into the list before it announces it.
+        const list = element.textTracks as unknown as {
+          0: unknown;
+          length: number;
+        };
+        list[0] = lateTrack;
+        list.length = 1;
+        trackListeners.addtrack?.({ track: lateTrack } as unknown as Event);
+      });
+
+      // Watched on the same terms as a track that was always there, so a later
+      // cue change still moves it.
+      expect(cue.line).toBe(0);
+      expect(lateTrack.addEventListener).toHaveBeenCalledWith(
+        'cuechange',
+        expect.any(Function)
+      );
+    });
+
     it('works without a media element', () => {
       const { result } = renderHook(() => useSubtitleStyling());
 

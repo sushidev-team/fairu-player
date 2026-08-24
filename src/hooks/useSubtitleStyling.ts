@@ -176,22 +176,36 @@ export function useSubtitleStyling(
       `cuechange` is the backstop for anything that replaces the cue list while
       playing.
     */
+    // Tracks are observed once each and remembered, so a track that arrives
+    // after mount is watched on the same terms as one that was always there.
+    const observed = new Set<TextTrack>();
+    const observe = (track: TextTrack) => {
+      if (observed.has(track)) return;
+      observed.add(track);
+      track.addEventListener?.('cuechange', apply);
+    };
+
+    const onAddTrack = (event: Event) => {
+      const added = (event as TrackEvent).track;
+      if (added) observe(added);
+      apply();
+    };
+
     // `load` does not bubble, so it is caught in the capture phase on the media
     // element. One listener then covers every `<track>` child, including the
     // ones a playlist adds later — binding to the elements individually would
     // miss exactly those.
     element.addEventListener?.('load', apply, true);
-    tracks.addEventListener?.('addtrack', apply);
+    tracks.addEventListener?.('addtrack', onAddTrack);
     for (let i = 0; i < tracks.length; i += 1) {
-      tracks[i].addEventListener?.('cuechange', apply);
+      observe(tracks[i]);
     }
 
     return () => {
       element.removeEventListener?.('load', apply, true);
-      tracks.removeEventListener?.('addtrack', apply);
-      for (let i = 0; i < tracks.length; i += 1) {
-        tracks[i].removeEventListener?.('cuechange', apply);
-      }
+      tracks.removeEventListener?.('addtrack', onAddTrack);
+      observed.forEach((track) => track.removeEventListener?.('cuechange', apply));
+      observed.clear();
     };
   }, [style.position, videoRef]);
 
