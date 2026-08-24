@@ -132,17 +132,17 @@ export const SpriteSheet: Story = {
 export const VttManifest: Story = {
   render: () => {
     const vttUrl = useMemo(() => {
-      if (typeof window === 'undefined') return '';
-
       const cues = Array.from({ length: 10 }, (_, i) => {
         const start = i * 30;
         const end = (i + 1) * 30;
         return `${clock(start)} --> ${clock(end)}\n${poster(`shot-${i}`, 160, 90)}`;
       });
 
-      return URL.createObjectURL(
-        new Blob([`WEBVTT\n\n${cues.join('\n\n')}\n`], { type: 'text/vtt' })
-      );
+      // A `data:` URL rather than an object URL. Both work in a browser, but the
+      // story is also rendered by the smoke test under jsdom, where a `blob:`
+      // fetch reaches undici — which cannot read one, and crashes on its own
+      // abort path when the render is torn down.
+      return `data:text/vtt,${encodeURIComponent(`WEBVTT\n\n${cues.join('\n\n')}\n`)}`;
     }, []);
 
     return (
