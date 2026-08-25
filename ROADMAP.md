@@ -337,7 +337,7 @@ Phase 5 bereits fertig geschrieben, inklusive 52 Testdateien:
 
 | Vorhanden in #16 | Entspricht |
 |---|---|
-| ~~`useEqualizer`, `Equalizer`~~ — **übernommen**, siehe `src/core/equalizer.ts` | 5.1 Web Audio |
+| ~~`useEqualizer`, `Equalizer`~~ — **übernommen**: `src/core/equalizer.ts`, `src/hooks/useEqualizer.ts`, `src/components/controls/Equalizer/` | 5.1 Web Audio |
 | ~~`useABLoop`~~ — **übernommen**, siehe `src/core/abLoop.ts` | 5.2 A-B-Loop |
 | ~~`useShareableTimestamp`~~ — **übernommen**, siehe `src/core/timestamp.ts` | 5.3 Shareable Timestamps |
 | ~~`types/history.ts`~~ — **übernommen**, siehe `src/core/playbackHistory.ts` | 5.4 Playback-History |
@@ -416,7 +416,7 @@ sondern richtig gepinnt; sie zieht mit, wenn Tailwind selbst auf v4 geht.
 
 | # | Thema | Detail |
 |---|---|---|
-| 5.1 | **Web Audio** — teilweise | **EQ erledigt** (`src/core/equalizer.ts`, `useEqualizer`, `Equalizer`). Offen: Lautstärke-Normalisierung und Silence-Skip. |
+| 5.1 | **Web Audio** — teilweise | **EQ erledigt** — `src/core/equalizer.ts` (Bänder, Presets), `src/hooks/useEqualizer.ts` (Audio-Graph), `src/components/controls/Equalizer/Equalizer.tsx` (Panel). Offen: Lautstärke-Normalisierung und Silence-Skip. |
 | 5.2 | ~~**A-B-Loop / Segment-Repeat**~~ | **Erledigt.** `src/core/abLoop.ts` plus `useABLoop`, aus #16 übernommen und dabei neu geschrieben. |
 | 5.3 | ~~**Shareable Timestamps**~~ | **Erledigt.** `src/core/timestamp.ts` plus `useShareableTimestamp`. Die Anbindung an `embed/parseConfig` steht noch aus — der Embed-Loader liest `t` bisher nicht. |
 | 5.4 | ~~**Playback-History**~~ | **Erledigt.** `src/core/playbackHistory.ts` plus `usePlaybackHistory`, ein Store pro Storage-Key. |

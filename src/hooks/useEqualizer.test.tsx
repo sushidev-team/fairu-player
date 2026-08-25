@@ -214,6 +214,27 @@ describe('useEqualizer', () => {
     });
   });
 
+  describe('an element that arrives late', () => {
+    it('connects once it is there', () => {
+      const audio = fakeAudio();
+      const mediaRef: { current: HTMLMediaElement | null } = { current: null };
+
+      const { result, rerender } = renderHook(() =>
+        useEqualizer({ mediaRef, defaultEnabled: true })
+      );
+
+      expect(result.current.isConnected).toBe(false);
+
+      // Rendered conditionally, or below a spinner. A dependency on the ref
+      // object would never notice — its identity does not change.
+      mediaRef.current = element().current;
+      rerender();
+
+      expect(result.current.isConnected).toBe(true);
+      expect(audio.context.createMediaElementSource).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('cross-origin media', () => {
     it('reports an element Web Audio would silence', () => {
       fakeAudio();
@@ -234,6 +255,26 @@ describe('useEqualizer', () => {
       const { result } = renderHook(() => useEqualizer({ mediaRef, defaultEnabled: true }));
 
       expect(result.current.blockedByCors).toBe(false);
+    });
+
+    it('notices a source that changes underneath it', () => {
+      fakeAudio();
+      const mediaRef = element(`${window.location.origin}/a.mp3`);
+
+      const { result } = renderHook(() => useEqualizer({ mediaRef, defaultEnabled: true }));
+      expect(result.current.blockedByCors).toBe(false);
+
+      // A playlist moving to a foreign track. The element does not re-render
+      // React on its own, so the hook listens for the load.
+      Object.defineProperty(mediaRef.current, 'currentSrc', {
+        value: 'https://other.test/b.mp3',
+        configurable: true,
+      });
+      act(() => {
+        mediaRef.current.dispatchEvent(new Event('loadstart'));
+      });
+
+      expect(result.current.blockedByCors).toBe(true);
     });
 
     it('says nothing for same-origin or blob media', () => {

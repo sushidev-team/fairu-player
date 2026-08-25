@@ -147,18 +147,78 @@ export function useEqualizer(options: UseEqualizerOptions): UseEqualizerReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [blockedByCors, setBlockedByCors] = useState(false);
 
+  const bandsRef = useRef(bands);
   const persistRef = useRef({ persist, storageKey });
   useEffect(() => {
+    bandsRef.current = bands;
     persistRef.current = { persist, storageKey };
   });
 
   /* ----------------------------- The graph ----------------------------- */
 
+  /** What the graph was last built for. */
+  const appliedRef = useRef<{ element: HTMLMediaElement | null; enabled: boolean } | null>(null);
+  /** The source the CORS verdict was made about. */
+  const corsKeyRef = useRef<string | null>(null);
+  const detachRef = useRef<(() => void) | null>(null);
+
+  /**
+   * No dependency array, and a guard instead.
+   *
+   * `mediaRef` is a ref object: its identity never changes, so listing it as a
+   * dependency meant this ran once per `enabled` change and never again. An
+   * element that mounts later — rendered conditionally, or below a spinner —
+   * was then never routed, and the only way back was toggling the switch.
+   *
+   * Running every render costs one comparison; the guard makes the rest a no-op.
+   *
+   * The two rules disabled below both assume an unguarded effect. `setState`
+   * here cannot cascade: every call sits behind a comparison against what was
+   * last applied, so a render that changes nothing reaches none of them.
+   */
+  /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
   useEffect(() => {
     const element = mediaRef.current;
-    if (!element) return;
 
-    setBlockedByCors(isCorsBlocked(element));
+    /*
+      The verdict has to follow the *source*, not just the element. A playlist
+      moving to a foreign track without `crossorigin` turns a working equaliser
+      into silence, and a panel that still looked usable would leave the listener
+      hunting for a fault that is not there.
+    */
+    const checkCors = () => {
+      const current = mediaRef.current;
+      const key = current
+        ? `${current.currentSrc || current.src || ''}|${current.crossOrigin ?? ''}`
+        : '';
+      if (corsKeyRef.current === key) return;
+      corsKeyRef.current = key;
+      setBlockedByCors(isCorsBlocked(current));
+    };
+
+    checkCors();
+
+    const applied = appliedRef.current;
+    if (applied && applied.element === element && applied.enabled === enabled) return;
+    appliedRef.current = { element, enabled };
+
+    // Re-check when the element starts loading something else. A media element
+    // changing source does not re-render React on its own.
+    detachRef.current?.();
+    detachRef.current = null;
+    if (element) {
+      element.addEventListener('loadstart', checkCors);
+      element.addEventListener('loadedmetadata', checkCors);
+      detachRef.current = () => {
+        element.removeEventListener('loadstart', checkCors);
+        element.removeEventListener('loadedmetadata', checkCors);
+      };
+    }
+
+    if (!element) {
+      setIsConnected(false);
+      return;
+    }
 
     if (!enabled) {
       // Bypass rather than tear down: the element cannot be un-routed, so the
@@ -186,7 +246,7 @@ export function useEqualizer(options: UseEqualizerOptions): UseEqualizerReturn {
       filter.type = band.type;
       filter.frequency.value = band.frequency;
       filter.Q.value = band.Q;
-      filter.gain.value = bands[index]?.gain ?? 0;
+      filter.gain.value = bandsRef.current[index]?.gain ?? 0;
       return filter;
     });
 
@@ -202,10 +262,11 @@ export function useEqualizer(options: UseEqualizerOptions): UseEqualizerReturn {
     // context is silence.
     void context.resume?.().catch(() => {});
     setIsConnected(true);
-    // `bands` is deliberately absent: a gain change updates the live filters
-    // below. Rebuilding the chain for it would be audible as a click.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, mediaRef]);
+  });
+  /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
+
+  // The listeners are the only thing this hook owns; the routing outlives it.
+  useEffect(() => () => detachRef.current?.(), []);
 
   // Gain changes reach the running filters directly.
   useEffect(() => {
