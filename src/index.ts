@@ -270,6 +270,31 @@ export {
 // Reels feed hook
 export { useReelsFeed, type UseReelsFeedOptions, type UseReelsFeedReturn } from './hooks/useReelsFeed';
 
+// Watch-together
+export {
+  useSyncPlayback,
+  type SyncTransport,
+  type SyncConnectionState,
+  type UseSyncPlaybackOptions,
+  type UseSyncPlaybackReturn,
+} from './hooks/useSyncPlayback';
+export {
+  createWebSocketSyncTransport,
+  type WebSocketSyncOptions,
+} from './services/SyncService';
+export {
+  decideCorrection,
+  projectedTime,
+  hasWork,
+  NO_CORRECTION,
+  DEFAULT_TOLERANCES,
+  type PlaybackSnapshot,
+  type Correction,
+  type SyncEvent,
+  type SyncPeer,
+  type SyncTolerances,
+} from './core/playbackSync';
+
 // Captions parsed by the player
 export {
   useSubtitleParser,

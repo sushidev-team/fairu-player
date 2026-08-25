@@ -342,7 +342,7 @@ Phase 5 bereits fertig geschrieben, inklusive 52 Testdateien:
 | ~~`useShareableTimestamp`~~ — **übernommen**, siehe `src/core/timestamp.ts` | 5.3 Shareable Timestamps |
 | ~~`types/history.ts`~~ — **übernommen**, siehe `src/core/playbackHistory.ts` | 5.4 Playback-History |
 | ~~`useSubtitleStyling`, `SubtitleSettings`~~ — **übernommen**, siehe `src/core/subtitleStyle.ts` | 5.5 Untertitel-Styling |
-| `useSyncPlayback` (233 Z.), `SyncService` | 5.6 Synchronized Playback |
+| ~~`useSyncPlayback`, `SyncService`~~ — **übernommen**: `src/core/playbackSync.ts`, `src/hooks/useSyncPlayback.ts`, `src/services/SyncService.ts` | 5.6 Synchronized Playback |
 | ~~`useSleepTimer`, `SleepTimer`~~ — **übernommen**, siehe `src/core/sleepTimer.ts` | — |
 | ~~`utils/thumbnails.ts`, `ThumbnailPreview`~~ — **übernommen**, siehe `src/core/thumbnails.ts` | Scrubbing-Vorschau |
 | `PauseAd`, `RewardedAd`, `useRewardedAd` | zusätzliche Ad-Formate |
@@ -421,7 +421,7 @@ sondern richtig gepinnt; sie zieht mit, wenn Tailwind selbst auf v4 geht.
 | 5.3 | ~~**Shareable Timestamps**~~ | **Erledigt.** `src/core/timestamp.ts` plus `useShareableTimestamp`. Die Anbindung an `embed/parseConfig` steht noch aus — der Embed-Loader liest `t` bisher nicht. |
 | 5.4 | ~~**Playback-History**~~ | **Erledigt.** `src/core/playbackHistory.ts` plus `usePlaybackHistory`, ein Store pro Storage-Key. |
 | 5.5 | ~~**Untertitel-Styling**~~ | **Erledigt.** `src/core/subtitleStyle.ts`, `useSubtitleStyling`, `SubtitleSettings`. Als `::cue`-Regel statt Style-Objekt — der Player rendert Cues nativ. |
-| 5.6 | **Synchronized Playback** | Watch-Together. Transport-agnostisch: Client-Hook plus Referenz-Interface, Server bleibt außerhalb des Scopes. |
+| 5.6 | ~~**Synchronized Playback**~~ | **Erledigt.** `useSyncPlayback` plus `SyncTransport`-Interface; `createWebSocketSyncTransport` als Referenz. Server bleibt außerhalb des Scopes. |
 
 ---
 
