@@ -37,17 +37,21 @@ export function ShareButton({
 
   const [outcome, setOutcome] = useState<Outcome>('idle');
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
-  // Cleared on unmount: the button may be gone long before the two seconds are.
-  useEffect(
-    () => () => {
+  // Cleared on unmount: the button may be gone long before the two seconds are
+  // — and a copy may still be in flight when it goes.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
       if (timerRef.current) clearTimeout(timerRef.current);
-    },
-    []
-  );
+    };
+  }, []);
 
   const handleClick = useCallback(async () => {
     const copied = await copyShareUrl(currentTime);
+    if (!mountedRef.current) return;
 
     if (timerRef.current) clearTimeout(timerRef.current);
     setOutcome(copied ? 'copied' : 'failed');

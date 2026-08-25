@@ -74,6 +74,38 @@ describe('GestureOverlay', () => {
     expect(overlay()).toHaveClass('pointer-events-none');
   });
 
+  it('restarts the flash for a second gesture', () => {
+    const { rerender } = render(<GestureOverlay feedback={{ type: 'skip-forward' }} />);
+    const first = overlay()!.querySelector('.fp-gesture-flash');
+
+    advance(400);
+    rerender(<GestureOverlay feedback={{ type: 'skip-backward' }} />);
+    const second = overlay()!.querySelector('.fp-gesture-flash');
+
+    // A reused node would keep the first animation's progress, so the second
+    // acknowledgement would appear already half faded.
+    expect(second).not.toBe(first);
+  });
+
+  it('keeps the animation as long as the element', () => {
+    render(<GestureOverlay feedback={{ type: 'skip-forward' }} displayDuration={2000} />);
+    const flash = overlay()!.querySelector('.fp-gesture-flash') as HTMLElement;
+
+    // A fixed 800ms animation with `forwards` would leave a transparent box
+    // sitting there for the remaining 1.2 seconds.
+    expect(flash.style.animationDuration).toBe('2000ms');
+  });
+
+  it('centres the flash without the animation fighting it', () => {
+    render(<GestureOverlay feedback={{ type: 'skip-forward' }} />);
+    const flash = overlay()!.querySelector('.fp-gesture-flash') as HTMLElement;
+
+    // Every keyframe sets `transform`; sharing an element with `-translate-y-1/2`
+    // would drop the flash half its own height.
+    expect(flash.className).not.toContain('-translate-y-1/2');
+    expect(flash.parentElement?.className).toContain('-translate-y-1/2');
+  });
+
   it('honours a custom duration', () => {
     render(<GestureOverlay feedback={{ type: 'skip-forward' }} displayDuration={2000} />);
 

@@ -75,6 +75,28 @@ describe('ShareButton', () => {
     expect(button()).toHaveAccessibleName('Share this moment');
   });
 
+  it('says nothing after it is gone', async () => {
+    let settle: (value: boolean) => void = () => {};
+    const copyShareUrl = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          settle = resolve;
+        })
+    );
+    const { unmount } = render(<ShareButton currentTime={0} copyShareUrl={copyShareUrl} />);
+
+    fireEvent.click(screen.getByRole('button'));
+    unmount();
+
+    // The copy is still in flight. Resolving it must not set state on a
+    // component that has gone, nor start a timer nothing will clear.
+    await act(async () => {
+      settle(true);
+    });
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
   it('copies nothing while disabled', () => {
     const copyShareUrl = vi.fn(() => Promise.resolve(true));
     render(<ShareButton currentTime={0} copyShareUrl={copyShareUrl} disabled />);

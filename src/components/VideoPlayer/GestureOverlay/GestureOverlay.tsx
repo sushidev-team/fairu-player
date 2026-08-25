@@ -39,7 +39,16 @@ export function GestureOverlay({
   displayDuration = 800,
   className,
 }: GestureOverlayProps) {
-  const [shown, setShown] = useState<GestureFeedback | null>(null);
+  /**
+   * The feedback plus a serial number.
+   *
+   * The number keys the animated element. Without it a second gesture arriving
+   * mid-flash reuses the same node, the browser does not restart the CSS
+   * animation, and the new acknowledgement inherits the old one's progress —
+   * appearing already faded.
+   */
+  const [shown, setShown] = useState<{ feedback: GestureFeedback; seq: number } | null>(null);
+  const seqRef = useRef(0);
 
   // Held in a ref so an inline arrow — which every caller passes — does not
   // restart the timer on each render and leave the flash on screen.
@@ -55,7 +64,8 @@ export function GestureOverlay({
       return;
     }
 
-    setShown(feedback);
+    seqRef.current += 1;
+    setShown({ feedback, seq: seqRef.current });
     const timer = setTimeout(() => {
       setShown(null);
       onDismissRef.current?.();
@@ -66,6 +76,7 @@ export function GestureOverlay({
   /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!shown) return null;
+  const { feedback: current, seq } = shown;
 
   const alignment: Record<GestureFeedbackType, string> = {
     'skip-backward': 'left-[15%]',
@@ -82,17 +93,28 @@ export function GestureOverlay({
       data-testid="gesture-overlay"
       className={cn('pointer-events-none absolute inset-0 z-20', className)}
     >
-      <div
-        className={cn(
-          'absolute top-1/2 -translate-y-1/2',
-          'flex flex-col items-center gap-1 rounded-full bg-black/50 px-5 py-4',
-          'text-white backdrop-blur-sm',
-          'fp-gesture-flash',
-          alignment[shown.type]
-        )}
-      >
-        <GestureIcon type={shown.type} />
-        {shown.label && <span className="text-xs font-semibold tabular-nums">{shown.label}</span>}
+      {/*
+        Placement and animation on two elements, deliberately. Every keyframe
+        sets `transform`, which would otherwise wipe out the `-translate-y-1/2`
+        that centres this — and drop the flash half its own height too low.
+      */}
+      <div className={cn('absolute top-1/2 -translate-y-1/2', alignment[current.type])}>
+        <div
+          key={seq}
+          className={cn(
+            'flex flex-col items-center gap-1 rounded-full bg-black/50 px-5 py-4',
+            'text-white backdrop-blur-sm',
+            'fp-gesture-flash'
+          )}
+          // The animation has to last as long as the element does, or a longer
+          // display leaves a transparent box sitting there.
+          style={{ animationDuration: `${displayDuration}ms` }}
+        >
+          <GestureIcon type={current.type} />
+          {current.label && (
+            <span className="text-xs font-semibold tabular-nums">{current.label}</span>
+          )}
+        </div>
       </div>
     </div>
   );
