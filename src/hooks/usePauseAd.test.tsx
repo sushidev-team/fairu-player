@@ -195,6 +195,45 @@ describe('usePauseAd', () => {
       );
     });
 
+    it('refuses a destination that is not http', () => {
+      const open = vi.fn();
+      vi.stubGlobal('open', open);
+      const view = mountWith({ ...AD, clickThroughUrl: 'javascript:alert(1)' });
+      view.rerender({ isPaused: false, isPlaying: true });
+      view.rerender({ isPaused: true, isPlaying: false });
+
+      act(() => view.result.current.click());
+
+      // The destination comes from an ad server, like the creative did.
+      expect(open).not.toHaveBeenCalled();
+      expect(sent('track.test/click')).toBe(1);
+    });
+
+    it('gives a second creative its own tracker', () => {
+      const other: PauseAd = {
+        ...AD,
+        id: 'p2',
+        trackingUrls: { impression: 'https://track.test/imp-b', click: 'https://track.test/click-b' },
+      };
+
+      const view = renderHook(
+        ({ ad, isPaused, isPlaying }: { ad: PauseAd; isPaused: boolean; isPlaying: boolean }) =>
+          usePauseAd({ ad, isPaused, isPlaying }),
+        { initialProps: { ad: AD, isPaused: true, isPlaying: false } }
+      );
+      view.rerender({ ad: AD, isPaused: false, isPlaying: true });
+      view.rerender({ ad: AD, isPaused: true, isPlaying: false });
+      expect(sent('track.test/imp')).toBe(1);
+
+      // A second creative during the same pause.
+      view.rerender({ ad: other, isPaused: true, isPlaying: false });
+      act(() => view.result.current.click());
+
+      // Otherwise the click is billed to an advertiser who showed nothing.
+      expect(sent('imp-b')).toBe(1);
+      expect(sent('click-b')).toBe(1);
+    });
+
     it('sends nothing while no banner is up', () => {
       const { result } = mount();
 

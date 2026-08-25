@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { VastTracker } from '@/utils/vast';
+import { sanitizeUrl } from '@/utils/security';
 import { shouldShow, type PauseAd } from '@/core/pauseAd';
 
 export interface UsePauseAdOptions {
@@ -95,11 +96,19 @@ export function usePauseAd(options: UsePauseAdOptions): UsePauseAdReturn {
 
   /** One tracker per showing, so the impression is sent once per pause. */
   const trackerRef = useRef<VastTracker | null>(null);
-  const shownRef = useRef(false);
+  /**
+   * Which creative the current tracker belongs to.
+   *
+   * A boolean would let a second creative appearing during the same pause reuse
+   * the first one's tracker — and its URLs. The click would then be billed to
+   * an advertiser who never showed anything.
+   */
+  const shownRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (visible && !shownRef.current && ad) {
-      shownRef.current = true;
+    if (visible && ad && shownRef.current !== ad.id) {
+      trackerRef.current?.dispose();
+      shownRef.current = ad.id;
       trackerRef.current = new VastTracker(
         {
           id: ad.id,
@@ -117,8 +126,8 @@ export function usePauseAd(options: UsePauseAdOptions): UsePauseAdReturn {
       return;
     }
 
-    if (!visible && shownRef.current) {
-      shownRef.current = false;
+    if (!visible && shownRef.current !== null) {
+      shownRef.current = null;
       trackerRef.current?.dispose();
       trackerRef.current = null;
       if (ad) live.current.onHide?.(ad);
@@ -136,8 +145,10 @@ export function usePauseAd(options: UsePauseAdOptions): UsePauseAdReturn {
     trackerRef.current?.click();
     live.current.onClick?.(ad);
 
-    if (ad.clickThroughUrl && typeof window !== 'undefined') {
-      window.open(ad.clickThroughUrl, '_blank', 'noopener,noreferrer');
+    // The destination comes from an ad server, like the creative did.
+    const target = sanitizeUrl(ad.clickThroughUrl, ['http:', 'https:']);
+    if (target && typeof window !== 'undefined') {
+      window.open(target, '_blank', 'noopener,noreferrer');
     }
   }, [ad]);
 
