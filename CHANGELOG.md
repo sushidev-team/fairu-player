@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.8.0](https://github.com/sushidev-team/fairu-player/compare/v1.7.0...v1.8.0) (2026-08-25)
+
+
+### Features
+
+* caption parser and display, extracted from PR [#16](https://github.com/sushidev-team/fairu-player/issues/16) ([#42](https://github.com/sushidev-team/fairu-player/issues/42)) ([11cc509](https://github.com/sushidev-team/fairu-player/commit/11cc5095ac4dc325c462bfad5cad6b11c788d670))
+* equalizer, extracted from PR [#16](https://github.com/sushidev-team/fairu-player/issues/16) ([#41](https://github.com/sushidev-team/fairu-player/issues/41)) ([bafdcb4](https://github.com/sushidev-team/fairu-player/commit/bafdcb4fb648aeecd74ca52365707fff5722b929))
+* gesture feedback, share button and the live region, from PR [#16](https://github.com/sushidev-team/fairu-player/issues/16) ([#46](https://github.com/sushidev-team/fairu-player/issues/46)) ([2869e39](https://github.com/sushidev-team/fairu-player/commit/2869e39d97ac6fe94559df6e9b5af7ea15a1c97d))
+* pause ads, extracted from PR [#16](https://github.com/sushidev-team/fairu-player/issues/16) ([#45](https://github.com/sushidev-team/fairu-player/issues/45)) ([547feb3](https://github.com/sushidev-team/fairu-player/commit/547feb3bdb4b36b14687fe6a65fd20e552715717))
+* playback history, extracted from PR [#16](https://github.com/sushidev-team/fairu-player/issues/16) ([#39](https://github.com/sushidev-team/fairu-player/issues/39)) ([a943623](https://github.com/sushidev-team/fairu-player/commit/a943623bdb891897743963770018d17d748dba3e))
+* rewarded ads, extracted from PR [#16](https://github.com/sushidev-team/fairu-player/issues/16) ([#44](https://github.com/sushidev-team/fairu-player/issues/44)) ([8b42f1d](https://github.com/sushidev-team/fairu-player/commit/8b42f1d8abee25dc548ae2dcfe689abdba79e9fb))
+* watch-together, extracted from PR [#16](https://github.com/sushidev-team/fairu-player/issues/16) ([#43](https://github.com/sushidev-team/fairu-player/issues/43)) ([07ecd86](https://github.com/sushidev-team/fairu-player/commit/07ecd868fd647e3890687433ff3bbd8018599c8c))
+
 ## [1.7.0](https://github.com/sushidev-team/fairu-player/compare/v1.6.0...v1.7.0) (2026-08-24)
 
 
