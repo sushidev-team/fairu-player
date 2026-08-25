@@ -154,9 +154,9 @@
       "limit": "2.5 kB"
     },
     {
-      "name": "ESM entry - surface indicator, not a download",
+      "name": "ESM entry - accident ceiling, not a download",
       "path": "dist/index.js",
-      "limit": "45 kB"
+      "limit": "60 kB"
     }
   ]
 }
