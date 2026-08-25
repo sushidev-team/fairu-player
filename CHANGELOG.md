@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.7.0](https://github.com/sushidev-team/fairu-player/compare/v1.6.0...v1.7.0) (2026-08-24)
+
+
+### Features
+
+* scrub thumbnails, extracted from PR [#16](https://github.com/sushidev-team/fairu-player/issues/16) ([#36](https://github.com/sushidev-team/fairu-player/issues/36)) ([24928a2](https://github.com/sushidev-team/fairu-player/commit/24928a294fefd323b97cf7e36823bdf975ababab))
+* sleep timer, extracted from PR [#16](https://github.com/sushidev-team/fairu-player/issues/16) ([#38](https://github.com/sushidev-team/fairu-player/issues/38)) ([53c0cc8](https://github.com/sushidev-team/fairu-player/commit/53c0cc85bdcc0e187dde333a7ef761490f0cc8ed))
+* subtitle appearance, extracted from PR [#16](https://github.com/sushidev-team/fairu-player/issues/16) ([#34](https://github.com/sushidev-team/fairu-player/issues/34)) ([03f1b40](https://github.com/sushidev-team/fairu-player/commit/03f1b405342525836a7c871b4f57c2d5c1baa41a))
+
 ## [1.6.0](https://github.com/sushidev-team/fairu-player/compare/v1.5.0...v1.6.0) (2026-08-23)
 
 
