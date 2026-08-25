@@ -376,6 +376,31 @@
   animation: fp-reel-heart 900ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+/* Gesture acknowledgement. In and straight back out — it confirms a touch that
+   already happened, so lingering only obscures the frame it sits over. */
+@keyframes fp-gesture-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  75% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.05);
+  }
+}
+
+.fp-gesture-flash {
+  animation: fp-gesture-flash 800ms ease-out forwards;
+}
+
 /* Audio credit ticker. Only animates when the text actually overflows its box;
    short credits just sit still. */
 @keyframes fp-reel-ticker {
@@ -402,6 +427,12 @@
 
   .fp-reel-heart {
     animation-duration: 1ms;
+  }
+
+  /* Still shown, just not animated: it is the only confirmation the gesture
+     registered at all. */
+  .fp-gesture-flash {
+    animation: none;
   }
 
   .fairu-reels [style*='transition'] {

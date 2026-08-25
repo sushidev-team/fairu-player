@@ -119,6 +119,11 @@ export interface PlayerLabels {
   /* --- Pause ads -------------------------------------------------------- */
   pauseAd?: string;
   pauseAdClose?: string;
+
+  /* --- Sharing ---------------------------------------------------------- */
+  shareTimestamp?: string;
+  shareCopied?: string;
+  shareFailed?: string;
 }
 
 /**
@@ -204,6 +209,9 @@ export const defaultLabels = {
   rewardedAdLearnMore: 'Learn more',
   pauseAd: 'Advertisement',
   pauseAdClose: 'Close ad',
+  shareTimestamp: 'Share this moment',
+  shareCopied: 'Link copied',
+  shareFailed: 'Could not copy the link',
 } satisfies PlayerLabels;
 
 /**
