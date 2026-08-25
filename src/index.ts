@@ -270,6 +270,19 @@ export {
 // Reels feed hook
 export { useReelsFeed, type UseReelsFeedOptions, type UseReelsFeedReturn } from './hooks/useReelsFeed';
 
+// Accessibility and gesture feedback
+export {
+  ScreenReaderAnnouncer,
+  type ScreenReaderAnnouncerProps,
+} from './components/a11y';
+export { ShareButton, type ShareButtonProps } from './components/controls/ShareButton';
+export {
+  GestureOverlay,
+  type GestureOverlayProps,
+  type GestureFeedback,
+  type GestureFeedbackType,
+} from './components/VideoPlayer/GestureOverlay';
+
 // Pause ads
 export {
   usePauseAd,

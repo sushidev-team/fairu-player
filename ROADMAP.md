@@ -346,7 +346,7 @@ Phase 5 bereits fertig geschrieben, inklusive 52 Testdateien:
 | ~~`useSleepTimer`, `SleepTimer`~~ — **übernommen**, siehe `src/core/sleepTimer.ts` | — |
 | ~~`utils/thumbnails.ts`, `ThumbnailPreview`~~ — **übernommen**, siehe `src/core/thumbnails.ts` | Scrubbing-Vorschau |
 | ~~`RewardedAd`, `useRewardedAd`, `PauseAd`, `usePauseAd`~~ — **übernommen**: `src/core/rewardedAd.ts`, `src/core/pauseAd.ts` plus Hooks und Komponenten | zusätzliche Ad-Formate |
-| `GestureOverlay`, `ShareButton`, `ScreenReaderAnnouncer` | — |
+| ~~`GestureOverlay`, `ShareButton`, `ScreenReaderAnnouncer`~~ — **übernommen** | — |
 
 Zwei Dinge daran sind wichtig:
 
@@ -362,8 +362,25 @@ Datei für Datei gegen den aktuellen `main` ist realistisch.
 voneinander entstanden. Das ist der Preis dafür, den Branch liegen zu lassen,
 und er steigt mit jeder Phase.
 
-Empfehlung: nicht mergen, sondern einzeln herausziehen — pro Feature ein PR
-gegen den aktuellen Stand, mit den Tests aus #16 als Vorlage.
+**Alles gehoben.** Zwölf PRs, je ein Feature, jeweils gegen den damals
+aktuellen Stand. In **jedem einzelnen** steckte mindestens ein Fehler, der erst
+am echten Player sichtbar wird — und drei Features (`useRewardedAd`,
+`useSyncPlayback`, teilweise `usePauseAd`) enthielten ihre eigentliche Aufgabe
+gar nicht: sie hielten Zustand für etwas, das nie berechnet wurde.
+
+Wiederkehrende Muster, in der Reihenfolge ihrer Häufigkeit:
+
+1. **Seiteneffekte im `setState`-Updater** — fünfmal. React darf Updater
+   mehrfach ausführen.
+2. **Der Hook war nie an einen Player angeschlossen**, weshalb Integrationsfehler
+   unentdeckt blieben (Seek vor `loadedmetadata`, Style-Objekt ohne Ziel,
+   `AudioContext` beim Unmount geschlossen).
+3. **Eigene `localStorage`-Behandlung** statt der vorhandenen `utils/storage` —
+   viermal.
+4. **Deklarierte Tracking-URLs, die nie gesendet wurden** — bei beiden
+   Ad-Formaten.
+
+PR #16 kann geschlossen werden.
 
 ---
 
