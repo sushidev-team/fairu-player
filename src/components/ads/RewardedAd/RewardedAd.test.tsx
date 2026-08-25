@@ -94,6 +94,25 @@ describe('RewardedAd', () => {
     });
   });
 
+  describe('when autoplay is refused', () => {
+    it('offers a way to start the spot', () => {
+      const onPlay = vi.fn();
+      mount({ needsGesture: true, onPlay });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+
+      // Without this the spot never starts, the reward is never earned, and the
+      // close button — which only appears once it is — never arrives either.
+      expect(onPlay).toHaveBeenCalled();
+    });
+
+    it('offers nothing once the reward is earned', () => {
+      mount({ needsGesture: true, earned: true, remaining: 0 });
+
+      expect(screen.queryByRole('button', { name: 'Play' })).not.toBeInTheDocument();
+    });
+  });
+
   describe('progress', () => {
     it('reports how far along the spot is', () => {
       mount({ percentage: 40 });

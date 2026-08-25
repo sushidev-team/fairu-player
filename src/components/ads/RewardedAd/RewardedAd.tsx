@@ -9,10 +9,13 @@ export interface RewardedAdProps {
   remaining: number;
   percentage: number;
   earned: boolean;
+  /** Autoplay was refused; offer a way to start it. */
+  needsGesture?: boolean;
   /** The element playing the spot — supplied by {@link useRewardedAd}. */
   videoRef: React.RefObject<HTMLVideoElement | null>;
   onClose: () => void;
   onClick: () => void;
+  onPlay?: () => void;
   labels?: PlayerLabels;
   className?: string;
 }
@@ -30,9 +33,11 @@ export function RewardedAd({
   remaining,
   percentage,
   earned,
+  needsGesture = false,
   videoRef,
   onClose,
   onClick,
+  onPlay,
   labels: labelsProp,
   className,
 }: RewardedAdProps) {
@@ -69,14 +74,40 @@ export function RewardedAd({
         )}
       </div>
 
-      <video
-        ref={videoRef as React.RefObject<HTMLVideoElement>}
-        src={ad.src}
-        poster={ad.poster}
-        className="min-h-0 flex-1 object-contain"
-        playsInline
-        autoPlay
-      />
+      <div className="relative min-h-0 flex-1">
+        <video
+          ref={videoRef as React.RefObject<HTMLVideoElement>}
+          src={ad.src}
+          poster={ad.poster}
+          className="h-full w-full object-contain"
+          playsInline
+          autoPlay
+        />
+
+        {/*
+          Every browser refuses audible autoplay without a gesture. Without this
+          the spot never starts, the reward is never earned, and — because the
+          close button only appears once it is — the viewer is stuck in an
+          overlay that does nothing.
+        */}
+        {needsGesture && !earned && (
+          <button
+            type="button"
+            onClick={onPlay}
+            aria-label={labels.play}
+            className={cn(
+              'absolute inset-0 flex items-center justify-center bg-black/40',
+              'transition-colors hover:bg-black/50'
+            )}
+          >
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/90">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="black" aria-hidden="true">
+                <polygon points="6 4 20 12 6 20 6 4" />
+              </svg>
+            </span>
+          </button>
+        )}
+      </div>
 
       <div
         role="progressbar"

@@ -188,6 +188,38 @@ describe('useRewardedAd', () => {
     });
   });
 
+  describe('when autoplay is refused', () => {
+    it('says a gesture is needed', async () => {
+      const { element, ref } = fakeMedia();
+      element.play = vi.fn(() => Promise.reject(new Error('NotAllowedError')));
+      const { result } = renderHook(() => useRewardedAd({ ad: AD, mediaRef: ref }));
+
+      await act(async () => {
+        result.current.show();
+      });
+      await act(async () => {});
+
+      expect(result.current.state.needsGesture).toBe(true);
+    });
+
+    it('starts on request and stops asking', async () => {
+      const { element, ref } = fakeMedia();
+      element.play = vi.fn(() => Promise.reject(new Error('NotAllowedError')));
+      const { result } = renderHook(() => useRewardedAd({ ad: AD, mediaRef: ref }));
+      await act(async () => {
+        result.current.show();
+      });
+      await act(async () => {});
+
+      element.play = vi.fn(() => Promise.resolve());
+      act(() => result.current.play());
+      act(() => element.dispatchEvent(new Event('play')));
+
+      expect(result.current.state.needsGesture).toBe(false);
+      expect(result.current.state.isPlaying).toBe(true);
+    });
+  });
+
   describe('tracking', () => {
     it('sends the impression when playback starts', () => {
       const { element, ref } = fakeMedia();

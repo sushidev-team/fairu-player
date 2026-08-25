@@ -47,6 +47,12 @@ describe('rewardedAd core', () => {
       expect(remainingSeconds(28.2, 30)).toBe(1);
     });
 
+    it('never reports a countdown that is not a number', () => {
+      // `NaNs to go` is what the viewer would read.
+      expect(remainingSeconds(Number.NaN, 30)).toBe(29);
+      expect(remainingSeconds(-10, 30)).toBe(29);
+    });
+
     it('shows zero once it is earned', () => {
       expect(remainingSeconds(29, 30)).toBe(0);
       expect(remainingSeconds(5, 0)).toBe(0);

@@ -17,6 +17,14 @@ export interface RewardedAdState {
   percentage: number;
   /** Seconds left before the reward is earned. */
   remaining: number;
+  /**
+   * Playback needs a gesture.
+   *
+   * Every browser refuses audible autoplay without one. Without somewhere to
+   * report that, a blocked spot leaves the viewer in an overlay that makes no
+   * progress and — because the reward is unearned — offers no way out.
+   */
+  needsGesture: boolean;
   currentAd: RewardedAd | null;
 }
 
@@ -36,6 +44,8 @@ export interface UseRewardedAdOptions {
 export interface UseRewardedAdReturn {
   state: RewardedAdState;
   show: () => void;
+  /** Start the spot after a gesture, when autoplay was refused. */
+  play: () => void;
   close: () => void;
   /** Open the advertiser's page and report the click. */
   click: () => void;
@@ -50,6 +60,7 @@ const idle: RewardedAdState = {
   duration: 0,
   percentage: 0,
   remaining: 0,
+  needsGesture: false,
   currentAd: null,
 };
 
@@ -153,13 +164,20 @@ export function useRewardedAd(options: UseRewardedAdOptions): UseRewardedAdRetur
     const handlePlay = () => {
       tracker?.impression();
       tracker?.event('start');
-      setState((current) => ({ ...current, isPlaying: true }));
+      setState((current) => ({ ...current, isPlaying: true, needsGesture: false }));
     };
     const handlePause = () => setState((current) => ({ ...current, isPlaying: false }));
     const handleEnded = () => {
       tracker?.complete(element.duration);
       setState((current) => ({ ...current, isPlaying: false }));
     };
+
+    // Ask, and record a refusal rather than waiting for a `timeupdate` that
+    // will never come.
+    const attempt = element.play();
+    if (attempt && typeof attempt.catch === 'function') {
+      attempt.catch(() => setState((current) => ({ ...current, needsGesture: true })));
+    }
 
     element.addEventListener('timeupdate', handleTimeUpdate);
     element.addEventListener('play', handlePlay);
@@ -173,6 +191,16 @@ export function useRewardedAd(options: UseRewardedAdOptions): UseRewardedAdRetur
       element.removeEventListener('ended', handleEnded);
     };
   }, [mediaRef, state.isShowing, state.currentAd]);
+
+  const play = useCallback(() => {
+    const element = mediaRef.current;
+    if (!element) return;
+
+    const attempt = element.play();
+    if (attempt && typeof attempt.catch === 'function') {
+      attempt.catch(() => setState((current) => ({ ...current, needsGesture: true })));
+    }
+  }, [mediaRef]);
 
   const click = useCallback(() => {
     const ad = stateRef.current.currentAd;
@@ -188,7 +216,7 @@ export function useRewardedAd(options: UseRewardedAdOptions): UseRewardedAdRetur
   useEffect(() => () => trackerRef.current?.dispose(), []);
 
   return useMemo(
-    () => ({ state, show, close, click, isAvailable: Boolean(ad) }),
-    [state, show, close, click, ad]
+    () => ({ state, show, play, close, click, isAvailable: Boolean(ad) }),
+    [state, show, play, close, click, ad]
   );
 }

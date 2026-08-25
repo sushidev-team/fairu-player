@@ -66,5 +66,9 @@ export function rewardProgress(currentTime: number, duration: number): RewardPro
  */
 export function remainingSeconds(currentTime: number, duration: number): number {
   if (!Number.isFinite(duration) || duration <= 0) return 0;
-  return Math.max(0, Math.ceil(duration * REWARD_THRESHOLD - currentTime));
+
+  // A playhead that is not a number would otherwise come back out as one, and
+  // `NaNs to go` is what the viewer would read.
+  const watched = Number.isFinite(currentTime) ? Math.max(0, currentTime) : 0;
+  return Math.max(0, Math.ceil(duration * REWARD_THRESHOLD - watched));
 }
