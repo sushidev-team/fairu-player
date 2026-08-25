@@ -131,39 +131,48 @@ export function usePlaybackHistory(
     [maxEntries, expiryDays]
   );
 
-  const store = useMemo(() => getStore(storageKey, limits), [storageKey, limits]);
+  // No store at all while disabled: creating one reads storage, and the config
+  // says a disabled history reads nothing. Filtering the snapshot afterwards
+  // would have been too late.
+  const store = useMemo(
+    () => (enabled ? getStore(storageKey, limits) : null),
+    [enabled, storageKey, limits]
+  );
 
   const subscribe = useCallback(
-    (listener: () => void) => store.subscribe(listener),
+    (listener: () => void) => store?.subscribe(listener) ?? (() => {}),
     [store]
   );
-  const getSnapshot = useCallback(() => store.getEntries(), [store]);
+  const getSnapshot = useCallback(() => store?.getEntries() ?? EMPTY, [store]);
   const getServerSnapshot = useCallback(() => EMPTY, []);
 
-  const stored = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  const entries = enabled ? stored : EMPTY;
+  const entries = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const recordPlay = useCallback(
     (played: PlaybackRecord) => {
-      if (!enabled) return;
+      if (!store) return;
       store.update((current) => record(current, played, Date.now(), limits));
     },
-    [enabled, store, limits]
+    [store, limits]
   );
 
   const remove = useCallback(
     (trackId: string) => {
-      if (!enabled) return;
+      if (!store) return;
       store.update((current) => removeEntry(current, trackId));
     },
-    [enabled, store]
+    [store]
   );
 
   const clear = useCallback(() => {
     // Deliberately not gated on `enabled`: forgetting is the one thing a viewer
-    // must always be able to do, whatever the host has switched off.
-    store.clear();
-  }, [store]);
+    // must always be able to do, whatever the host has switched off. Without a
+    // store of our own, the key is removed directly — and any store another
+    // instance created is told, so it does not keep showing what is gone.
+    const existing = stores.get(storageKey);
+    if (existing) existing.clear();
+    else removeStored(storageKey);
+  }, [storageKey]);
 
   return useMemo(
     () => ({

@@ -92,21 +92,29 @@ export function normalizeHistory(
 ): PlaybackHistoryEntry[] {
   if (!Array.isArray(value)) return [];
 
-  const entries: PlaybackHistoryEntry[] = [];
-  const seen = new Set<string>();
+  const parsed: PlaybackHistoryEntry[] = [];
 
   for (const candidate of value) {
     const entry = parseEntry(candidate);
     if (!entry) continue;
-    // One row per track; a duplicated id would show the same item twice.
-    if (seen.has(entry.trackId)) continue;
     if (now - entry.lastPlayedAt >= limits.expiryMs) continue;
+    parsed.push(entry);
+  }
 
+  // Sort first, then deduplicate. One row per track — but *which* row matters:
+  // taking the first in storage order would keep whichever copy happened to be
+  // written first, and with it a resume position the viewer has already moved
+  // past.
+  const entries: PlaybackHistoryEntry[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of parsed.sort(byRecency)) {
+    if (seen.has(entry.trackId)) continue;
     seen.add(entry.trackId);
     entries.push(entry);
   }
 
-  return entries.sort(byRecency).slice(0, limits.maxEntries);
+  return entries.slice(0, limits.maxEntries);
 }
 
 /**

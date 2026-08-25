@@ -81,6 +81,22 @@ describe('playbackHistory core', () => {
       expect(parsed).toHaveLength(1);
     });
 
+    it('keeps the newest of two rows for the same track', () => {
+      // Storage order is not recency order — a list merged from two tabs can
+      // have the older copy first, and keeping it would resume from a position
+      // the viewer has already passed.
+      const parsed = core.normalizeHistory(
+        [
+          entry({ lastPlayedAt: NOW - 5000, lastPosition: 30 }),
+          entry({ lastPlayedAt: NOW - 100, lastPosition: 220 }),
+        ],
+        NOW
+      );
+
+      expect(parsed).toHaveLength(1);
+      expect(parsed[0].lastPosition).toBe(220);
+    });
+
     it('forgets entries past their expiry', () => {
       const parsed = core.normalizeHistory(
         [entry({ trackId: 'old', lastPlayedAt: NOW - 91 * DAY }), entry({ trackId: 'new' })],

@@ -174,6 +174,19 @@ describe('usePlaybackHistory', () => {
   });
 
   describe('switched off', () => {
+    it('never touches storage', () => {
+      const getItem = vi.spyOn(Storage.prototype, 'getItem');
+
+      renderHook(() => usePlaybackHistory({ enabled: false }));
+
+      // Creating a store reads the key; filtering the snapshot afterwards would
+      // have been too late to honour "reads nothing".
+      const historyReads = getItem.mock.calls.filter(([key]) =>
+        String(key).includes('playback-history')
+      );
+      expect(historyReads).toHaveLength(0);
+    });
+
     it('reports nothing and records nothing', () => {
       const { result } = renderHook(() => usePlaybackHistory({ enabled: false }));
 
