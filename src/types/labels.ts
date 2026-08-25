@@ -115,6 +115,10 @@ export interface PlayerLabels {
   rewardedAdEarned?: string;
   rewardedAdClose?: string;
   rewardedAdLearnMore?: string;
+
+  /* --- Pause ads -------------------------------------------------------- */
+  pauseAd?: string;
+  pauseAdClose?: string;
 }
 
 /**
@@ -198,6 +202,8 @@ export const defaultLabels = {
   rewardedAdEarned: 'Reward unlocked',
   rewardedAdClose: 'Close',
   rewardedAdLearnMore: 'Learn more',
+  pauseAd: 'Advertisement',
+  pauseAdClose: 'Close ad',
 } satisfies PlayerLabels;
 
 /**

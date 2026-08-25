@@ -272,6 +272,22 @@ describe('useRewardedAd', () => {
       );
     });
 
+    it('refuses a destination that is not http', () => {
+      const open = vi.fn();
+      vi.stubGlobal('open', open);
+      const { ref } = fakeMedia();
+      const { result } = renderHook(() =>
+        useRewardedAd({ ad: { ...AD, clickThroughUrl: 'javascript:alert(1)' }, mediaRef: ref })
+      );
+      act(() => result.current.show());
+
+      act(() => result.current.click());
+
+      // `window.open` runs a `javascript:` URL in the opened context.
+      expect(open).not.toHaveBeenCalled();
+      expect(sent('track.test/click')).toBe(1);
+    });
+
     it('sends nothing for a spot that was never shown', () => {
       const { ref } = fakeMedia();
       const { result } = renderHook(() => useRewardedAd({ ad: AD, mediaRef: ref }));

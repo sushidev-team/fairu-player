@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { VastTracker } from '@/utils/vast';
+import { sanitizeUrl } from '@/utils/security';
 import {
   rewardProgress,
   remainingSeconds,
@@ -207,9 +208,13 @@ export function useRewardedAd(options: UseRewardedAdOptions): UseRewardedAdRetur
     if (!ad) return;
 
     trackerRef.current?.click();
-    if (ad.clickThroughUrl && typeof window !== 'undefined') {
+
+    // The destination comes from an ad server; the scheme is checked before it
+    // reaches `window.open`, which would otherwise run a `javascript:` URL.
+    const target = sanitizeUrl(ad.clickThroughUrl, ['http:', 'https:']);
+    if (target && typeof window !== 'undefined') {
       // `noopener,noreferrer`: the landing page must not reach the opener.
-      window.open(ad.clickThroughUrl, '_blank', 'noopener,noreferrer');
+      window.open(target, '_blank', 'noopener,noreferrer');
     }
   }, []);
 

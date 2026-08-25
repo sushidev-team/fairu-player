@@ -345,7 +345,7 @@ Phase 5 bereits fertig geschrieben, inklusive 52 Testdateien:
 | ~~`useSyncPlayback`, `SyncService`~~ — **übernommen**: `src/core/playbackSync.ts`, `src/hooks/useSyncPlayback.ts`, `src/services/SyncService.ts` | 5.6 Synchronized Playback |
 | ~~`useSleepTimer`, `SleepTimer`~~ — **übernommen**, siehe `src/core/sleepTimer.ts` | — |
 | ~~`utils/thumbnails.ts`, `ThumbnailPreview`~~ — **übernommen**, siehe `src/core/thumbnails.ts` | Scrubbing-Vorschau |
-| ~~`RewardedAd`, `useRewardedAd`~~ — **übernommen**: `src/core/rewardedAd.ts`, `src/hooks/useRewardedAd.ts`, `src/components/ads/RewardedAd/`. Offen: `PauseAd`. | zusätzliche Ad-Formate |
+| ~~`RewardedAd`, `useRewardedAd`, `PauseAd`, `usePauseAd`~~ — **übernommen**: `src/core/rewardedAd.ts`, `src/core/pauseAd.ts` plus Hooks und Komponenten | zusätzliche Ad-Formate |
 | `GestureOverlay`, `ShareButton`, `ScreenReaderAnnouncer` | — |
 
 Zwei Dinge daran sind wichtig:
@@ -376,7 +376,7 @@ Neun Budgets, und sie messen absichtlich **Artefakte, die jemand herunterlädt**
 | Audio-Chunk, Video-Chunk, `hls.js` | 29 / 30 / 200 kB |
 | Stylesheet, Custom-Element-Entry | 10 / 3 kB |
 | CDN standalone / light / loader | 145 / 25 / 2,5 kB |
-| ESM-Entry (`dist/index.js`) | 45 kB — **Indikator**, kein Download |
+| ESM-Entry (`dist/index.js`) | 60 kB — **Unfall-Decke**, kein Download |
 
 Zwei Dinge waren vorher falsch bzw. fehlten:
 
@@ -391,6 +391,12 @@ IIFE-Builds. Die Zahl wächst mit jedem Hook, ohne dass ein Konsument davon
 betroffen wäre — sie deshalb pro Feature hochzuhandeln war eine Verhandlung über
 eine Zahl ohne Adressaten. Jetzt mit echtem Spielraum als grober Deckel, und der
 Name sagt es.
+
+**Die Grenze ist eine Unfall-Decke, keine Ratsche.** Sie soll auffangen, dass
+versehentlich eine Abhängigkeit ins Entry gebündelt wird — das wären Dutzende
+von Kilobytes, keine dreißig Byte. Sie pro Feature nachzuziehen wäre wieder
+dieselbe Verhandlung über eine Zahl ohne Adressaten; deshalb ist sie großzügig
+gesetzt und soll dort bleiben.
 
 Kurz erwogen und wieder verworfen: `@size-limit/esbuild`, um echte
 Import-Kosten (`import { AudioPlayer }`) zu messen. Sobald der Adapter
