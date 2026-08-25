@@ -346,7 +346,7 @@ Phase 5 bereits fertig geschrieben, inklusive 52 Testdateien:
 | ~~`useSleepTimer`, `SleepTimer`~~ — **übernommen**, siehe `src/core/sleepTimer.ts` | — |
 | ~~`utils/thumbnails.ts`, `ThumbnailPreview`~~ — **übernommen**, siehe `src/core/thumbnails.ts` | Scrubbing-Vorschau |
 | `PauseAd`, `RewardedAd`, `useRewardedAd` | zusätzliche Ad-Formate |
-| `GestureOverlay`, `ShareButton`, `SubtitleDisplay`, `ScreenReaderAnnouncer` | — |
+| `GestureOverlay`, `ShareButton`, `ScreenReaderAnnouncer` | — |
 
 Zwei Dinge daran sind wichtig:
 
