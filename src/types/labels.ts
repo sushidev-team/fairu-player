@@ -107,6 +107,14 @@ export interface PlayerLabels {
   /** `{frequency}` is replaced with a formatted value such as `4k`. */
   equalizerBand?: string;
   equalizerCorsBlocked?: string;
+
+  /* --- Rewarded ads ----------------------------------------------------- */
+  rewardedAd?: string;
+  /** `{seconds}` is replaced with the countdown. */
+  rewardedAdRemaining?: string;
+  rewardedAdEarned?: string;
+  rewardedAdClose?: string;
+  rewardedAdLearnMore?: string;
 }
 
 /**
@@ -185,6 +193,11 @@ export const defaultLabels = {
   equalizerReset: 'Reset',
   equalizerBand: '{frequency}Hz',
   equalizerCorsBlocked: 'Unavailable for this source',
+  rewardedAd: 'Rewarded ad',
+  rewardedAdRemaining: '{seconds}s to go',
+  rewardedAdEarned: 'Reward unlocked',
+  rewardedAdClose: 'Close',
+  rewardedAdLearnMore: 'Learn more',
 } satisfies PlayerLabels;
 
 /**

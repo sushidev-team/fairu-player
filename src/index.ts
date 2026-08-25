@@ -270,6 +270,20 @@ export {
 // Reels feed hook
 export { useReelsFeed, type UseReelsFeedOptions, type UseReelsFeedReturn } from './hooks/useReelsFeed';
 
+// Rewarded ads
+export {
+  useRewardedAd,
+  type UseRewardedAdOptions,
+  type UseRewardedAdReturn,
+  type RewardedAdState,
+} from './hooks/useRewardedAd';
+export { RewardedAd, type RewardedAdProps } from './components/ads/RewardedAd';
+export {
+  rewardProgress,
+  REWARD_THRESHOLD,
+  type RewardedAd as RewardedAdCreative,
+} from './core/rewardedAd';
+
 // Watch-together
 export {
   useSyncPlayback,
