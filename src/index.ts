@@ -270,6 +270,21 @@ export {
 // Reels feed hook
 export { useReelsFeed, type UseReelsFeedOptions, type UseReelsFeedReturn } from './hooks/useReelsFeed';
 
+// Equalizer
+export {
+  useEqualizer,
+  type UseEqualizerOptions,
+  type UseEqualizerReturn,
+} from './hooks/useEqualizer';
+export { Equalizer, type EqualizerProps } from './components/controls/Equalizer';
+export {
+  EQUALIZER_PRESETS,
+  DEFAULT_BANDS,
+  GAIN_RANGE,
+  type EqualizerBand,
+  type EqualizerPreset,
+} from './core/equalizer';
+
 // Playback history — "continue watching"
 export {
   usePlaybackHistory,

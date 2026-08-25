@@ -97,6 +97,16 @@ export interface PlayerLabels {
   sleepTimerEndOfTrack?: string;
   /** `{minutes}` is replaced with the preset length. */
   sleepTimerMinutes?: string;
+
+  /* --- Equaliser -------------------------------------------------------- */
+  equalizer?: string;
+  equalizerEnable?: string;
+  equalizerDisable?: string;
+  equalizerPresets?: string;
+  equalizerReset?: string;
+  /** `{frequency}` is replaced with a formatted value such as `4k`. */
+  equalizerBand?: string;
+  equalizerCorsBlocked?: string;
 }
 
 /**
@@ -168,6 +178,13 @@ export const defaultLabels = {
   sleepTimerRemaining: '{time} remaining',
   sleepTimerEndOfTrack: 'End of track',
   sleepTimerMinutes: '{minutes} min',
+  equalizer: 'Equalizer',
+  equalizerEnable: 'Enable equalizer',
+  equalizerDisable: 'Disable equalizer',
+  equalizerPresets: 'Presets',
+  equalizerReset: 'Reset',
+  equalizerBand: '{frequency}Hz',
+  equalizerCorsBlocked: 'Unavailable for this source',
 } satisfies PlayerLabels;
 
 /**
