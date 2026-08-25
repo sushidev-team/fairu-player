@@ -340,7 +340,7 @@ Phase 5 bereits fertig geschrieben, inklusive 52 Testdateien:
 | `useEqualizer` (228 Z.), `Equalizer` | 5.1 Web Audio |
 | ~~`useABLoop`~~ — **übernommen**, siehe `src/core/abLoop.ts` | 5.2 A-B-Loop |
 | ~~`useShareableTimestamp`~~ — **übernommen**, siehe `src/core/timestamp.ts` | 5.3 Shareable Timestamps |
-| `types/history.ts` | 5.4 Playback-History |
+| ~~`types/history.ts`~~ — **übernommen**, siehe `src/core/playbackHistory.ts` | 5.4 Playback-History |
 | ~~`useSubtitleStyling`, `SubtitleSettings`~~ — **übernommen**, siehe `src/core/subtitleStyle.ts` | 5.5 Untertitel-Styling |
 | `useSyncPlayback` (233 Z.), `SyncService` | 5.6 Synchronized Playback |
 | ~~`useSleepTimer`, `SleepTimer`~~ — **übernommen**, siehe `src/core/sleepTimer.ts` | — |
@@ -419,7 +419,7 @@ sondern richtig gepinnt; sie zieht mit, wenn Tailwind selbst auf v4 geht.
 | 5.1 | **Web Audio** | Lautstärke-Normalisierung, Voice-Boost/EQ, Silence-Skip. Genau das, was Overcast von einem nackten `<audio>`-Tag unterscheidet. |
 | 5.2 | ~~**A-B-Loop / Segment-Repeat**~~ | **Erledigt.** `src/core/abLoop.ts` plus `useABLoop`, aus #16 übernommen und dabei neu geschrieben. |
 | 5.3 | ~~**Shareable Timestamps**~~ | **Erledigt.** `src/core/timestamp.ts` plus `useShareableTimestamp`. Die Anbindung an `embed/parseConfig` steht noch aus — der Embed-Loader liest `t` bisher nicht. |
-| 5.4 | **Playback-History** | „Weiterhören"-Liste, baut auf 1.2 und `WatchProgress` auf. |
+| 5.4 | ~~**Playback-History**~~ | **Erledigt.** `src/core/playbackHistory.ts` plus `usePlaybackHistory`, ein Store pro Storage-Key. |
 | 5.5 | ~~**Untertitel-Styling**~~ | **Erledigt.** `src/core/subtitleStyle.ts`, `useSubtitleStyling`, `SubtitleSettings`. Als `::cue`-Regel statt Style-Objekt — der Player rendert Cues nativ. |
 | 5.6 | **Synchronized Playback** | Watch-Together. Transport-agnostisch: Client-Hook plus Referenz-Interface, Server bleibt außerhalb des Scopes. |
 
