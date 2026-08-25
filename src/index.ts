@@ -270,6 +270,19 @@ export {
 // Reels feed hook
 export { useReelsFeed, type UseReelsFeedOptions, type UseReelsFeedReturn } from './hooks/useReelsFeed';
 
+// Captions parsed by the player
+export {
+  useSubtitleParser,
+  type UseSubtitleParserOptions,
+  type UseSubtitleParserReturn,
+} from './hooks/useSubtitleParser';
+export {
+  SubtitleDisplay,
+  type SubtitleDisplayProps,
+  type SubtitleDisplayMode,
+} from './components/VideoPlayer/SubtitleDisplay';
+export { parseVtt, activeCueAt, type SubtitleCue } from './core/subtitles';
+
 // Equalizer
 export {
   useEqualizer,
