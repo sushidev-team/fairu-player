@@ -110,6 +110,8 @@ export function useSyncPlayback(options: UseSyncPlaybackOptions): UseSyncPlaybac
 
   /** Set while a remote correction is being applied — see the note above. */
   const applyingRef = useRef(false);
+  /** The peer list, readable from the message handler without a stale closure. */
+  const peersRef = useRef<SyncPeer[]>([]);
 
   const limits = useMemo<SyncTolerances>(
     () => ({ ...DEFAULT_TOLERANCES, ...tolerances }),
@@ -121,25 +123,37 @@ export function useSyncPlayback(options: UseSyncPlaybackOptions): UseSyncPlaybac
       if (event.peerId === peerId) return;
 
       if (event.type === 'join' || event.type === 'leave') {
-        setPeers((current) => {
-          const next = applyMembership(current, event, Date.now());
-          if (next === current) return current;
+        // Computed here rather than inside the updater. React may run an
+        // updater more than once for one queued update — in StrictMode it
+        // always does — and a host counting `onPeerJoin` would see the same
+        // arrival twice with no way to tell from outside.
+        const next = applyMembership(peersRef.current, event, Date.now());
+        if (next === peersRef.current) return;
 
-          if (event.type === 'join') {
-            const joined = next.find((peer) => peer.id === event.peerId);
-            if (joined?.isLeader) setSawLeader(true);
-            if (joined) live.current.onPeerJoin?.(joined);
-          } else {
-            live.current.onPeerLeave?.(event.peerId);
-          }
-          return next;
-        });
+        peersRef.current = next;
+        setPeers(next);
+
+        if (event.type === 'join') {
+          const joined = next.find((peer) => peer.id === event.peerId);
+          if (joined?.isLeader) setSawLeader(true);
+          if (joined) live.current.onPeerJoin?.(joined);
+        } else {
+          live.current.onPeerLeave?.(event.peerId);
+        }
         return;
       }
 
-      // Only the leader is followed. Two clients each correcting to the other
-      // is a feedback loop with a soundtrack.
-      if (live.current.isLeader || !event.snapshot) return;
+      /*
+        Follow the leader — which means checking who *sent* this, not merely
+        that the receiver is not leading.
+
+        `broadcast` sends on any local play, pause or seek, so in an ordinary
+        room every follower announces its own moves. Testing only "am I the
+        leader" made every follower obey every other follower, and two of them
+        pulling the playhead against each other is not something the echo guard
+        can help with.
+      */
+      if (!event.isLeader || live.current.isLeader || !event.snapshot) return;
 
       const correction = decideCorrection(
         live.current.getSnapshot(),
@@ -211,7 +225,8 @@ export function useSyncPlayback(options: UseSyncPlaybackOptions): UseSyncPlaybac
         setIsLeader(leader);
         setRoomId(room);
         setSawLeader(leader);
-        setPeers([{ id: peerId, isLeader: leader, joinedAt: Date.now() }]);
+        peersRef.current = [{ id: peerId, isLeader: leader, joinedAt: Date.now() }];
+        setPeers(peersRef.current);
         announce('join', leader);
       } catch (cause) {
         const error = cause instanceof Error ? cause : new Error(String(cause));
@@ -239,6 +254,7 @@ export function useSyncPlayback(options: UseSyncPlaybackOptions): UseSyncPlaybac
     announce('leave', effectiveIsLeader);
     transport.disconnect();
     setRoomId(null);
+    peersRef.current = [];
     setPeers([]);
     setIsLeader(false);
     setSawLeader(false);

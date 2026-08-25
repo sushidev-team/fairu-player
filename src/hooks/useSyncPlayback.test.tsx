@@ -130,6 +130,7 @@ describe('useSyncPlayback', () => {
         type: 'seek',
         timestamp: Date.now(),
         peerId: result.current.peerId,
+        isLeader: true,
         snapshot: { currentTime: 999, isPlaying: true, playbackRate: 1 },
       });
 
@@ -150,10 +151,32 @@ describe('useSyncPlayback', () => {
         type: 'seek',
         timestamp: Date.now(),
         peerId: 'leader',
+        isLeader: true,
         snapshot: { currentTime: 300, isPlaying: true, playbackRate: 1 },
       });
 
       expect(applied[0]?.seekTo).toBeCloseTo(300, 0);
+    });
+
+    it('ignores another follower', async () => {
+      const { transport, receive } = fakeTransport();
+      const { result } = mount(transport);
+      await act(async () => {
+        await result.current.joinRoom('room-1');
+      });
+
+      receive({
+        type: 'seek',
+        timestamp: Date.now(),
+        peerId: 'other-follower',
+        isLeader: false,
+        snapshot: { currentTime: 300, isPlaying: true, playbackRate: 1 },
+      });
+
+      // Every follower announces its own moves, so checking only "am I the
+      // leader" made each of them obey all the others — two followers pulling
+      // the playhead against each other, which no echo guard can help with.
+      expect(applied).toHaveLength(0);
     });
 
     it('leaves small drift alone', async () => {
@@ -167,6 +190,7 @@ describe('useSyncPlayback', () => {
         type: 'state',
         timestamp: Date.now(),
         peerId: 'leader',
+        isLeader: true,
         snapshot: { currentTime: 100.1, isPlaying: true, playbackRate: 1 },
       });
 
@@ -184,6 +208,7 @@ describe('useSyncPlayback', () => {
         type: 'seek',
         timestamp: Date.now(),
         peerId: 'other',
+        isLeader: true,
         snapshot: { currentTime: 999, isPlaying: true, playbackRate: 1 },
       });
 
@@ -215,6 +240,7 @@ describe('useSyncPlayback', () => {
         type: 'seek',
         timestamp: Date.now(),
         peerId: 'leader',
+        isLeader: true,
         snapshot: { currentTime: 300, isPlaying: true, playbackRate: 1 },
       });
 

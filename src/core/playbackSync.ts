@@ -157,7 +157,13 @@ export function applyMembership(
 export function successorLeader(peers: readonly SyncPeer[]): string | null {
   if (peers.length === 0) return null;
 
-  return [...peers].sort((a, b) =>
-    a.joinedAt === b.joinedAt ? a.id.localeCompare(b.id) : a.joinedAt - b.joinedAt
-  )[0].id;
+  // A plain relational comparison, not `localeCompare`: that one uses the host
+  // locale, whose ordering of punctuation against digits is not guaranteed to
+  // match between two clients — and peer ids contain hyphens. Two clients
+  // ordering a tie differently is two leaders.
+  return [...peers].sort((a, b) => {
+    if (a.joinedAt !== b.joinedAt) return a.joinedAt - b.joinedAt;
+    if (a.id === b.id) return 0;
+    return a.id < b.id ? -1 : 1;
+  })[0].id;
 }

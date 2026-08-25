@@ -285,6 +285,8 @@ export {
 export {
   decideCorrection,
   projectedTime,
+  hasWork,
+  NO_CORRECTION,
   DEFAULT_TOLERANCES,
   type PlaybackSnapshot,
   type Correction,
