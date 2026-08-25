@@ -270,6 +270,15 @@ export {
 // Reels feed hook
 export { useReelsFeed, type UseReelsFeedOptions, type UseReelsFeedReturn } from './hooks/useReelsFeed';
 
+// Pause ads
+export {
+  usePauseAd,
+  type UsePauseAdOptions,
+  type UsePauseAdReturn,
+} from './hooks/usePauseAd';
+export { PauseAd, type PauseAdProps } from './components/ads/PauseAd';
+export { shouldShow as shouldShowPauseAd, type PauseAd as PauseAdCreative } from './core/pauseAd';
+
 // Rewarded ads
 export {
   useRewardedAd,
