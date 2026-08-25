@@ -270,6 +270,18 @@ export {
 // Reels feed hook
 export { useReelsFeed, type UseReelsFeedOptions, type UseReelsFeedReturn } from './hooks/useReelsFeed';
 
+// Playback history — "continue watching"
+export {
+  usePlaybackHistory,
+  type PlaybackHistoryConfig,
+  type UsePlaybackHistoryReturn,
+} from './hooks/usePlaybackHistory';
+export {
+  resumeList,
+  type PlaybackHistoryEntry,
+  type PlaybackRecord,
+} from './core/playbackHistory';
+
 // Sleep timer
 export {
   useSleepTimer,
