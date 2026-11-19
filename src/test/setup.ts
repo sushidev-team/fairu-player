@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom';
+import type {} from 'vitest/jsdom';
 
 /**
  * Everything below patches gaps in jsdom, so it only applies where there is a
@@ -9,6 +10,10 @@ import '@testing-library/jest-dom';
 const hasDom = typeof window !== 'undefined';
 
 if (hasDom) {
+  // Keep browser tests on jsdom's storage when Node provides its own globals.
+  for (const key of ['localStorage', 'sessionStorage'] as const) {
+    Object.defineProperty(globalThis, key, { configurable: true, writable: true, value: jsdom.window[key] });
+  }
 
   // Mock window.open
   Object.defineProperty(window, 'open', {
