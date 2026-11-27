@@ -176,6 +176,9 @@ function VideoPlayerInner({
       )}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
+      onPointerDownCapture={controls.showControls}
+      onPointerMoveCapture={event => { if (event.pointerType !== 'mouse') controls.showControls(); }}
+      onFocusCapture={controls.showControls}
     >
       {/* Main Video Element */}
       <video

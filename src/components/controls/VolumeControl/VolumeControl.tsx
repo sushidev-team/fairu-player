@@ -31,6 +31,7 @@ export function VolumeControl({
   const [isDragging, setIsDragging] = useState(false);
   const sliderRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const pointerRef = useRef<number | null>(null);
 
   const effectiveVolume = muted ? 0 : volume;
   const isActive = showSlider || isDragging;
@@ -52,36 +53,27 @@ export function VolumeControl({
     }
   }, [volume, isHorizontal]);
 
-  // Handle mouse down on slider
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (disabled) return;
+  // Pointer capture keeps mouse, pen and touch drags on the same slider.
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (disabled || !e.isPrimary || e.button !== 0) return;
     e.preventDefault();
+    pointerRef.current = e.pointerId;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
     setIsDragging(true);
     const newVolume = calculateVolume(e.clientX, e.clientY);
     onVolumeChange?.(newVolume);
   }, [disabled, calculateVolume, onVolumeChange]);
 
-  // Handle global mouse events for dragging
-  useEffect(() => {
-    if (!isDragging) return;
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (disabled || pointerRef.current !== e.pointerId) return;
+    onVolumeChange?.(calculateVolume(e.clientX, e.clientY));
+  }, [disabled, calculateVolume, onVolumeChange]);
 
-    const handleMouseMove = (e: MouseEvent) => {
-      const newVolume = calculateVolume(e.clientX, e.clientY);
-      onVolumeChange?.(newVolume);
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, calculateVolume, onVolumeChange]);
+  const handlePointerEnd = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (pointerRef.current !== e.pointerId) return;
+    pointerRef.current = null;
+    setIsDragging(false);
+  }, []);
 
   // Handle keyboard input on slider
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -161,11 +153,15 @@ export function VolumeControl({
           aria-valuenow={Math.round(effectiveVolume * 100)}
           aria-valuetext={`${Math.round(effectiveVolume * 100)}%`}
           className={cn(
-            'relative w-24 h-6 flex items-center cursor-pointer',
+            'relative w-24 h-6 flex items-center cursor-pointer touch-none',
             'group/slider',
             disabled && 'cursor-not-allowed'
           )}
-          onMouseDown={handleMouseDown}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerEnd}
+          onPointerCancel={handlePointerEnd}
+          onLostPointerCapture={handlePointerEnd}
           onKeyDown={handleKeyDown}
         >
           {/* Track Background */}
@@ -254,11 +250,15 @@ export function VolumeControl({
             aria-valuenow={Math.round(effectiveVolume * 100)}
             aria-valuetext={`${Math.round(effectiveVolume * 100)}%`}
             className={cn(
-              'relative w-6 h-24 flex justify-center cursor-pointer',
+              'relative w-6 h-24 flex justify-center cursor-pointer touch-none',
               'group/slider',
               disabled && 'cursor-not-allowed'
             )}
-            onMouseDown={handleMouseDown}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerEnd}
+            onPointerCancel={handlePointerEnd}
+            onLostPointerCapture={handlePointerEnd}
             onKeyDown={handleKeyDown}
           >
             {/* Track Background */}

@@ -1,3 +1,4 @@
+import { useEffect, useId, useRef, useState } from 'react';
 import { cn } from '@/utils/cn';
 import { useLabels } from '@/context/LabelsContext';
 import { PlayButton } from '@/components/controls/PlayButton';
@@ -9,6 +10,8 @@ import { SkipButton } from '@/components/controls/SkipButtons';
 import { SubtitleSelector } from '@/components/controls/SubtitleSelector';
 import { PictureInPictureButton } from '@/components/controls/PictureInPictureButton';
 import { CastButton } from '@/components/controls/CastButton';
+import { QualitySelector } from '@/components/controls/QualitySelector';
+import { CompactVideoControls } from './CompactVideoControls';
 import type { VideoState, VideoControls as VideoControlsType, VideoFeatures, Subtitle } from '@/types/video';
 import type { PlaylistState, PlaylistControls } from '@/types/player';
 import type { TimelineMarker } from '@/types/markers';
@@ -50,17 +53,51 @@ export function VideoControls({
   onQualityChange,
 }: VideoControlsProps) {
   const labels = useLabels();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: Infinity, height: 0 });
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [hasFocus, setHasFocus] = useState(false);
+  const menuId = useId();
+  const compact = size.width < 640;
+  useEffect(() => {
+    const player = rootRef.current?.parentElement;
+    if (!player || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(([entry]) => setSize({ width: entry.contentRect.width, height: entry.contentRect.height }));
+    observer.observe(player);
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const close = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setSettingsOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setSettingsOpen(false);
+      rootRef.current?.querySelector<HTMLButtonElement>(`[aria-controls="${menuId}"]`)?.focus();
+    };
+    document.addEventListener('pointerdown', close);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('pointerdown', close);
+      document.removeEventListener('keydown', escape);
+    };
+  }, [settingsOpen, menuId]);
   const hasPlaylist = playlistState && playlistState.tracks.length > 1;
   const hasPrevious = playlistState && playlistState.currentIndex > 0;
   const hasNext = playlistState && playlistState.currentIndex < playlistState.tracks.length - 1;
   return (
     <div
+      ref={rootRef}
+      data-player-controls
+      onFocusCapture={() => setHasFocus(true)}
+      onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setHasFocus(false); }}
       className={cn(
         'absolute bottom-0 left-0 right-0 z-20',
         'bg-gradient-to-t from-black/80 via-black/50 to-transparent',
-        'px-4 pb-4 pt-12',
+        compact ? 'fp-video-controls-compact px-2 pb-2 pt-4' : 'px-4 pb-4 pt-12',
         'transition-opacity duration-300',
-        visible ? 'opacity-100' : 'opacity-0 pointer-events-none',
+        visible || settingsOpen || hasFocus ? 'opacity-100' : 'opacity-0 pointer-events-none',
         className
       )}
     >
@@ -78,7 +115,11 @@ export function VideoControls({
       )}
 
       {/* Control buttons row */}
-      <div className="flex items-center justify-between">
+      {compact ? <CompactVideoControls visible={visible} state={state} controls={controls} features={features}
+        disabled={disabled} playlistState={playlistState} playlistControls={playlistControls} subtitles={subtitles}
+        onFullscreenClick={onFullscreenClick} onQualityChange={onQualityChange} settingsOpen={settingsOpen}
+        onSettingsToggle={() => setSettingsOpen(open => !open)} menuId={menuId} menuHeight={Math.max(44, size.height - 96)} />
+      : <div className="flex items-center justify-between">
         {/* Left controls */}
         <div className="flex items-center gap-2">
           {/* Previous track button */}
@@ -173,18 +214,8 @@ export function VideoControls({
           )}
 
           {features.qualitySelector !== false && state.availableQualities.length > 1 && (
-            <button
-              onClick={() => onQualityChange?.(state.currentQuality)}
-              disabled={disabled}
-              className={cn(
-                'px-2 py-1 rounded text-sm text-white/80',
-                'hover:text-white hover:bg-white/10',
-                'transition-colors',
-                disabled && 'opacity-50 cursor-not-allowed'
-              )}
-            >
-              {state.currentQuality}
-            </button>
+            <QualitySelector currentQuality={state.currentQuality} qualities={state.availableQualities}
+              disabled={disabled} onQualityChange={onQualityChange ?? controls.setQuality} />
           )}
 
           {features.subtitles !== false && subtitles.length > 0 && (
@@ -236,7 +267,7 @@ export function VideoControls({
             </button>
           )}
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

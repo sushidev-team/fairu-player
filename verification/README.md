@@ -3,6 +3,13 @@
 Real-browser proof that `<fairu-player>` works in Vue, Angular, Svelte and plain
 HTML.
 
+The mobile video spec also tests the built React player with touch input in
+Chromium and WebKit: 320/375/430 px control hit areas, playback, mute, revealing
+hidden controls, scrollable settings, subtitles, quality, speed and volume.
+The silent 30-second H.264 fixture is generated locally, so these checks need
+no third-party video host. To avoid other local Vite servers, set
+`FAIRU_PLAYER_VERIFY_PORT_BASE=15881` (four consecutive ports).
+
 ## Why this exists
 
 The unit tests in `src/wc/` drive the element the way a framework would — set a

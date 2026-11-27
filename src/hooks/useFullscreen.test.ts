@@ -77,6 +77,34 @@ describe('useFullscreen', () => {
   });
 
   describe('enterFullscreen', () => {
+    it('uses iPhone native video fullscreen and follows its begin/end events', async () => {
+      const video = document.createElement('video');
+      const { ref, element } = makeRef();
+      element.append(video);
+      const enter = vi.fn();
+      const exit = vi.fn();
+      const change = vi.fn();
+      (video as unknown as Mutable).webkitEnterFullscreen = enter;
+      (video as unknown as Mutable).webkitExitFullscreen = exit;
+      const { result } = renderHook(() => useFullscreen(ref, { onChange: change }));
+      await act(async () => result.current.enterFullscreen());
+      expect(enter).toHaveBeenCalledOnce();
+      act(() => {
+        (video as unknown as Mutable).webkitDisplayingFullscreen = true;
+        video.dispatchEvent(new Event('webkitbeginfullscreen'));
+      });
+      expect(result.current.isFullscreen).toBe(true);
+      expect(change).toHaveBeenLastCalledWith(true);
+      await act(async () => result.current.toggleFullscreen());
+      expect(exit).toHaveBeenCalledOnce();
+      act(() => {
+        (video as unknown as Mutable).webkitDisplayingFullscreen = false;
+        video.dispatchEvent(new Event('webkitendfullscreen'));
+      });
+      expect(result.current.isFullscreen).toBe(false);
+      expect(change).toHaveBeenLastCalledWith(false);
+    });
+
     it('uses the standard API on the container', async () => {
       const { ref, element } = makeRef();
       const requestFullscreen = vi.fn(async () => {});

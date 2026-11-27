@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 
+type WebKitVideo = HTMLVideoElement & {
+  webkitEnterFullscreen?: () => void;
+  webkitExitFullscreen?: () => void;
+  webkitDisplayingFullscreen?: boolean;
+};
+
+function nativeVideo(element: HTMLElement | null): WebKitVideo | null {
+  return ((element?.tagName === 'VIDEO' ? element : element?.querySelector('video')) ?? null) as WebKitVideo | null;
+}
+
 export interface UseFullscreenOptions {
   onChange?: (isFullscreen: boolean) => void;
 }
@@ -29,7 +39,8 @@ export function useFullscreen(
     (document.fullscreenEnabled ||
       (document as any).webkitFullscreenEnabled ||
       (document as any).mozFullScreenEnabled ||
-      (document as any).msFullscreenEnabled);
+      (document as any).msFullscreenEnabled ||
+      (typeof HTMLVideoElement !== 'undefined' && typeof (HTMLVideoElement.prototype as WebKitVideo).webkitEnterFullscreen === 'function'));
 
   // Get current fullscreen element
   const getFullscreenElement = useCallback((): Element | null => {
@@ -57,6 +68,9 @@ export function useFullscreen(
         await (target as any).mozRequestFullScreen();
       } else if ((target as any).msRequestFullscreen) {
         await (target as any).msRequestFullscreen();
+      } else {
+        // iPhone Safari exposes fullscreen on the media element, not its wrapper.
+        nativeVideo(target)?.webkitEnterFullscreen?.();
       }
     } catch (error) {
       console.error('Failed to enter fullscreen:', error);
@@ -66,7 +80,10 @@ export function useFullscreen(
   // Exit fullscreen
   const exitFullscreen = useCallback(async () => {
     try {
-      if (document.exitFullscreen) {
+      const video = nativeVideo(containerRef.current);
+      if (video?.webkitDisplayingFullscreen && video.webkitExitFullscreen) {
+        video.webkitExitFullscreen();
+      } else if (document.exitFullscreen) {
         await document.exitFullscreen();
       } else if ((document as any).webkitExitFullscreen) {
         await (document as any).webkitExitFullscreen();
@@ -78,7 +95,7 @@ export function useFullscreen(
     } catch (error) {
       console.error('Failed to exit fullscreen:', error);
     }
-  }, []);
+  }, [containerRef]);
 
   // Toggle fullscreen
   const toggleFullscreen = useCallback(async (element?: HTMLElement | null) => {
@@ -93,10 +110,15 @@ export function useFullscreen(
   useEffect(() => {
     const handleFullscreenChange = () => {
       const fullscreenElement = getFullscreenElement();
-      const newIsFullscreen = !!fullscreenElement;
+      const newIsFullscreen = !!fullscreenElement || !!nativeVideo(containerRef.current)?.webkitDisplayingFullscreen;
       setIsFullscreen(newIsFullscreen);
       onChange?.(newIsFullscreen);
     };
+    const handleNativeBegin = () => { setIsFullscreen(true); onChange?.(true); };
+    const handleNativeEnd = () => { setIsFullscreen(false); onChange?.(false); };
+    const video = nativeVideo(containerRef.current);
+    video?.addEventListener('webkitbeginfullscreen', handleNativeBegin);
+    video?.addEventListener('webkitendfullscreen', handleNativeEnd);
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
@@ -108,8 +130,10 @@ export function useFullscreen(
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
       document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
       document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+      video?.removeEventListener('webkitbeginfullscreen', handleNativeBegin);
+      video?.removeEventListener('webkitendfullscreen', handleNativeEnd);
     };
-  }, [getFullscreenElement, onChange]);
+  }, [getFullscreenElement, onChange, containerRef]);
 
   return {
     isFullscreen,

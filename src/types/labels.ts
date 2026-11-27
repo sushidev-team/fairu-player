@@ -124,6 +124,7 @@ export interface PlayerLabels {
   shareTimestamp?: string;
   shareCopied?: string;
   shareFailed?: string;
+  playerSettings?: string;
 }
 
 /**
@@ -131,6 +132,7 @@ export interface PlayerLabels {
  */
 export const defaultLabels = {
   play: 'Play',
+  playerSettings: 'Player settings',
   pause: 'Pause',
   mute: 'Mute',
   unmute: 'Unmute',

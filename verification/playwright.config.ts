@@ -1,4 +1,4 @@
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 import { PORTS } from './shared/vite.base';
 
 /**
@@ -35,9 +35,11 @@ export default defineConfig({
   // starting real playback, so autoplay policy never enters into it — and a
   // Chromium-only launch argument would have made this matrix uneven anyway.
   projects: [
-    { name: 'chromium', use: { browserName: 'chromium' } },
-    { name: 'firefox', use: { browserName: 'firefox' } },
-    { name: 'webkit', use: { browserName: 'webkit' } },
+    { name: 'chromium', testIgnore: '**/mobile-video.spec.ts', use: { browserName: 'chromium' } },
+    { name: 'firefox', testIgnore: '**/mobile-video.spec.ts', use: { browserName: 'firefox' } },
+    { name: 'webkit', testIgnore: '**/mobile-video.spec.ts', use: { browserName: 'webkit' } },
+    { name: 'mobile-chromium', testMatch: '**/mobile-video.spec.ts', use: { ...devices['Pixel 5'] } },
+    { name: 'mobile-webkit', testMatch: '**/mobile-video.spec.ts', use: { ...devices['iPhone 13'] } },
   ],
 
   webServer: apps.map((app) => ({

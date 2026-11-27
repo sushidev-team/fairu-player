@@ -38,6 +38,66 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Compact video controls follow the embedded player's width, not the viewport. */
+.fp-video-compact-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.fp-video-controls-compact button,
+.fp-video-controls-compact select,
+.fp-video-controls-compact [role='slider'] {
+  min-height: 44px;
+}
+
+.fp-video-controls-compact button {
+  min-width: 44px;
+  flex-shrink: 0;
+}
+
+.fp-video-time {
+  white-space: nowrap;
+  color: white;
+  font-size: 12px;
+}
+
+.fp-video-mute [role='slider'] {
+  display: none;
+}
+
+.fp-video-settings {
+  position: absolute;
+  inset-inline: 8px;
+  bottom: 64px;
+  z-index: 2;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--fp-color-surface, #18181b);
+  color: var(--fp-color-text, white);
+  box-shadow: 0 4px 20px #0008;
+}
+
+.fp-video-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 12px;
+}
+
+.fp-video-settings-row select {
+  min-width: 80px;
+  max-width: 55%;
+  border-radius: 4px;
+  padding-inline: 8px;
+  background: var(--fp-color-surface-hover, #27272a);
+  color: inherit;
+}
+
 /* Focus styles for accessibility */
 .fairu-player *:focus-visible {
   outline: 2px solid var(--fp-color-primary);

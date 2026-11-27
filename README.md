@@ -1460,6 +1460,9 @@ npm run build:lib
 npm run typecheck
 ```
 
+Release authentication, exact-tag builds and failed-publication recovery are
+documented in [Releasing](docs/RELEASING.md).
+
 ## Fairu.app Hosting
 
 The player includes built-in support for [fairu.app](https://fairu.app) as a media hosting solution. When using fairu.app, you only need to provide the file UUID - the player automatically constructs the correct URLs for media files and cover images.

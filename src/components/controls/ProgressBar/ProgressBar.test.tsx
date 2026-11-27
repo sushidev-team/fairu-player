@@ -40,6 +40,19 @@ function setup(props: Partial<React.ComponentProps<typeof ProgressBar>> = {}) {
 }
 
 describe('ProgressBar marker authoring', () => {
+  it('ends a cancelled touch scrub and ignores later moves', () => {
+    const onSeek = vi.fn();
+    const onSeekEnd = vi.fn();
+    const { bar } = setup({ onSeek, onSeekEnd });
+    fireEvent.touchStart(bar, { touches: [{ clientX: 50 }] });
+    expect(onSeek).toHaveBeenLastCalledWith(50);
+    fireEvent.touchCancel(bar);
+    expect(onSeekEnd).toHaveBeenCalledTimes(1);
+    onSeek.mockClear();
+    fireEvent.touchMove(bar, { touches: [{ clientX: 120 }] });
+    expect(onSeek).not.toHaveBeenCalled();
+  });
+
   it('adds a marker where the bar was double clicked', () => {
     const onMarkerAdd = vi.fn();
     const { bar } = setup({ onMarkerAdd });

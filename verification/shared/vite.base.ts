@@ -30,6 +30,7 @@ export function baseConfig(app: string, port: number): UserConfig {
       alias: {
         '@fairu/player/wc': resolve(repoRoot, 'dist/wc.js'),
         '@fairu/player/styles.css': resolve(repoRoot, 'dist/player.css'),
+        '@fairu/player': resolve(repoRoot, 'dist/index.js'),
         '@shared': resolve(here),
       },
     },
@@ -38,9 +39,10 @@ export function baseConfig(app: string, port: number): UserConfig {
   };
 }
 
+const portBase = Number(process.env.FAIRU_PLAYER_VERIFY_PORT_BASE ?? 5181);
 export const PORTS = {
-  plain: 5181,
-  vue: 5182,
-  svelte: 5183,
-  angular: 5184,
+  plain: portBase,
+  vue: portBase + 1,
+  svelte: portBase + 2,
+  angular: portBase + 3,
 } as const;

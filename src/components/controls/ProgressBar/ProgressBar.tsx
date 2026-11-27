@@ -339,7 +339,7 @@ export function ProgressBar({
       aria-valuenow={currentTime}
       aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
       className={cn(
-        'group relative w-full cursor-pointer',
+        'group relative w-full cursor-pointer touch-none',
         'py-2', // Larger hit area
         disabled && 'cursor-not-allowed opacity-50',
         className
@@ -351,6 +351,7 @@ export function ProgressBar({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
       onDoubleClick={handleDoubleClick}
       onKeyDown={handleKeyDown}
     >

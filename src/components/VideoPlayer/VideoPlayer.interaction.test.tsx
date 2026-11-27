@@ -52,6 +52,21 @@ function play() {
 
 describe('VideoPlayer interaction', () => {
   describe('pointer handling', () => {
+    it('reveals hidden controls on touch without toggling playback', () => {
+      vi.useFakeTimers();
+      try {
+        render(<VideoPlayer config={{ track: TRACK, controlsHideDelay: 1000 }} />);
+        play();
+        act(() => { vi.advanceTimersByTime(1000); });
+        const bar = container().querySelector('[data-player-controls]');
+        expect(bar).toHaveClass('pointer-events-none');
+        fireEvent.pointerDown(videoEl(), { pointerType: 'touch', pointerId: 1 });
+        expect(bar).not.toHaveClass('pointer-events-none');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('reveals the controls on mouse move', () => {
       vi.useFakeTimers();
       render(<VideoPlayer config={{ track: TRACK, controlsHideDelay: 1000 }} />);
