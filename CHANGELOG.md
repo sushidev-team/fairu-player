@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.1](https://github.com/sushidev-team/fairu-player/compare/v1.8.0...v1.8.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* **player:** restore mobile controls and release workflow checks ([2157b3e](https://github.com/sushidev-team/fairu-player/commit/2157b3e2752d156c148ae8b889dbf917a51096da))
+
 ## [1.8.0](https://github.com/sushidev-team/fairu-player/compare/v1.7.0...v1.8.0) (2026-08-25)
 
 
